@@ -72,6 +72,5 @@ report/
 *.temp
 *.bak
 
-# FPF (optional - comment out if you want to track reasoning context)
-# .quint/knowledge/L*/
-# .quint/reports/
+# FPF (Formal Proof Framework) - local vibe coding context, not tracked
+.quint/
