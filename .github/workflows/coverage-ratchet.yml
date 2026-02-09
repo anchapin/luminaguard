@@ -15,7 +15,7 @@ jobs:
       rust-coverage: ${{ steps.rust.outputs.coverage }}
       python-coverage: ${{ steps.python.outputs.coverage }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0  # Need history for comparison
 
@@ -75,7 +75,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: measure-coverage
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Create baseline if needed
         run: |
@@ -149,7 +149,7 @@ jobs:
     name: Documentation Freshness
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Python
         uses: actions/setup-python@v4
