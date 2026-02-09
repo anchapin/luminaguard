@@ -130,8 +130,19 @@ jobs:
       - name: Install jscpd
         run: npm install -g jscpd
 
-      - name: Detect duplicate code
+      - name: Install jq for JSON parsing
         run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+
+      - name: Check duplication threshold
+        run: |
+          set -euo pipefail
+
+          # Remove any previous report
+          rm -f jscpd-report.json
+
+          # Generate JSON report to a file
           jscpd agent/ \
             -i "**/.venv/**" \
             -i "**/node_modules/**" \
@@ -139,32 +150,19 @@ jobs:
             -i "**/site-packages/**" \
             -i "**/__pycache__/**" \
             --min-lines 10 \
-            --reporters console
-          echo "✅ Duplicate code check passed"
+            --reporters json \
+            --output .
 
-      - name: Check duplication threshold
-        run: |
-          RESULT=$(jscpd agent/ \
-            -i "**/.venv/**" \
-            -i "**/node_modules/**" \
-            -i "**/.git/**" \
-            -i "**/site-packages/**" \
-            -i "**/__pycache__/**" \
-            --min-lines 10 \
-            --format json)
-
-          # Validate JSON before parsing
-          if ! echo "$RESULT" | jq -e . >/dev/null 2>&1; then
-            echo "❌ Error: jscpd did not output valid JSON"
-            echo "This usually means jscpd encountered an error."
-            echo ""
-            echo "Raw output:"
-            echo "$RESULT"
+          # Verify the report file was created
+          if [ ! -f jscpd-report.json ]; then
+            echo "❌ Expected jscpd-report.json was not created"
+            echo "Directory contents:"
+            ls -la
             exit 1
           fi
 
-          # Parse JSON with jq
-          CLONES=$(echo "$RESULT" | jq -r '.report.total.clones // 0')
+          # Parse the JSON report file
+          CLONES=$(jq -r '.report.total.clones // 0' jscpd-report.json)
 
           echo "🔍 Duplicate code blocks found: $CLONES"
 
