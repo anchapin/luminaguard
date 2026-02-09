@@ -53,6 +53,9 @@ ehthumbs.db
 htmlcov/
 .tox/
 .hypothesis/
+**/coverage.xml
+**/jscpd-report.json
+report/
 
 # Builds
 *.so
