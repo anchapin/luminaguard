@@ -1,0 +1,13 @@
+{
+  "threshold": 5,
+  "reporters": ["console", "json"],
+  "ignore": [
+    "**/.venv/**",
+    "**/node_modules/**",
+    "**/.git/**",
+    "**/target/**"
+  ],
+  "format": ["python", "rust"],
+  "minLines": 10,
+  "maxLines": 1000
+}

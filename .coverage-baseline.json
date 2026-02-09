@@ -1,0 +1,8 @@
+{
+  "rust": "0.0",
+  "python": "78.6",
+  "rust_target": "75.0",
+  "python_target": "75.0",
+  "rust_ratchet": "0.0",
+  "python_ratchet": "78.6"
+}

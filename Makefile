@@ -1,7 +1,7 @@
 # IronClaw Makefile
 # Unified development automation for Rust + Python monorepo
 
-.PHONY: all install test fmt clean dev help docs lint
+.PHONY: all install test fmt clean dev help docs lint branch-protection
 
 all: test
 
@@ -19,9 +19,13 @@ install:
 	@pre-commit --version 2>/dev/null || pip install --quiet pre-commit
 	@echo "[Hooks] Installing pre-commit hooks..."
 	@cd agent && .venv/bin/pre-commit install 2>/dev/null || echo "  (pre-commit configured but requires git init)"
+	@echo "[Git] Installing git workflow hook..."
+	@cp .githooks/pre-commit .git/hooks/pre-commit 2>/dev/null || echo "  (git hooks will be installed on first commit)"
+	@chmod +x .git/hooks/pre-commit 2>/dev/null || true
 	@echo ""
 	@echo "✅ Installation complete!"
 	@echo "   Run 'make test' to verify setup"
+	@echo "   Run 'make branch-protection' to enable GitHub branch rules"
 
 test:
 	@echo ""
@@ -92,12 +96,17 @@ docs:
 	@echo "[Python] Documentation in docs/"
 	@echo "✅ Documentation ready!"
 
+branch-protection:
+	@echo "🔒 Setting up GitHub branch protection..."
+	@./scripts/setup-branch-protection.sh
+
 help:
 	@echo "IronClaw Development Commands"
 	@echo ""
 	@echo "Setup:"
-	@echo "  make install    Install development dependencies"
-	@echo "  make clean      Remove build artifacts"
+	@echo "  make install            Install development dependencies"
+	@echo "  make branch-protection  Enable GitHub branch protection rules"
+	@echo "  make clean              Remove build artifacts"
 	@echo ""
 	@echo "Development:"
 	@echo "  make test       Run all tests (Rust + Python)"
@@ -105,6 +114,11 @@ help:
 	@echo "  make test-python Run Python tests only"
 	@echo "  make fmt        Format all code"
 	@echo "  make lint       Run linters (clippy, mypy, pylint)"
+	@echo ""
+	@echo "Git Workflow:"
+	@echo "  ./scripts/git-workflow.sh start ISSUE-NUM 'desc'  Start feature branch"
+	@echo "  ./scripts/git-workflow.sh submit                 Create pull request"
+	@echo "  ./scripts/git-workflow.sh status                 Show workflow status"
 	@echo ""
 	@echo "Other:"
 	@echo "  make dev        Show development commands"

@@ -63,6 +63,64 @@ repos:
         name: Fix mixed line endings
         args: ['--fix=lf']
 
+  # Coverage ratchet hooks
+  - repo: local
+    hooks:
+      - id: coverage-ratchet-check
+        name: Check coverage ratchet (Python)
+        entry: scripts/check-coverage-ratchet.sh
+        language: system
+        pass_if: true
+        files: ^agent/.*\.py$
+
+      - id: rust-coverage-ratchet
+        name: Check coverage ratchet (Rust)
+        entry: bash -c 'cd orchestrator && cargo tarpaulin --exclude-files "*/tests/*" --timeout 120 -- --test-threads=1 | grep -E "^\d+.\d+% coverage" || echo "No coverage yet"'
+        language: system
+        pass_if: true
+        files: ^orchestrator/.*\.rs$
+
+      - id: doc-todo-check
+        name: Check docs for TODOs
+        entry: bash -c 'if grep -r "TODO\|FIXME\|XXX" docs/ 2>/dev/null; then echo "⚠️  Documentation contains TODOs"; fi'
+        language: system
+        files: ^docs/.*\.md$
+        pass_if: true
+
+  # Quality Guardrails (Week 1 Implementation)
+  - repo: local
+    hooks:
+      # Python Complexity Analysis (radon)
+      - id: python-complexity
+        name: Python complexity check (radon)
+        entry: bash -c 'cd agent && source .venv/bin/activate && radon cc . -a -nb'
+        language: system
+        pass_filenames: false
+        files: ^agent/.*\.py$
+
+      # Python Documentation Coverage (interrogate)
+      - id: python-docs
+        name: Python documentation coverage (interrogate)
+        entry: bash -c 'cd agent && source .venv/bin/activate && interrogate . --fail-under=60 --vv'
+        language: system
+        pass_filenames: false
+        files: ^agent/.*\.py$
+
+      # Dead Code Detection (pycln)
+      - id: python-dead-code
+        name: Python dead code detection (pycln)
+        entry: bash -c 'cd agent && source .venv/bin/activate && pycln . --check'
+        language: system
+        pass_filenames: false
+        files: ^agent/.*\.py$
+
+      # Duplicate Code Detection (jscpd)
+      - id: duplicate-code
+        name: Duplicate code detection (jscpd)
+        entry: jscpd . -i "**/.venv/**" -i "**/node_modules/**" -i "**/.git/**" -i "**/target/**" --reporters console --min-lines 10
+        language: system
+        pass_filenames: false
+
 # CI-specific configuration
 ci:
   autofix_commit_msg: |

@@ -1,0 +1,45 @@
+#!/bin/bash
+# IronClaw Pre-commit Hook
+# Blocks commits to protected branches (main, master, develop)
+
+set -e
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Get current branch name
+CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+
+# Define protected branches
+PROTECTED_BRANCHES="^(main|master|develop)$"
+
+# Check if current branch is protected
+if [[ "$CURRENT_BRANCH" =~ $PROTECTED_BRANCHES ]]; then
+  echo -e "${RED}❌ BLOCKED: Cannot commit directly to $CURRENT_BRANCH${NC}"
+  echo ""
+  echo "IronClaw requires all changes to go through pull requests."
+  echo ""
+  echo "Required workflow:"
+  echo "  1. Create GitHub issue:"
+  echo -e "     ${GREEN}gh issue create --title 'Description' --body 'Details'${NC}"
+  echo ""
+  echo "  2. Create feature branch:"
+  echo -e "     ${GREEN}git checkout -b feature/ISSUE-NUM-description${NC}"
+  echo "     Or use the workflow script:"
+  echo -e "     ${GREEN}./scripts/git-workflow.sh start ISSUE-NUM 'description'${NC}"
+  echo ""
+  echo "  3. Make changes and commit normally"
+  echo ""
+  echo "  4. Create pull request:"
+  echo -e "     ${GREEN}gh pr create --body 'Closes #ISSUE-NUM'${NC}"
+  echo "     Or use the workflow script:"
+  echo -e "     ${GREEN}./scripts/git-workflow.sh submit${NC}"
+  echo ""
+  echo "Documentation: See CLAUDE.md section 'Git Workflow (AI-Agent Enforced)'"
+  exit 1
+fi
+
+echo -e "${GREEN}✅ Pre-commit check passed${NC}"
+exit 0

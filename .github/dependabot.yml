@@ -1,0 +1,47 @@
+version: 2
+updates:
+  # Rust dependencies (Orchestrator)
+  - package-ecosystem: "cargo"
+    directory: "/orchestrator"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "alexc"
+    labels:
+      - "dependencies"
+      - "rust"
+    commit-message:
+      prefix: "chore(cargo)"
+      include: "scope"
+
+  # Python dependencies (Agent)
+  - package-ecosystem: "pip"
+    directory: "/agent"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "alexc"
+    labels:
+      - "dependencies"
+      - "python"
+    commit-message:
+      prefix: "chore(pip)"
+      include: "scope"
+
+  # GitHub Actions dependencies
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "alexc"
+    labels:
+      - "dependencies"
+      - "ci"
+    commit-message:
+      prefix: "ci(github-actions)"
