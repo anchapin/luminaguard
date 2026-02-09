@@ -31,8 +31,7 @@ serde_json = "1.0"
 async-trait = "0.1"
 
 # HTTP client (for HTTP transport - Phase 2)
-# hyper = { version = "1.0", features = ["full"] }
-# NOTE: Will add hyper in Phase 2 when implementing HTTP transport
+reqwest = { version = "0.12", features = ["json"] }
 
 [dev-dependencies]
 # Property-based testing

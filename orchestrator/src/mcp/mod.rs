@@ -24,6 +24,9 @@ pub mod protocol;
 // Transport layer: stdio and HTTP transports
 pub mod transport;
 
+// HTTP transport for remote MCP servers
+pub mod http_transport;
+
 // Client layer: High-level MCP client API
 pub mod client;
 
@@ -35,6 +38,7 @@ pub use protocol::{
 
 // Re-export transport types
 pub use transport::StdioTransport;
+pub use http_transport::HttpTransport;
 
 // Re-export client types
 pub use client::{ClientState, McpClient};
