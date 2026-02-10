@@ -46,8 +46,6 @@ pub use transport::StdioTransport;
 // Re-export client types
 pub use client::{ClientState, McpClient};
 
-// Note: Old placeholder client removed - now using client::McpClient
-
 // Integration tests module
 // These tests are ignored by default - run with: cargo test --lib -- --ignored
 #[cfg(test)]

@@ -10,24 +10,17 @@ use hyper_util::rt::TokioIo;
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 use std::time::Instant;
-#[cfg(unix)]
 use tokio::net::UnixStream;
 use tokio::process::{Child, Command};
 use tracing::{debug, info};
 
 use crate::vm::config::VmConfig;
-use crate::vm::seccomp::validate_seccomp_rules;
-
-// Type aliases to simplify complex hyper types
-type HttpSendRequest = hyper::client::conn::http1::SendRequest<Full<Bytes>>;
-type HttpConnection = hyper::client::conn::http1::Connection<TokioIo<UnixStream>, Full<Bytes>>;
 
 /// Firecracker VM process manager
 #[derive(Debug)]
 pub struct FirecrackerProcess {
     pub pid: u32,
     pub socket_path: String,
-    pub seccomp_path: String,
     pub child_process: Option<Child>,
     pub spawn_time_ms: f64,
 }
@@ -62,7 +55,6 @@ struct Action {
 }
 
 /// Start a Firecracker VM process
-#[cfg(unix)]
 pub async fn start_firecracker(config: &VmConfig) -> Result<FirecrackerProcess> {
     let start_time = Instant::now();
     info!("Starting Firecracker VM: {}", config.vm_id);
@@ -78,7 +70,7 @@ pub async fn start_firecracker(config: &VmConfig) -> Result<FirecrackerProcess> 
         return Err(anyhow!("Root filesystem not found at: {:?}", rootfs_path));
     }
 
-    // 2. Prepare socket path and seccomp filter
+    // 2. Prepare socket path
     let socket_path = format!("/tmp/firecracker-{}.socket", config.vm_id);
     if Path::new(&socket_path).exists() {
         tokio::fs::remove_file(&socket_path)
@@ -86,23 +78,9 @@ pub async fn start_firecracker(config: &VmConfig) -> Result<FirecrackerProcess> 
             .context("Failed to remove existing socket")?;
     }
 
-    // Prepare seccomp filter
-    let seccomp_filter = config.seccomp_filter.clone().unwrap_or_default();
-    validate_seccomp_rules(&seccomp_filter).context("Invalid seccomp configuration")?;
-
-    let seccomp_json = seccomp_filter
-        .to_firecracker_json()
-        .context("Failed to serialize seccomp filter")?;
-
-    let seccomp_path = format!("/tmp/firecracker-{}.seccomp", config.vm_id);
-    tokio::fs::write(&seccomp_path, seccomp_json)
-        .await
-        .context("Failed to write seccomp filter file")?;
-
     // 3. Spawn Firecracker process
     let mut command = Command::new("firecracker");
     command.arg("--api-sock").arg(&socket_path);
-    command.arg("--seccomp-filter").arg(&seccomp_path);
 
     // Redirect stdout/stderr to null or log file to keep output clean
     command.stdout(std::process::Stdio::null());
@@ -156,14 +134,12 @@ pub async fn start_firecracker(config: &VmConfig) -> Result<FirecrackerProcess> 
     Ok(FirecrackerProcess {
         pid,
         socket_path,
-        seccomp_path,
         child_process: Some(child),
         spawn_time_ms,
     })
 }
 
 /// Stop a Firecracker VM process
-#[cfg(unix)]
 pub async fn stop_firecracker(mut process: FirecrackerProcess) -> Result<()> {
     info!("Stopping Firecracker VM (PID: {})", process.pid);
 
@@ -182,17 +158,11 @@ pub async fn stop_firecracker(mut process: FirecrackerProcess) -> Result<()> {
         let _ = tokio::fs::remove_file(&process.socket_path).await;
     }
 
-    // Cleanup seccomp filter
-    if Path::new(&process.seccomp_path).exists() {
-        let _ = tokio::fs::remove_file(&process.seccomp_path).await;
-    }
-
     Ok(())
 }
 
 // Helper functions for API interaction
 
-#[cfg(unix)]
 async fn send_request<T: Serialize>(
     socket_path: &str,
     method: hyper::Method,
@@ -203,14 +173,13 @@ async fn send_request<T: Serialize>(
     // though reusing it would be slightly faster.
     // Given the low number of requests, this is acceptable.
 
-    let stream: UnixStream = UnixStream::connect(socket_path)
+    let stream = UnixStream::connect(socket_path)
         .await
         .context("Failed to connect to firecracker socket")?;
     let io = TokioIo::new(stream);
-    let (mut sender, conn): (HttpSendRequest, HttpConnection) =
-        hyper::client::conn::http1::handshake(io)
-            .await
-            .context("Handshake failed")?;
+    let (mut sender, conn) = hyper::client::conn::http1::handshake(io)
+        .await
+        .context("Handshake failed")?;
 
     tokio::task::spawn(async move {
         if let Err(err) = conn.await {
@@ -234,7 +203,7 @@ async fn send_request<T: Serialize>(
         .body(req_body)
         .context("Failed to build request")?;
 
-    let res: hyper::Response<hyper::body::Incoming> = sender
+    let res = sender
         .send_request(req)
         .await
         .context("Failed to send request")?;
@@ -243,13 +212,12 @@ async fn send_request<T: Serialize>(
         Ok(())
     } else {
         let status = res.status();
-        let body_bytes: Bytes = res.collect().await?.to_bytes();
+        let body_bytes = res.collect().await?.to_bytes();
         let body_str = String::from_utf8_lossy(&body_bytes);
         Err(anyhow!("Firecracker API error: {} - {}", status, body_str))
     }
 }
 
-#[cfg(unix)]
 async fn configure_vm(socket_path: &str, config: &VmConfig) -> Result<()> {
     // 1. Set Boot Source
     let boot_source = BootSource {
@@ -298,7 +266,6 @@ async fn configure_vm(socket_path: &str, config: &VmConfig) -> Result<()> {
     Ok(())
 }
 
-#[cfg(unix)]
 async fn start_instance(socket_path: &str) -> Result<()> {
     let action = Action {
         action_type: "InstanceStart".to_string(),
@@ -306,17 +273,6 @@ async fn start_instance(socket_path: &str) -> Result<()> {
     send_request(socket_path, hyper::Method::PUT, "/actions", Some(&action))
         .await
         .context("Failed to start instance")?;
-    Ok(())
-}
-
-// Dummy implementations for non-unix systems (Windows)
-#[cfg(not(unix))]
-pub async fn start_firecracker(_config: &VmConfig) -> anyhow::Result<FirecrackerProcess> {
-    anyhow::bail!("Firecracker is only supported on Unix systems")
-}
-
-#[cfg(not(unix))]
-pub async fn stop_firecracker(_process: FirecrackerProcess) -> anyhow::Result<()> {
     Ok(())
 }
 
@@ -368,56 +324,5 @@ mod tests {
             .contains("Root filesystem not found"));
 
         let _ = std::fs::remove_file(kernel_path);
-    }
-
-    #[tokio::test]
-    async fn test_seccomp_filter_creation() {
-        // Create dummy resources
-        let temp_dir = std::env::temp_dir();
-        let kernel_path = temp_dir.join("dummy_kernel_seccomp");
-        let rootfs_path = temp_dir.join("dummy_rootfs_seccomp");
-
-        {
-            use std::fs::File;
-            let _ = File::create(&kernel_path).unwrap();
-            let _ = File::create(&rootfs_path).unwrap();
-        }
-
-        let vm_id = "test-seccomp-vm";
-        let config = VmConfig {
-            vm_id: vm_id.to_string(),
-            kernel_path: kernel_path.to_str().unwrap().to_string(),
-            rootfs_path: rootfs_path.to_str().unwrap().to_string(),
-            ..VmConfig::default()
-        };
-
-        // This is expected to fail because firecracker binary is likely missing or configuration is invalid for dummy kernel
-        let _result = start_firecracker(&config).await;
-
-        // Verify seccomp file exists
-        let seccomp_path = std::path::PathBuf::from(format!("/tmp/firecracker-{}.seccomp", vm_id));
-        assert!(
-            seccomp_path.exists(),
-            "Seccomp filter file should be created"
-        );
-
-        // Verify content is JSON
-        let content = std::fs::read_to_string(&seccomp_path).unwrap();
-        assert!(
-            content.contains("seccomp"),
-            "File content should be JSON with seccomp key"
-        );
-
-        // Cleanup
-        let _ = std::fs::remove_file(&kernel_path);
-        let _ = std::fs::remove_file(&rootfs_path);
-        if seccomp_path.exists() {
-            let _ = std::fs::remove_file(&seccomp_path);
-        }
-        // Also cleanup socket if it exists
-        let socket_path = std::path::PathBuf::from(format!("/tmp/firecracker-{}.socket", vm_id));
-        if socket_path.exists() {
-            let _ = std::fs::remove_file(&socket_path);
-        }
     }
 }
