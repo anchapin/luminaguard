@@ -662,9 +662,15 @@ mod tests {
         // We inserted 0..(N+500). We kept the last N.
         // So the first kept entry should be index 500.
         // PID was 1000 + i. So 1000 + 500 = 1500.
-        assert_eq!(entries[0].pid, 1000 + (iterations - MAX_SECCOMP_LOG_ENTRIES) as u32);
+        assert_eq!(
+            entries[0].pid,
+            1000 + (iterations - MAX_SECCOMP_LOG_ENTRIES) as u32
+        );
 
         // The last entry should be the last inserted
-        assert_eq!(entries[entries.len() - 1].pid, 1000 + (iterations - 1) as u32);
+        assert_eq!(
+            entries[entries.len() - 1].pid,
+            1000 + (iterations - 1) as u32
+        );
     }
 }

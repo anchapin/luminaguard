@@ -129,7 +129,10 @@ pub async fn spawn_vm_with_config(task_id: &str, config: &VmConfig) -> Result<Vm
     // Apply firewall rules (may fail if not root)
     match firewall_manager.configure_isolation() {
         Ok(_) => {
-            tracing::info!("Firewall isolation configured for VM: {}", config_with_seccomp.vm_id);
+            tracing::info!(
+                "Firewall isolation configured for VM: {}",
+                config_with_seccomp.vm_id
+            );
         }
         Err(e) => {
             tracing::warn!(
@@ -144,10 +147,16 @@ pub async fn spawn_vm_with_config(task_id: &str, config: &VmConfig) -> Result<Vm
     // Verify firewall rules are active (if configured)
     match firewall_manager.verify_isolation() {
         Ok(true) => {
-            tracing::info!("Firewall isolation verified for VM: {}", config_with_seccomp.vm_id);
+            tracing::info!(
+                "Firewall isolation verified for VM: {}",
+                config_with_seccomp.vm_id
+            );
         }
         Ok(false) => {
-            tracing::debug!("Firewall rules not active for VM: {}", config_with_seccomp.vm_id);
+            tracing::debug!(
+                "Firewall rules not active for VM: {}",
+                config_with_seccomp.vm_id
+            );
         }
         Err(e) => {
             tracing::debug!("Failed to verify firewall rules: {}", e);

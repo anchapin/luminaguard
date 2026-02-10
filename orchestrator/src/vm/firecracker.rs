@@ -2,11 +2,11 @@
 //
 // This module handles the actual Firecracker VM spawning using the HTTP API over Unix sockets.
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{anyhow, Context, Result};
+use bytes::Bytes;
+use http_body_util::{BodyExt, Full};
 use hyper::{Request, StatusCode};
 use hyper_util::rt::TokioIo;
-use http_body_util::{BodyExt, Full};
-use bytes::Bytes;
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 use std::time::Instant;
@@ -73,7 +73,9 @@ pub async fn start_firecracker(config: &VmConfig) -> Result<FirecrackerProcess> 
     // 2. Prepare socket path
     let socket_path = format!("/tmp/firecracker-{}.socket", config.vm_id);
     if Path::new(&socket_path).exists() {
-        tokio::fs::remove_file(&socket_path).await.context("Failed to remove existing socket")?;
+        tokio::fs::remove_file(&socket_path)
+            .await
+            .context("Failed to remove existing socket")?;
     }
 
     // 3. Spawn Firecracker process
@@ -84,8 +86,12 @@ pub async fn start_firecracker(config: &VmConfig) -> Result<FirecrackerProcess> 
     command.stdout(std::process::Stdio::null());
     command.stderr(std::process::Stdio::null());
 
-    let mut child = command.spawn().context("Failed to spawn firecracker process")?;
-    let pid = child.id().ok_or_else(|| anyhow!("Failed to get firecracker PID"))?;
+    let mut child = command
+        .spawn()
+        .context("Failed to spawn firecracker process")?;
+    let pid = child
+        .id()
+        .ok_or_else(|| anyhow!("Failed to get firecracker PID"))?;
 
     debug!("Firecracker process started with PID: {}", pid);
 
@@ -141,7 +147,10 @@ pub async fn stop_firecracker(mut process: FirecrackerProcess) -> Result<()> {
     // Or just kill the process. Firecracker usually handles SIGTERM gracefully.
 
     if let Some(mut child) = process.child_process.take() {
-        child.kill().await.context("Failed to kill firecracker process")?;
+        child
+            .kill()
+            .await
+            .context("Failed to kill firecracker process")?;
     }
 
     // Cleanup socket
@@ -158,15 +167,19 @@ async fn send_request<T: Serialize>(
     socket_path: &str,
     method: hyper::Method,
     path: &str,
-    body: Option<&T>
+    body: Option<&T>,
 ) -> Result<()> {
     // We create a new connection for each request for simplicity,
     // though reusing it would be slightly faster.
     // Given the low number of requests, this is acceptable.
 
-    let stream = UnixStream::connect(socket_path).await.context("Failed to connect to firecracker socket")?;
+    let stream = UnixStream::connect(socket_path)
+        .await
+        .context("Failed to connect to firecracker socket")?;
     let io = TokioIo::new(stream);
-    let (mut sender, conn) = hyper::client::conn::http1::handshake(io).await.context("Handshake failed")?;
+    let (mut sender, conn) = hyper::client::conn::http1::handshake(io)
+        .await
+        .context("Handshake failed")?;
 
     tokio::task::spawn(async move {
         if let Err(err) = conn.await {
@@ -190,7 +203,10 @@ async fn send_request<T: Serialize>(
         .body(req_body)
         .context("Failed to build request")?;
 
-    let res = sender.send_request(req).await.context("Failed to send request")?;
+    let res = sender
+        .send_request(req)
+        .await
+        .context("Failed to send request")?;
 
     if res.status().is_success() || res.status() == StatusCode::NO_CONTENT {
         Ok(())
@@ -208,9 +224,14 @@ async fn configure_vm(socket_path: &str, config: &VmConfig) -> Result<()> {
         kernel_image_path: config.kernel_path.clone(),
         boot_args: Some("console=ttyS0 reboot=k panic=1 pci=off".to_string()),
     };
-    send_request(socket_path, hyper::Method::PUT, "/boot-source", Some(&boot_source))
-        .await
-        .context("Failed to configure boot source")?;
+    send_request(
+        socket_path,
+        hyper::Method::PUT,
+        "/boot-source",
+        Some(&boot_source),
+    )
+    .await
+    .context("Failed to configure boot source")?;
 
     // 2. Set Rootfs Drive
     let rootfs = Drive {
@@ -219,18 +240,28 @@ async fn configure_vm(socket_path: &str, config: &VmConfig) -> Result<()> {
         is_root_device: true,
         is_read_only: false,
     };
-    send_request(socket_path, hyper::Method::PUT, "/drives/rootfs", Some(&rootfs))
-        .await
-        .context("Failed to configure rootfs")?;
+    send_request(
+        socket_path,
+        hyper::Method::PUT,
+        "/drives/rootfs",
+        Some(&rootfs),
+    )
+    .await
+    .context("Failed to configure rootfs")?;
 
     // 3. Set Machine Config
     let machine_config = MachineConfiguration {
         vcpu_count: config.vcpu_count,
         mem_size_mib: config.memory_mb,
     };
-    send_request(socket_path, hyper::Method::PUT, "/machine-config", Some(&machine_config))
-        .await
-        .context("Failed to configure machine")?;
+    send_request(
+        socket_path,
+        hyper::Method::PUT,
+        "/machine-config",
+        Some(&machine_config),
+    )
+    .await
+    .context("Failed to configure machine")?;
 
     Ok(())
 }
@@ -268,7 +299,10 @@ mod tests {
         };
         let result = start_firecracker(&config).await;
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Kernel image not found"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Kernel image not found"));
     }
 
     #[tokio::test]
@@ -284,7 +318,10 @@ mod tests {
         };
         let result = start_firecracker(&config).await;
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Root filesystem not found"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Root filesystem not found"));
 
         let _ = std::fs::remove_file(kernel_path);
     }
