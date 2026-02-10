@@ -51,7 +51,7 @@ mod tests {
     async fn spawn_test_vm(vm_id: &str) -> Option<crate::vm::VmHandle> {
         let (kernel_path, rootfs_path) = ensure_test_resources().await?;
 
-        use crate::vm::{spawn_vm_with_config, config::VmConfig};
+        use crate::vm::{config::VmConfig, spawn_vm_with_config};
         let mut config = VmConfig::new(vm_id.to_string());
         config.kernel_path = kernel_path;
         config.rootfs_path = rootfs_path;

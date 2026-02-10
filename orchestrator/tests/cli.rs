@@ -7,7 +7,9 @@ fn test_help() {
     cmd.arg("--help")
         .assert()
         .success()
-        .stdout(predicate::str::contains("Secure agentic AI runtime with JIT Micro-VMs"));
+        .stdout(predicate::str::contains(
+            "Secure agentic AI runtime with JIT Micro-VMs",
+        ));
 }
 
 #[test]
@@ -25,16 +27,15 @@ fn test_run_command_missing_task() {
     cmd.arg("run")
         .assert()
         .failure()
-        .stderr(predicate::str::contains("required arguments were not provided"));
+        .stderr(predicate::str::contains(
+            "required arguments were not provided",
+        ));
 }
 
 #[test]
 fn test_run_command_success() {
     let mut cmd = Command::cargo_bin("ironclaw").unwrap();
-    cmd.arg("run")
-        .arg("test task")
-        .assert()
-        .success();
+    cmd.arg("run").arg("test task").assert().success();
 }
 
 #[test]
@@ -84,11 +85,13 @@ fn test_spawn_vm_command_execution() {
         // If it failed, it should be a known error
         let error_msg = format!("{}{}", stdout, stderr);
         assert!(
-            error_msg.contains("Kernel image not found") ||
-            error_msg.contains("Firecracker API socket") ||
-            error_msg.contains("Failed to spawn firecracker process") ||
-            error_msg.contains("No such file or directory") ||
-             error_msg.contains("failed to run") // catch-all for command spawn fail
-        , "Unexpected error: {}", error_msg);
+            error_msg.contains("Kernel image not found")
+                || error_msg.contains("Firecracker API socket")
+                || error_msg.contains("Failed to spawn firecracker process")
+                || error_msg.contains("No such file or directory")
+                || error_msg.contains("failed to run"), // catch-all for command spawn fail
+            "Unexpected error: {}",
+            error_msg
+        );
     }
 }

@@ -171,6 +171,11 @@ pub async fn stop_firecracker(mut process: FirecrackerProcess) -> Result<()> {
         let _ = tokio::fs::remove_file(&process.socket_path).await;
     }
 
+    // Cleanup seccomp filter
+    if Path::new(&process.seccomp_path).exists() {
+        let _ = tokio::fs::remove_file(&process.seccomp_path).await;
+    }
+
     Ok(())
 }
 
@@ -226,7 +231,7 @@ async fn send_request<T: Serialize>(
         Ok(())
     } else {
         let status = res.status();
-        let body_bytes = res.collect().await?.to_bytes();
+        let body_bytes: Bytes = res.collect().await?.to_bytes();
         let body_str = String::from_utf8_lossy(&body_bytes);
         Err(anyhow!("Firecracker API error: {} - {}", status, body_str))
     }
@@ -253,7 +258,7 @@ async fn configure_vm(socket_path: &str, config: &VmConfig) -> Result<()> {
         drive_id: "rootfs".to_string(),
         path_on_host: config.rootfs_path.clone(),
         is_root_device: true,
-        is_read_only: false,
+        is_read_only: true, // Set to read-only to prevent corruption
     };
     send_request(
         socket_path,
