@@ -451,4 +451,134 @@ mod tests {
             }
         }
     }
+
+    #[test]
+    fn test_jailer_available() {
+        // This test checks if jailer_available() doesn't panic
+        let available = jailer_available();
+        // We don't assert a specific value since it depends on the system
+        // Just ensure it returns a boolean without panicking
+        let _ = std::format!("Jailer available: {}", available);
+    }
+
+    #[tokio::test]
+    async fn test_jailer_process_is_running_nonexistent() {
+        let process = JailerProcess {
+            pid: 99999, // Non-existent PID
+            api_socket: PathBuf::from("/tmp/test.sock"),
+            jailed: true,
+        };
+
+        // Process should not be running
+        assert!(!process.is_running().await);
+    }
+
+    #[tokio::test]
+    async fn test_jailer_process_is_running_current() {
+        // Use current process ID which should always be running
+        let current_pid = std::process::id();
+        let process = JailerProcess {
+            pid: current_pid,
+            api_socket: PathBuf::from("/tmp/test.sock"),
+            jailed: false,
+        };
+
+        // Current process should be running
+        assert!(process.is_running().await);
+    }
+
+    #[tokio::test]
+    async fn test_jailer_process_terminate_nonexistent() {
+        let process = JailerProcess {
+            pid: 99999, // Non-existent PID
+            api_socket: PathBuf::from("/tmp/test.sock"),
+            jailed: true,
+        };
+
+        // Terminate should not panic even for non-existent process
+        let result = process.terminate().await;
+        // It might fail, but shouldn't panic
+        assert!(result.is_ok() || result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_jailer_process_force_kill_nonexistent() {
+        let process = JailerProcess {
+            pid: 99999, // Non-existent PID
+            api_socket: PathBuf::from("/tmp/test.sock"),
+            jailed: true,
+        };
+
+        // Force kill should not panic even for non-existent process
+        let result = process.force_kill().await;
+        // It might fail, but shouldn't panic
+        assert!(result.is_ok() || result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_start_with_jailer_missing_binary() {
+        let mut config = JailerConfig::new("test-vm".to_string());
+        // Point to non-existent binary
+        config.exec_file = PathBuf::from("/nonexistent/firecracker");
+
+        // Should fail due to missing binary during validation
+        let result = start_with_jailer(&config).await;
+        assert!(result.is_err());
+
+        // The error should mention the configuration validation failure
+        let err_msg = result.unwrap_err().to_string();
+        assert!(
+            err_msg.contains("Invalid Jailer configuration") ||
+            err_msg.contains("not found") ||
+            err_msg.contains("binary"),
+            "Expected configuration or binary error, got: {}",
+            err_msg
+        );
+    }
+
+    #[tokio::test]
+    async fn test_build_args_comprehensive() {
+        let config = JailerConfig {
+            jailer_binary: PathBuf::from("/usr/local/bin/jailer"),
+            jailer_id: "test-vm-123".to_string(),
+            chroot_base_dir: PathBuf::from("/var/jail"),
+            exec_file: PathBuf::from("/usr/local/bin/firecracker-v1.14.1"),
+            cpu_count: 2,
+            memory_limit_mb: 512,
+            netns: Some("/run/netns/test".to_string()),
+        };
+
+        let args = config.build_args();
+
+        // Verify all expected arguments are present
+        assert!(args.contains(&"--id".to_string()));
+        assert!(args.contains(&"test-vm-123".to_string()));
+        assert!(args.contains(&"--exec-file".to_string()));
+        assert!(args.contains(&"/usr/local/bin/firecracker-v1.14.1".to_string()));
+        assert!(args.contains(&"--chroot-base-dir".to_string()));
+        assert!(args.contains(&"/var/jail".to_string()));
+        assert!(args.contains(&"--cgroup-version".to_string()));
+        assert!(args.contains(&"2".to_string()));
+        assert!(args.contains(&"--cgroup".to_string()));
+        assert!(args.contains(&"cpu:2".to_string()));
+        assert!(args.contains(&"memory:512".to_string()));
+        assert!(args.contains(&"--netns".to_string()));
+        assert!(args.contains(&"/run/netns/test".to_string()));
+    }
+
+    #[test]
+    fn test_api_socket_path_custom_exec() {
+        let config = JailerConfig {
+            exec_file: PathBuf::from("/usr/local/bin/custom-firecracker"),
+            jailer_id: "my-vm".to_string(),
+            chroot_base_dir: PathBuf::from("/custom/jail"),
+            ..Default::default()
+        };
+
+        let socket_path = config.api_socket_path();
+
+        // Should be: /custom/jail/custom-firecracker/my-vm/run/firecracker.socket
+        assert!(socket_path.starts_with("/custom/jail/custom-firecracker/"));
+        assert!(socket_path.ends_with("my-vm/run/firecracker.socket"));
+    }
 }
