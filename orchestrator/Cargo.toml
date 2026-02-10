@@ -10,7 +10,7 @@ readme = "../README.md"
 
 [dependencies]
 # Async runtime
-tokio = { version = "1.35", features = ["full"] }
+tokio = { version = "1.40", features = ["full"] }
 
 # CLI argument parsing
 clap = { version = "4.4", features = ["derive"] }
@@ -23,10 +23,18 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 anyhow = "1.0"
 thiserror = "1.0"
 
-# MCP client (Model Context Protocol)
-# TODO: Add MCP client crate when available
-# serde = { version = "1.0", features = ["derive"] }
-# serde_json = "1.0"
+# Serialization (MCP protocol - JSON-RPC 2.0)
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Async traits (for test mocks)
+async-trait = "0.1"
+
+# HTTP client (for HTTP transport - Phase 2)
+reqwest = { version = "0.12", features = ["json"] }
+
+# Random number generation (for retry jitter)
+rand = "0.8"
 
 [dev-dependencies]
 # Property-based testing
@@ -34,6 +42,10 @@ proptest = "1.4"
 
 # Testing utilities
 criterion = "0.5"
+
+[lib]
+name = "ironclaw_orchestrator"
+path = "src/lib.rs"
 
 [[bin]]
 name = "ironclaw"

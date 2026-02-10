@@ -56,6 +56,8 @@ htmlcov/
 **/coverage.xml
 **/jscpd-report.json
 report/
+tarpaulin-report.html
+tarpaulin-report.json
 
 # Builds
 *.so

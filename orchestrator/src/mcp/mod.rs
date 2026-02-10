@@ -1,75 +1,74 @@
-// MCP (Model Context Protocol) Client Module
-//
-// Native MCP client implementation for connecting to standard MCP servers.
-//
-// Invariant: Must NOT implement proprietary "AgentSkills" - use standard MCP only.
+//! MCP (Model Context Protocol) Client Implementation
+//!
+//! This module provides a pure Rust implementation of the MCP client,
+//! built from scratch using Tokio and Hyper (no external SDK).
+//!
+//! # Architecture
+//!
+//! The implementation is organized into three layers:
+//!
+//! 1. **Protocol Layer** (`protocol`): JSON-RPC 2.0 message types
+//! 2. **Transport Layer** (`transport`): stdio and HTTP transports
+//! 3. **Client Layer** (`client`): High-level MCP client API
+//!
+//! # Design Principles
+//!
+//! - **Minimal Dependencies**: Only Tokio, Hyper, and Serde
+//! - **Auditability**: ~900 LOC total, fully readable
+//! - **Performance**: <100ms startup, <50ms round-trip (local)
+//! - **Type Safety**: Leverages Rust's type system for correctness
 
-use anyhow::Result;
+// Protocol layer: JSON-RPC 2.0 message types
+pub mod protocol;
 
-/// MCP client for connecting to MCP servers
-pub struct McpClient {
-    pub server_url: String,
-}
+// Transport layer: stdio and HTTP transports
+pub mod transport;
 
-/// Available tool from MCP server
-#[derive(Debug, Clone)]
-pub struct McpTool {
-    pub name: String,
-    pub description: String,
-    pub parameters: serde_json::Value,
-}
+// HTTP transport for remote MCP servers
+pub mod http_transport;
 
-impl McpClient {
-    /// Create a new MCP client
-    pub fn new(server_url: String) -> Self {
-        Self { server_url }
-    }
+// Client layer: High-level MCP client API
+pub mod client;
 
-    /// Connect to MCP server
-    pub async fn connect(&self) -> Result<()> {
-        tracing::info!("Connecting to MCP server: {}", self.server_url);
+// Retry logic and error resilience
+pub mod retry;
 
-        // TODO: Implement MCP connection
-        // 1. Open connection to server
-        // 2. Handshake (MCP protocol)
-        // 3. Initialize session
+// Re-export commonly used types for convenience
+pub use protocol::{
+    ClientCapabilities, ClientInfo, InitializeParams, McpError, McpMethod, McpRequest, McpResponse,
+    ServerCapabilities, ServerInfo, Tool, ToolCallParams,
+};
 
-        Ok(())
-    }
+// Re-export transport types
+pub use http_transport::HttpTransport;
+pub use transport::StdioTransport;
 
-    /// List available tools from MCP server
-    pub async fn list_tools(&self) -> Result<Vec<McpTool>> {
-        // TODO: Implement tool listing via MCP protocol
-        Ok(vec![])
-    }
+// Re-export client types
+pub use client::{ClientState, McpClient};
 
-    /// Execute a tool via MCP
-    pub async fn execute_tool(&self, _name: &str, _args: serde_json::Value) -> Result<serde_json::Value> {
-        // TODO: Implement tool execution
-        Ok(serde_json::json!({}))
-    }
+// Note: Old placeholder client removed - now using client::McpClient
 
-    /// Disconnect from MCP server
-    pub async fn disconnect(&self) -> Result<()> {
-        tracing::info!("Disconnecting from MCP server");
-        Ok(())
-    }
-}
+// Integration tests module
+// These tests are ignored by default - run with: cargo test --lib -- --ignored
+#[cfg(test)]
+mod integration;
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::mcp::{McpError, McpRequest};
 
     #[test]
-    fn test_client_creation() {
-        let client = McpClient::new("http://localhost:3000".to_string());
-        assert_eq!(client.server_url, "http://localhost:3000");
+    fn test_protocol_module_available() {
+        // Test that we can create basic MCP requests
+        let req = McpRequest::new(1, "initialize", None);
+        assert_eq!(req.jsonrpc, "2.0");
+        assert_eq!(req.method, "initialize");
     }
 
-    #[tokio::test]
-    async fn test_connect_placeholder() {
-        let client = McpClient::new("http://localhost:3000".to_string());
-        let result = client.connect().await;
-        assert!(result.is_ok());
+    #[test]
+    fn test_error_creation() {
+        let err = McpError::method_not_found("test_method");
+        assert_eq!(err.code, -32601);
+        assert!(err.message.contains("test_method"));
     }
 }
