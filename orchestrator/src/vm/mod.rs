@@ -14,8 +14,9 @@ pub mod seccomp;
 pub mod vsock;
 
 // Prototype module for feasibility testing
-#[cfg(feature = "vm-prototype")]
-pub mod prototype;
+// TODO: Add vm-prototype feature to Cargo.toml when prototype module is ready
+// #[cfg(feature = "vm-prototype")]
+// pub mod prototype;
 
 #[cfg(test)]
 mod tests;

@@ -24,7 +24,7 @@ jobs:
         # SECURITY: Only allow trusted users to trigger Jules
         # Add your GitHub username and trusted collaborators here
         if: ${{ contains(fromJSON('["alexc", "anchapin"]'), github.event.issue.user.login) }}
-        uses: google-labs-code/jules-invoke@v1
+        uses: google-labs-code/jules-action@v1
         with:
           prompt: |
             Please diagnose and fix the following bug in IronClaw:
