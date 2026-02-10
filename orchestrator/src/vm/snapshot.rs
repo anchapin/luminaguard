@@ -13,6 +13,7 @@ use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 use tokio::fs;
+use uuid::Uuid;
 
 use crate::vm::config::VmConfig;
 
@@ -187,7 +188,9 @@ pub async fn load_snapshot(snapshot_id: &str) -> Result<String> {
     // 4. Resume VM execution
     // 5. Verify VM is responsive
 
-    let vm_id = format!("vm-from-snapshot-{}", snapshot_id);
+    // Generate unique VM ID using UUID to prevent race conditions
+    // in concurrent testing scenarios
+    let vm_id = format!("vm-{}-{}", snapshot_id, Uuid::new_v4());
 
     let elapsed = start.elapsed();
     tracing::debug!("Snapshot loaded in {:?}", elapsed);
