@@ -18,6 +18,7 @@ pub mod prototype;
 
 use anyhow::Result;
 use std::sync::Arc;
+use tokio::process::Command;
 use tokio::sync::Mutex;
 
 use crate::vm::config::VmConfig;
@@ -33,6 +34,52 @@ pub struct VmHandle {
     #[allow(dead_code)]
     pub firewall_manager: Option<FirewallManager>,
     pub spawn_time_ms: f64,
+}
+
+impl VmHandle {
+    /// Execute the agent reasoning loop inside the VM
+    ///
+    /// This runs the Python agent code within the isolated environment.
+    ///
+    /// # Arguments
+    ///
+    /// * `task` - The task description for the agent
+    ///
+    /// # Returns
+    ///
+    /// * `Result<String>` - The final output/state of the agent
+    pub async fn execute_agent(&self, task: &str) -> Result<String> {
+        tracing::info!("Executing agent in VM {} for task: {}", self.id, task);
+
+        // In Phase 2 (Firecracker), this would communicate with the VM agent via vsock.
+        // For Phase 1, we simulate this by running the python script directly as a subprocess.
+        // We use the VM handle to maintain the abstraction.
+
+        // Ensure the agent script exists
+        if !std::path::Path::new("agent/loop.py").exists() {
+             anyhow::bail!("Agent script not found at agent/loop.py");
+        }
+
+        let output = Command::new("python3")
+            .arg("agent/loop.py")
+            .arg(task)
+            .output()
+            .await?;
+
+        if !output.status.success() {
+             let error = String::from_utf8_lossy(&output.stderr);
+             tracing::error!("Agent execution failed: {}", error);
+             anyhow::bail!("Agent execution failed: {}", error);
+        }
+
+        let result = String::from_utf8_lossy(&output.stdout).to_string();
+        tracing::info!("Agent execution completed successfully");
+
+        // Log the result
+        tracing::debug!("Agent output: {}", result);
+
+        Ok(result)
+    }
 }
 
 /// Spawn a new JIT Micro-VM

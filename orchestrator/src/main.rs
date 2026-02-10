@@ -16,6 +16,8 @@ use serde_json::json;
 use tracing::{error, info, Level};
 use tracing_subscriber::EnvFilter;
 
+use ironclaw_orchestrator::vm;
+
 /// IronClaw: Local-first Agentic AI Runtime
 #[derive(Parser, Debug)]
 #[command(name = "ironclaw")]
@@ -108,12 +110,32 @@ async fn main() -> Result<()> {
 /// Run the agent with the specified task
 async fn run_agent(task: String) -> Result<()> {
     info!("🎯 Task: {}", task);
-    // TODO: Implement agent execution
+
     // 1. Spawn JIT Micro-VM
+    // We use a generated ID for the VM session
+    let vm_id = format!("task-{}", std::process::id());
+    info!("Spawning VM (ID: {})...", vm_id);
+
+    let vm_handle = vm::spawn_vm(&vm_id).await?;
+    info!("VM spawned in {:.2}ms", vm_handle.spawn_time_ms);
+
     // 2. Launch Python reasoning loop inside VM
     // 3. Monitor execution
-    // 4. Collect results
-    println!("Agent execution placeholder for task: {}", task);
+    info!("Launching Python reasoning loop...");
+    match vm_handle.execute_agent(&task).await {
+        Ok(result) => {
+            // 4. Collect results
+            info!("Agent execution completed successfully");
+            println!("Agent Output:\n{}", result);
+        }
+        Err(e) => {
+            tracing::error!("Agent execution failed: {}", e);
+        }
+    }
+
+    // Cleanup
+    vm::destroy_vm(vm_handle).await?;
+
     Ok(())
 }
 
