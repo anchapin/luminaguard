@@ -84,7 +84,7 @@ jobs:
         run: |
           python -m venv .venv
           .venv/bin/pip install --upgrade pip
-          .venv/bin/pip install pytest hypothesis black mypy pylint
+          .venv/bin/pip install pytest pytest-cov hypothesis black mypy pylint
 
       - name: Run pytest
         working-directory: agent

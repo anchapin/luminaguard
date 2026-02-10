@@ -155,8 +155,16 @@ class TestMcpClientInitialization:
 class TestMcpClientLifecycle:
     """Test MCP client lifecycle methods (spawn, initialize, shutdown)"""
 
-    def test_spawn_creates_subprocess(self, mock_popen_factory, mock_subprocess_process):
-        """client = McpClient("test", ["npx", "-y", "@server/fs"])
+    @patch("subprocess.Popen")
+    def test_spawn_creates_subprocess(self, mock_popen):
+        """Test that spawn() creates subprocess with correct command"""
+        mock_process = MagicMock()
+        mock_process.stdin = MagicMock()
+        mock_process.stdout = MagicMock()
+        mock_process.stderr = MagicMock()
+        mock_popen.return_value = mock_process
+
+        client = McpClient("test", ["npx", "-y", "@server/fs"])
         client.spawn()
 
         # Check that Popen was called with correct command
@@ -170,14 +178,30 @@ class TestMcpClientLifecycle:
         assert call_args[1]["stdout"] == subprocess.PIPE
         assert call_args[1]["stderr"] == subprocess.PIPE
 
-    def test_spawn_transitions_to_connected_state(self, mock_popen_factory, mock_subprocess_process):
-        """client = McpClient("test", ["echo", "test"])
+    @patch("subprocess.Popen")
+    def test_spawn_transitions_to_connected_state(self, mock_popen):
+        """Test that spawn() changes state to CONNECTED"""
+        mock_process = MagicMock()
+        mock_process.stdin = MagicMock()
+        mock_process.stdout = MagicMock()
+        mock_process.stderr = MagicMock()
+        mock_popen.return_value = mock_process
+
+        client = McpClient("test", ["echo", "test"])
         client.spawn()
 
         assert client.state == McpState.CONNECTED
 
-    def test_spawn_raises_error_when_already_connected(self, mock_popen_factory, mock_subprocess_process):
-        """client = McpClient("test", ["echo", "test"])
+    @patch("subprocess.Popen")
+    def test_spawn_raises_error_when_already_connected(self, mock_popen):
+        """Test that spawn() raises error when not in DISCONNECTED state"""
+        mock_process = MagicMock()
+        mock_process.stdin = MagicMock()
+        mock_process.stdout = MagicMock()
+        mock_process.stderr = MagicMock()
+        mock_popen.return_value = mock_process
+
+        client = McpClient("test", ["echo", "test"])
         client.spawn()
         client._state = McpState.CONNECTED
 
@@ -270,8 +294,17 @@ class TestMcpClientLifecycle:
             with pytest.raises(McpError, match="Initialize failed"):
                 client.initialize()
 
-    def test_shutdown_terminates_process(self, mock_popen_factory, mock_subprocess_process_with_wait):
-        """client = McpClient("test", ["echo", "test"])
+    @patch("subprocess.Popen")
+    def test_shutdown_terminates_process(self, mock_popen):
+        """Test that shutdown() terminates the subprocess"""
+        mock_process = MagicMock()
+        mock_process.stdin = MagicMock()
+        mock_process.stdout = MagicMock()
+        mock_process.stderr = MagicMock()
+        mock_process.wait = MagicMock(return_value=0)
+        mock_popen.return_value = mock_process
+
+        client = McpClient("test", ["echo", "test"])
         client.spawn()
         client.shutdown()
 
@@ -296,15 +329,33 @@ class TestMcpClientLifecycle:
         # Check that kill was called as fallback
         mock_process.kill.assert_called_once()
 
-    def test_shutdown_transitions_to_shutdown_state(self, mock_popen_factory, mock_subprocess_process_with_wait):
-        """client = McpClient("test", ["echo", "test"])
+    @patch("subprocess.Popen")
+    def test_shutdown_transitions_to_shutdown_state(self, mock_popen):
+        """Test that shutdown() changes state to SHUTDOWN"""
+        mock_process = MagicMock()
+        mock_process.stdin = MagicMock()
+        mock_process.stdout = MagicMock()
+        mock_process.stderr = MagicMock()
+        mock_process.wait = MagicMock(return_value=0)
+        mock_popen.return_value = mock_process
+
+        client = McpClient("test", ["echo", "test"])
         client.spawn()
         client.shutdown()
 
         assert client.state == McpState.SHUTDOWN
 
-    def test_shutdown_is_idempotent(self, mock_popen_factory, mock_subprocess_process_with_wait):
-        """client = McpClient("test", ["echo", "test"])
+    @patch("subprocess.Popen")
+    def test_shutdown_is_idempotent(self, mock_popen):
+        """Test that calling shutdown() multiple times is safe"""
+        mock_process = MagicMock()
+        mock_process.stdin = MagicMock()
+        mock_process.stdout = MagicMock()
+        mock_process.stderr = MagicMock()
+        mock_process.wait = MagicMock(return_value=0)
+        mock_popen.return_value = mock_process
+
+        client = McpClient("test", ["echo", "test"])
         client.spawn()
         client.shutdown()
         client.shutdown()  # Should not raise
