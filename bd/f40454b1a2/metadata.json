@@ -2,10 +2,13 @@
   "cli_version": "0.4.2",
   "checkpoint_id": "bdf40454b1a2",
   "strategy": "manual-commit",
-  "branch": "feature/49-fix-rust-compilation-errors-clean",
-  "checkpoints_count": 1,
+  "branch": "feature/17-18-21-mega-pr-security-features",
+  "checkpoints_count": 2,
   "files_touched": [
-    ".github/workflows/ci.yml"
+    ".github/workflows/ci.yml",
+    "CLAUDE.md",
+    "PLATFORMS.md",
+    "README.md"
   ],
   "sessions": [
     {
@@ -14,13 +17,20 @@
       "context": "/bd/f40454b1a2/0/context.md",
       "content_hash": "/bd/f40454b1a2/0/content_hash.txt",
       "prompt": "/bd/f40454b1a2/0/prompt.txt"
+    },
+    {
+      "metadata": "/bd/f40454b1a2/1/metadata.json",
+      "transcript": "/bd/f40454b1a2/1/full.jsonl",
+      "context": "/bd/f40454b1a2/1/context.md",
+      "content_hash": "/bd/f40454b1a2/1/content_hash.txt",
+      "prompt": "/bd/f40454b1a2/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 3766029,
+    "input_tokens": 7902959,
     "cache_creation_tokens": 0,
-    "cache_read_tokens": 26112,
-    "output_tokens": 23178,
-    "api_call_count": 66
+    "cache_read_tokens": 38232320,
+    "output_tokens": 116656,
+    "api_call_count": 529
   }
 }

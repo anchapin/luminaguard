@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "bdf40454b1a2",
+  "session_id": "4b693f10-684f-4284-a204-ee848fb3da72",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-10T22:03:08.889036648Z",
+  "branch": "feature/17-18-21-mega-pr-security-features",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".github/workflows/ci.yml",
+    "CLAUDE.md",
+    "PLATFORMS.md",
+    "README.md"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "0dc281bf-c9f5-4aac-afc1-9d85069ab5dc",
+  "token_usage": {
+    "input_tokens": 4136930,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 38206208,
+    "output_tokens": 93478,
+    "api_call_count": 463
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-10T22:03:08.553641219Z",
+    "agent_lines": 0,
+    "human_added": 10286,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 10286,
+    "agent_percentage": 0
+  }
+}
