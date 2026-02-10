@@ -139,16 +139,6 @@ class TestMcpClientInitialization:
         client = McpClient("test", ["echo", "test"], root_dir="/tmp")
         assert client.root_dir == "/tmp"
 
-    def test_client_stores_args(self):
-        """Test that args are stored"""
-        client = McpClient("test", ["echo", "test"], args=["--verbose"])
-        assert client.args == ["--verbose"]
-
-    def test_client_defaults_args_to_empty_list(self):
-        """Test that args defaults to empty list"""
-        client = McpClient("test", ["echo", "test"])
-        assert client.args == []
-
     def test_request_id_starts_at_zero(self):
         """Test that request ID counter starts at 0"""
         client = McpClient("test", ["echo", "test"])

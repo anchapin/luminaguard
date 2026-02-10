@@ -91,7 +91,6 @@ class McpClient:
         server_name: str,
         command: List[str],
         root_dir: Optional[str] = None,
-        args: Optional[List[str]] = None,
     ):
         """
         Create MCP client and spawn orchestrator process.
@@ -100,7 +99,6 @@ class McpClient:
             server_name: Name of MCP server (for logging)
             command: Command to spawn MCP server (e.g., ["npx", "-y", "@modelcontextprotocol/server-filesystem"])
             root_dir: Root directory for filesystem operations (optional)
-            args: Additional arguments for orchestrator (optional)
 
         Raises:
             McpError: If command validation fails
@@ -108,7 +106,6 @@ class McpClient:
         self.server_name = server_name
         self.command = self._validate_command(command)
         self.root_dir = root_dir
-        self.args = args or []
 
         self._process: Optional[subprocess.Popen] = None
         self._state = McpState.DISCONNECTED
