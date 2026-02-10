@@ -6,10 +6,13 @@
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::{debug, info, warn};
+
+/// Maximum number of audit entries to keep in memory (global limit)
+const MAX_SECCOMP_LOG_ENTRIES: usize = 10_000;
 
 /// Seccomp filter level (security profile)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -249,7 +252,7 @@ pub struct SeccompAuditEntry {
 /// Seccomp audit log manager
 #[derive(Debug, Clone)]
 pub struct SeccompAuditLog {
-    entries: Arc<RwLock<Vec<SeccompAuditEntry>>>,
+    entries: Arc<RwLock<VecDeque<SeccompAuditEntry>>>,
     /// Track repeated violations per VM (for attack detection)
     violation_counts: Arc<RwLock<HashMap<String, usize>>>,
 }
@@ -257,7 +260,7 @@ pub struct SeccompAuditLog {
 impl Default for SeccompAuditLog {
     fn default() -> Self {
         Self {
-            entries: Arc::new(RwLock::new(Vec::new())),
+            entries: Arc::new(RwLock::new(VecDeque::new())),
             violation_counts: Arc::new(RwLock::new(HashMap::new())),
         }
     }
@@ -293,7 +296,10 @@ impl SeccompAuditLog {
 
         // Log the entry
         let mut entries = self.entries.write().await;
-        entries.push(entry);
+        if entries.len() >= MAX_SECCOMP_LOG_ENTRIES {
+            entries.pop_front();
+        }
+        entries.push_back(entry);
 
         if attack_detected {
             warn!(
@@ -629,5 +635,36 @@ mod tests {
         for sys in &dangerous {
             assert!(!whitelist.contains(&sys), "Dangerous syscall {} should be blocked", sys);
         }
+    }
+
+    #[tokio::test]
+    async fn test_audit_log_bounded_growth() {
+        let log = SeccompAuditLog::new();
+        let vm_id = "vm-growth-test";
+        // Insert more than the limit to trigger rotation
+        let iterations = MAX_SECCOMP_LOG_ENTRIES + 500;
+
+        for i in 0..iterations {
+            log.log_blocked_syscall(vm_id, "socket", 1000 + i as u32)
+                .await
+                .unwrap();
+        }
+
+        let stats = log.get_stats(vm_id).await;
+        // Should be capped at MAX_SECCOMP_LOG_ENTRIES
+        assert_eq!(stats.total_blocked, MAX_SECCOMP_LOG_ENTRIES as u32);
+
+        // Verify FIFO behavior: the oldest entries should be gone
+        let entries = log.get_entries_for_vm(vm_id).await;
+        assert_eq!(entries.len(), MAX_SECCOMP_LOG_ENTRIES);
+
+        // The first entry should be from the rotated window
+        // We inserted 0..(N+500). We kept the last N.
+        // So the first kept entry should be index 500.
+        // PID was 1000 + i. So 1000 + 500 = 1500.
+        assert_eq!(entries[0].pid, 1000 + (iterations - MAX_SECCOMP_LOG_ENTRIES) as u32);
+
+        // The last entry should be the last inserted
+        assert_eq!(entries[entries.len() - 1].pid, 1000 + (iterations - 1) as u32);
     }
 }
