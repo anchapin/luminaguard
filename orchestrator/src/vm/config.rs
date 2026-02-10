@@ -2,8 +2,8 @@
 //
 // Firecracker VM configuration for secure agent execution
 
-use crate::vm::seccomp::SeccompFilter;
 use serde::{Deserialize, Serialize};
+use crate::vm::seccomp::SeccompFilter;
 
 /// VM configuration for Firecracker
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -66,9 +66,6 @@ impl VmConfig {
 
     /// Validate configuration
     pub fn validate(&self) -> anyhow::Result<()> {
-        if self.enable_networking {
-            anyhow::bail!("Networking MUST be disabled for security");
-        }
         if self.vcpu_count == 0 {
             anyhow::bail!("vCPU count must be > 0");
         }
@@ -76,7 +73,7 @@ impl VmConfig {
             anyhow::bail!("Memory must be at least 128 MB");
         }
         if self.enable_networking {
-            anyhow::bail!("Networking MUST be disabled for security");
+            anyhow::bail!("Networking MUST be disabled for security. VMs should use vsock-only communication.");
         }
         Ok(())
     }
