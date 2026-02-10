@@ -25,7 +25,10 @@ async fn main() -> anyhow::Result<()> {
     // Get pool statistics
     let stats = vm::pool_stats().await?;
     println!("2. Pool Statistics:");
-    println!("   - Current size: {}/{}", stats.current_size, stats.max_size);
+    println!(
+        "   - Current size: {}/{}",
+        stats.current_size, stats.max_size
+    );
     if let Some(age) = stats.oldest_snapshot_age_secs {
         println!("   - Oldest snapshot: {}s old", age);
     }

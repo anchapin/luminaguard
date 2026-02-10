@@ -8,7 +8,7 @@
 // - VM spawn time: target 10-50ms
 // - Pool acquisition overhead
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use ironclaw_orchestrator::vm;
 use tempfile::TempDir;
 use tokio::runtime::Runtime;
@@ -42,7 +42,9 @@ fn bench_cold_boot_vm(c: &mut Criterion) {
     c.bench_function("cold_boot_vm", |b| {
         b.to_async(&rt).iter(|| async {
             // Call cold boot directly
-            let handle = vm::spawn_vm(black_box("cold-benchmark-task")).await.unwrap();
+            let handle = vm::spawn_vm(black_box("cold-benchmark-task"))
+                .await
+                .unwrap();
             black_box(handle);
         });
     });
