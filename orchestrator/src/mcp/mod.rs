@@ -30,6 +30,9 @@ pub mod http_transport;
 // Client layer: High-level MCP client API
 pub mod client;
 
+// Retry logic and error resilience
+pub mod retry;
+
 // Re-export commonly used types for convenience
 pub use protocol::{
     ClientCapabilities, ClientInfo, InitializeParams, McpError, McpMethod,

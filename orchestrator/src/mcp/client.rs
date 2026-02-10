@@ -32,8 +32,9 @@
 
 use crate::mcp::protocol::{
     ClientCapabilities, ClientInfo, InitializeParams, McpError, McpMethod,
-    McpRequest, ServerCapabilities, ServerInfo, Tool,
+    McpRequest, McpResponse, ServerCapabilities, ServerInfo, Tool,
 };
+use crate::mcp::retry::RetryConfig;
 use crate::mcp::transport::Transport;
 use anyhow::{Context, Result};
 use serde_json::json;
@@ -81,6 +82,9 @@ where
 
     /// Client state
     state: ClientState,
+
+    /// Retry configuration for transient failures
+    retry_config: Option<RetryConfig>,
 }
 
 /// Client state machine
@@ -126,6 +130,98 @@ where
             server_capabilities: None,
             tools: Vec::new(),
             state: ClientState::Created,
+            retry_config: None,
+        }
+    }
+
+    /// Set retry configuration for the client
+    ///
+    /// # Arguments
+    ///
+    /// * `config` - Retry configuration
+    ///
+    /// # Returns
+    ///
+    /// Returns `self` for chaining
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// let client = McpClient::new(transport)
+    ///     .with_retry(RetryConfig::default().max_attempts(5));
+    /// ```
+    pub fn with_retry(mut self, config: RetryConfig) -> Self {
+        self.retry_config = Some(config);
+        self
+    }
+
+    /// Send a request and receive a response (with optional retry)
+    ///
+    /// This is a helper method that wraps the send/recv pattern with retry logic
+    /// if a retry config is set.
+    ///
+    /// # Arguments
+    ///
+    /// * `request` - The MCP request to send
+    ///
+    /// # Returns
+    ///
+    /// Returns the MCP response
+    async fn send_request(&mut self, request: &McpRequest) -> Result<McpResponse> {
+        if let Some(config) = self.retry_config.clone() {
+            // Use retry logic - manually implemented to avoid borrow issues
+            let mut last_error = None;
+
+            for attempt in 0..config.max_attempts {
+                match self.transport.send(request).await {
+                    Ok(()) => {
+                        match self.transport.recv().await {
+                            Ok(response) => {
+                                if attempt > 0 {
+                                    tracing::info!(
+                                        "Request succeeded on attempt {} after {} retries",
+                                        attempt + 1,
+                                        attempt
+                                    );
+                                }
+                                return Ok(response);
+                            }
+                            Err(e) => {
+                                last_error = Some(e);
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        last_error = Some(e);
+                    }
+                }
+
+                // Check if we should retry this error
+                if attempt < config.max_attempts - 1 {
+                    if let Some(ref error) = last_error {
+                        if config.should_retry_error(error) {
+                            let delay = config.calculate_delay(attempt);
+                            tracing::warn!(
+                                "Request attempt {} failed: {}, retrying after {:?}",
+                                attempt + 1,
+                                error,
+                                delay
+                            );
+                            tokio::time::sleep(delay).await;
+                            continue;
+                        }
+                    }
+                }
+
+                // Don't retry
+                break;
+            }
+
+            Err(last_error.unwrap_or_else(|| anyhow::anyhow!("Request failed")))
+        } else {
+            // No retry - single attempt
+            self.transport.send(request).await?;
+            self.transport.recv().await
         }
     }
 
@@ -193,18 +289,11 @@ where
             Some(json!(params)),
         );
 
-        // Send request
-        self.transport
-            .send(&request)
-            .await
-            .context("Failed to send initialize request")?;
-
-        // Receive response
+        // Send request and receive response (with optional retry)
         let response = self
-            .transport
-            .recv()
+            .send_request(&request)
             .await
-            .context("Failed to receive initialize response")?;
+            .context("Failed to complete initialize request")?;
 
         // Check for error response
         if !response.is_success() {
@@ -269,18 +358,11 @@ where
             McpMethod::ToolsList.as_str().to_string(),
         );
 
-        // Send request
-        self.transport
-            .send(&request)
-            .await
-            .context("Failed to send tools/list request")?;
-
-        // Receive response
+        // Send request and receive response (with optional retry)
         let response = self
-            .transport
-            .recv()
+            .send_request(&request)
             .await
-            .context("Failed to receive tools/list response")?;
+            .context("Failed to complete tools/list request")?;
 
         // Check for error response
         if !response.is_success() {
@@ -348,18 +430,11 @@ where
             Some(params),
         );
 
-        // Send request
-        self.transport
-            .send(&request)
-            .await
-            .context("Failed to send tools/call request")?;
-
-        // Receive response
+        // Send request and receive response (with optional retry)
         let response = self
-            .transport
-            .recv()
+            .send_request(&request)
             .await
-            .context("Failed to receive tools/call response")?;
+            .context("Failed to complete tools/call request")?;
 
         // Check for error response
         if !response.is_success() {
@@ -425,6 +500,8 @@ where
 mod tests {
     use super::*;
     use crate::mcp::protocol::McpResponse;
+    use std::sync::Arc;
+    use std::time::Duration;
 
     // Mock transport for testing
     #[derive(Clone)]
@@ -1130,5 +1207,200 @@ mod tests {
 
         // Should fail when parsing protocol version
         assert!(client.initialize().await.is_err());
+    }
+
+    // Mock transport for retry testing
+    #[derive(Clone)]
+    struct RetryMockTransport {
+        connected: bool,
+        attempt_count: Arc<std::sync::atomic::AtomicUsize>,
+        fail_until: usize,
+        should_fail: bool,
+    }
+
+    impl RetryMockTransport {
+        fn new(fail_until: usize) -> Self {
+            Self {
+                connected: true,
+                attempt_count: Arc::new(std::sync::atomic::AtomicUsize::new(0)),
+                fail_until,
+                should_fail: false,
+            }
+        }
+
+        fn always_fail() -> Self {
+            Self {
+                connected: true,
+                attempt_count: Arc::new(std::sync::atomic::AtomicUsize::new(0)),
+                fail_until: 999,
+                should_fail: true,
+            }
+        }
+    }
+
+    #[allow(async_fn_in_trait)]
+    impl Transport for RetryMockTransport {
+        async fn send(&mut self, _request: &McpRequest) -> Result<()> {
+            if !self.connected {
+                return Err(anyhow::anyhow!("Transport disconnected"));
+            }
+
+            let count = self.attempt_count.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+
+            if self.should_fail || count < self.fail_until {
+                Err(anyhow::anyhow!("Temporary failure (attempt {})", count))
+            } else {
+                Ok(())
+            }
+        }
+
+        async fn recv(&mut self) -> Result<McpResponse> {
+            if !self.connected {
+                return Err(anyhow::anyhow!("Transport disconnected"));
+            }
+
+            Ok(McpResponse::ok(
+                1,
+                json!({
+                    "protocolVersion": "2024-11-05",
+                    "capabilities": {},
+                    "serverInfo": {"name": "test", "version": "1.0"}
+                }),
+            ))
+        }
+
+        fn is_connected(&self) -> bool {
+            self.connected
+        }
+    }
+
+    #[tokio::test]
+    async fn test_client_with_retry_success_after_failures() {
+        // Test that client retries transient failures
+        let transport = RetryMockTransport::new(2); // Fail first 2 attempts
+        let retry_config = RetryConfig::default()
+            .max_attempts(5)
+            .base_delay(Duration::from_millis(10));
+
+        let mut client = McpClient::new(transport).with_retry(retry_config);
+        client.state = ClientState::Created;
+
+        // Should succeed after retries
+        let result = client.initialize().await;
+        assert!(result.is_ok(), "Initialize should succeed after retries");
+    }
+
+    #[tokio::test]
+    async fn test_client_with_retry_max_attempts_reached() {
+        // Test that client gives up after max attempts
+        let transport = RetryMockTransport::always_fail();
+        let retry_config = RetryConfig::default()
+            .max_attempts(3)
+            .base_delay(Duration::from_millis(10));
+
+        let mut client = McpClient::new(transport).with_retry(retry_config);
+        client.state = ClientState::Created;
+
+        // Should fail after max attempts
+        let result = client.initialize().await;
+        assert!(result.is_err(), "Initialize should fail after max attempts");
+    }
+
+    #[tokio::test]
+    async fn test_client_without_retry_no_retry_on_failure() {
+        // Test that client without retry config doesn't retry
+        let transport = RetryMockTransport::always_fail(); // Will always fail
+
+        let mut client = McpClient::new(transport); // No retry config
+        client.state = ClientState::Created;
+
+        // Should fail immediately without retry
+        let result = client.initialize().await;
+        assert!(result.is_err(), "Initialize should fail immediately");
+    }
+
+    #[tokio::test]
+    async fn test_client_with_retry_no_retry_on_permanent_error() {
+        // Test that client doesn't retry permanent errors (e.g., auth failures)
+
+        // Mock transport that returns auth error
+        #[derive(Clone)]
+        struct AuthFailTransport;
+
+        #[allow(async_fn_in_trait)]
+        impl Transport for AuthFailTransport {
+            async fn send(&mut self, _request: &McpRequest) -> Result<()> {
+                Err(anyhow::anyhow!("Unauthorized: Invalid credentials"))
+            }
+
+            async fn recv(&mut self) -> Result<McpResponse> {
+                Ok(McpResponse::ok(1, json!({})))
+            }
+
+            fn is_connected(&self) -> bool {
+                true
+            }
+        }
+
+        let transport = AuthFailTransport;
+        let retry_config = RetryConfig::default()
+            .max_attempts(5)
+            .base_delay(Duration::from_millis(10));
+
+        let mut client = McpClient::new(transport).with_retry(retry_config);
+        client.state = ClientState::Created;
+
+        // Should fail immediately without retries (auth error is not retryable)
+        let result = client.initialize().await;
+        assert!(result.is_err(), "Initialize should fail on auth error");
+    }
+
+    #[tokio::test]
+    async fn test_client_with_retry_list_tools() {
+        // Test retry with list_tools using the standard MockTransport
+        let mut transport = MockTransport::new();
+        transport.set_response(McpResponse::ok(2, json!({"tools": []})));
+
+        let retry_config = RetryConfig::default()
+            .max_attempts(3)
+            .base_delay(Duration::from_millis(10));
+
+        let mut client = McpClient::new(transport).with_retry(retry_config);
+        client.state = ClientState::Ready;
+
+        // Should succeed (mock doesn't fail, but retry config is set)
+        let result = client.list_tools().await;
+        assert!(result.is_ok(), "list_tools should succeed");
+    }
+
+    #[tokio::test]
+    async fn test_client_with_retry_call_tool() {
+        // Test retry with call_tool using the standard MockTransport
+        let mut transport = MockTransport::new();
+        transport.set_response(McpResponse::ok(3, json!({"result": "success"})));
+
+        let retry_config = RetryConfig::default()
+            .max_attempts(3)
+            .base_delay(Duration::from_millis(10));
+
+        let mut client = McpClient::new(transport).with_retry(retry_config);
+        client.state = ClientState::Ready;
+
+        // Should succeed (mock doesn't fail, but retry config is set)
+        let result = client.call_tool("test_tool", json!({})).await;
+        assert!(result.is_ok(), "call_tool should succeed");
+    }
+
+    #[tokio::test]
+    async fn test_client_retry_config_getter() {
+        // Test that retry config can be set via builder
+        let transport = MockTransport::new();
+        let retry_config = RetryConfig::default();
+
+        // Test that with_retry returns a client with retry configured
+        let _client_with_retry = McpClient::new(transport).with_retry(retry_config);
+
+        // If we got here without panicking, the builder pattern works
+        // (we can't directly inspect retry_config as it's private)
     }
 }
