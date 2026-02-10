@@ -20,7 +20,7 @@ jobs:
           fetch-depth: 0  # Need history for comparison
 
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@4be9e76fd7c4901c61fb841f559994984270fce7
 
       - name: Setup Python
         uses: actions/setup-python@v6
