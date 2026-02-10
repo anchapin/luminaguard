@@ -11,8 +11,17 @@ This test suite validates:
 
 import pytest
 from hypothesis import given, strategies as st
+from unittest.mock import MagicMock, Mock
 
 from loop import AgentState, think, execute_tool, run_loop, ActionKind, ToolCall
+
+
+class MockMcpClient:
+    """Mock MCP client for testing"""
+
+    def call_tool(self, name: str, arguments: dict) -> dict:
+        """Mock tool call that returns success"""
+        return {"result": f"Mock execution of {name}", "content": []}
 
 
 class TestAgentState:
@@ -68,13 +77,15 @@ class TestExecuteTool:
         call = ToolCall(
             name="test_tool", arguments={"arg1": "value1"}, action_kind=ActionKind.GREEN
         )
-        result = execute_tool(call)
+        mock_client = MockMcpClient()
+        result = execute_tool(call, mock_client)
         assert isinstance(result, dict)
 
     def test_execute_tool_has_status(self):
         """Test that execute_tool result has status key"""
         call = ToolCall(name="test_tool", arguments={}, action_kind=ActionKind.GREEN)
-        result = execute_tool(call)
+        mock_client = MockMcpClient()
+        result = execute_tool(call, mock_client)
         assert "status" in result
 
     def test_execute_tool_with_green_action(self):
@@ -84,7 +95,8 @@ class TestExecuteTool:
             arguments={"path": "/tmp/file.txt"},
             action_kind=ActionKind.GREEN,
         )
-        result = execute_tool(call)
+        mock_client = MockMcpClient()
+        result = execute_tool(call, mock_client)
         assert result["status"] == "ok"
 
     def test_execute_tool_with_red_action(self):
@@ -94,7 +106,8 @@ class TestExecuteTool:
             arguments={"path": "/tmp/file.txt"},
             action_kind=ActionKind.RED,
         )
-        result = execute_tool(call)
+        mock_client = MockMcpClient()
+        result = execute_tool(call, mock_client)
         assert result["status"] == "ok"
 
 

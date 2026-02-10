@@ -21,7 +21,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@4be9e76fd7c4901c61fb841f559994984270fce7
         with:
           toolchain: ${{ matrix.rust }}
 
@@ -120,7 +120,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@4be9e76fd7c4901c61fb841f559994984270fce7
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -153,7 +153,7 @@ jobs:
         run: cargo install cargo-audit && cargo audit || true
 
       - name: Check for secrets
-        uses: trufflesecurity/trufflehog@main
+        uses: trufflesecurity/trufflehog@4158734f234bd8770128deae2e2975cfab4b66a6
         with:
           path: ./
           base: ${{ github.event.repository.default_branch }}

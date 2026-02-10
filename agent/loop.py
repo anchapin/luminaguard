@@ -20,6 +20,18 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional
 from dataclasses import dataclass
 from enum import Enum
+import os
+import sys
+
+# Add parent directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+try:
+    # When imported as module
+    from agent.mcp_client import McpClient, McpError
+except ImportError:
+    # When run directly
+    from mcp_client import McpClient, McpError
 
 
 class ActionKind(Enum):
@@ -73,26 +85,44 @@ def think(state: AgentState) -> Optional[ToolCall]:
     return None
 
 
-def execute_tool(call: ToolCall) -> Dict[str, Any]:
+def execute_tool(call: ToolCall, mcp_client) -> Dict[str, Any]:
     """
     Execute a tool via MCP connection.
 
     Args:
         call: ToolCall with name and arguments
+        mcp_client: McpClient instance (from mcp_client.py)
 
     Returns:
         Tool execution result
 
     Note:
         This communicates with the Rust Orchestrator's MCP client.
-        All tool execution happens inside JIT Micro-VMs.
+        All tool execution happens inside JIT Micro-VMs (future).
+
+    Example:
+        >>> client = McpClient("filesystem", ["npx", "-y", "@server"])
+        >>> client.initialize()
+        >>> execute_tool(tool_call, client)
     """
-    # TODO: Implement MCP tool execution
-    # For now, return empty dict
-    return {"status": "ok", "result": None}
+    try:
+        result = mcp_client.call_tool(call.name, call.arguments)
+        return {
+            "status": "ok",
+            "result": result,
+            "action_kind": call.action_kind.value,
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "error": str(e),
+            "action_kind": call.action_kind.value,
+        }
 
 
-def run_loop(task: str, tools: List[str]) -> AgentState:
+def run_loop(
+    task: str, tools: List[str], mcp_client: Optional[McpClient] = None
+) -> AgentState:
     """
     Run the agent reasoning loop for a given task.
 
@@ -100,7 +130,8 @@ def run_loop(task: str, tools: List[str]) -> AgentState:
 
     Args:
         task: User task description
-        tools: List of available tools
+        tools: List of available tools (currently informational only)
+        mcp_client: Optional McpClient instance for tool execution
 
     Returns:
         Final agent state
@@ -110,6 +141,13 @@ def run_loop(task: str, tools: List[str]) -> AgentState:
         2. Execute: Run tool (if action chosen)
         3. Update: Add result to state
         4. Repeat: Until task complete
+
+    Example:
+        >>> client = McpClient("filesystem", ["npx", "-y", "@server"])
+        >>> client.spawn()
+        >>> client.initialize()
+        >>> state = run_loop("Read /tmp/test.txt", ["read_file"], client)
+        >>> client.shutdown()
     """
     state = AgentState(
         messages=[{"role": "user", "content": task}], tools=tools, context={}
@@ -126,8 +164,16 @@ def run_loop(task: str, tools: List[str]) -> AgentState:
             # Task complete
             break
 
-        # Execute tool
-        result = execute_tool(action)
+        # Execute tool (if MCP client provided)
+        if mcp_client is not None:
+            result = execute_tool(action, mcp_client)
+        else:
+            # Fallback: Mock execution
+            result = {
+                "status": "mock",
+                "result": f"Mock execution of {action.name}",
+                "action_kind": action.action_kind.value,
+            }
 
         # Update state with result
         state.add_message("tool", str(result))

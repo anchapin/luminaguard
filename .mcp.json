@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "quint-code": {
+      "command": "/home/alexc/.local/bin/quint-code",
+      "args": [
+        "serve"
+      ],
+      "cwd": "/home/alexc/Projects/ironclaw",
+      "env": {
+        "QUINT_PROJECT_ROOT": "/home/alexc/Projects/ironclaw"
+      }
+    }
+  }
+}
