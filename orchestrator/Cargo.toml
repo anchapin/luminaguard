@@ -41,7 +41,7 @@ rand = "0.8"
 proptest = "1.4"
 
 # Testing utilities
-criterion = "0.5"
+criterion = "0.8"
 
 [lib]
 name = "ironclaw_orchestrator"
