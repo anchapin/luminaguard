@@ -37,8 +37,8 @@ impl Default for VmConfig {
             vm_id: "default".to_string(),
             vcpu_count: 1,
             memory_mb: 512,
-            kernel_path: "/path/to/vmlinux.bin".to_string(),
-            rootfs_path: "/path/to/rootfs.ext4".to_string(),
+            kernel_path: "./resources/vmlinux".to_string(),
+            rootfs_path: "./resources/rootfs.ext4".to_string(),
             enable_networking: false,
             seccomp_filter: None,
         }
