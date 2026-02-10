@@ -26,6 +26,10 @@ pub struct VmConfig {
     /// Enable networking (default: false for security)
     pub enable_networking: bool,
 
+    /// vsock socket path (automatically generated)
+    #[serde(skip)]
+    pub vsock_path: Option<String>,
+
     /// Seccomp filter configuration
     #[serde(default)]
     pub seccomp_filter: Option<SeccompFilter>,
@@ -40,6 +44,7 @@ impl Default for VmConfig {
             kernel_path: "/path/to/vmlinux.bin".to_string(),
             rootfs_path: "/path/to/rootfs.ext4".to_string(),
             enable_networking: false,
+            vsock_path: None,
             seccomp_filter: None,
         }
     }
@@ -48,10 +53,15 @@ impl Default for VmConfig {
 impl VmConfig {
     /// Create a new VM config with defaults
     pub fn new(vm_id: String) -> Self {
-        Self {
+        let mut config = Self {
             vm_id,
             ..Default::default()
-        }
+        };
+
+        // Generate vsock path
+        config.vsock_path = Some(format!("/tmp/ironclaw/vsock/{}.sock", config.vm_id));
+
+        config
     }
 
     /// Validate configuration
