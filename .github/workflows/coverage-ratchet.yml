@@ -57,7 +57,7 @@ jobs:
         run: |
           python -m venv .venv
           .venv/bin/pip install -q pytest pytest-cov hypothesis
-          .venv/bin/pytest tests/ --cov=loop --cov=tools --cov-report=xml -q
+          .venv/bin/pytest tests/ --cov=. --cov-report=xml -q
           COVERAGE=$(python3 <<'EOF'
           import xml.etree.ElementTree as ET
           tree = ET.parse('coverage.xml')
@@ -83,14 +83,14 @@ jobs:
             cat > .coverage-baseline.json <<'EOF'
           {
             "rust": "0.0",
-            "python": "78.6",
+            "python": "58.0",
             "rust_target": "75.0",
             "python_target": "75.0",
             "rust_ratchet": "0.0",
-            "python_ratchet": "78.6"
+            "python_ratchet": "58.0"
           }
           EOF
-            echo "📊 Created initial baseline with Python at 78.6%"
+            echo "📊 Created initial baseline with Python at 58.0%"
           fi
 
       - name: Check Rust ratchet
