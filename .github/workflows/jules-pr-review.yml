@@ -22,7 +22,7 @@ jobs:
 
     steps:
       - name: Invoke Jules for PR review
-        uses: google-labs-code/jules-action@v1
+        uses: google-labs-code/jules-action@v1.0.0
         with:
           prompt: |
             Please review this Pull Request for IronClaw and provide feedback.
