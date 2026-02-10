@@ -95,7 +95,8 @@ impl StdioTransport {
     /// ).await?;
     /// ```
     pub async fn spawn(command: &str, args: &[&str]) -> Result<Self> {
-        tracing::info!("Spawning MCP server: {} {}", command, args.join(" "));
+        tracing::info!("Spawning MCP server: {}", command);
+        tracing::debug!("Server arguments: {:?}", args);
 
         // Spawn the child process with piped stdin/stdout
         let mut child = Command::new(command)
