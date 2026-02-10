@@ -1,5 +1,4 @@
 use assert_cmd::Command;
-use predicates::prelude::*;
 
 #[test]
 fn test_help() {
@@ -7,7 +6,7 @@ fn test_help() {
     cmd.arg("--help")
         .assert()
         .success()
-        .stdout(predicate::str::contains(
+        .stdout(predicates::str::contains(
             "Secure agentic AI runtime with JIT Micro-VMs",
         ));
 }
@@ -18,7 +17,7 @@ fn test_version() {
     cmd.arg("--version")
         .assert()
         .success()
-        .stdout(predicate::str::contains("ironclaw 0.1.0"));
+        .stdout(predicates::str::contains("ironclaw 0.1.0"));
 }
 
 #[test]
@@ -27,7 +26,7 @@ fn test_run_command_missing_task() {
     cmd.arg("run")
         .assert()
         .failure()
-        .stderr(predicate::str::contains(
+        .stderr(predicates::str::contains(
             "required arguments were not provided",
         ));
 }
@@ -44,7 +43,7 @@ fn test_invalid_command() {
     cmd.arg("nonexistent-command")
         .assert()
         .failure()
-        .stderr(predicate::str::contains("unrecognized subcommand"));
+        .stderr(predicates::str::contains("unrecognized subcommand"));
 }
 
 #[test]
@@ -55,7 +54,7 @@ fn test_test_mcp_command_parsing() {
         .arg("--help")
         .assert()
         .success()
-        .stdout(predicate::str::contains("Test MCP connection"));
+        .stdout(predicates::str::contains("Test MCP connection"));
 }
 
 #[test]
