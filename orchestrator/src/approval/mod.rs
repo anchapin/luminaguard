@@ -45,7 +45,11 @@ pub struct Action {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ActionChanges {
     /// File write: show diff
-    FileWrite { path: String, old_content: String, new_content: String },
+    FileWrite {
+        path: String,
+        old_content: String,
+        new_content: String,
+    },
 
     /// File deletion: show path
     FileDelete { path: String },
