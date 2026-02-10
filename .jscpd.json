@@ -2,10 +2,12 @@
   "threshold": 5,
   "reporters": ["console", "json"],
   "ignore": [
+    "agent/.venv/**",
     "**/.venv/**",
     "**/node_modules/**",
     "**/.git/**",
-    "**/target/**"
+    "**/target/**",
+    "**/site-packages/**"
   ],
   "format": ["python", "rust"],
   "minLines": 10,

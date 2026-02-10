@@ -1,7 +1,6 @@
 // Firecracker Integration
 //
-// This module will handle the actual Firecracker VM spawning.
-// Placeholder for Phase 2 implementation.
+// This module handles the actual Firecracker VM spawning using the HTTP API over Unix sockets.
 
 use crate::vm::config::VmConfig;
 use anyhow::{anyhow, Context, Result};
@@ -30,8 +29,10 @@ use tokio::net::UnixStream;
 pub struct FirecrackerProcess {
     pub pid: u32,
     pub socket_path: String,
+    #[cfg(unix)]
     pub seccomp_path: String,
-    pub child_process: Option<Child>,
+    #[cfg(unix)]
+    child_process: Option<tokio::process::Child>,
     pub spawn_time_ms: f64,
 }
 

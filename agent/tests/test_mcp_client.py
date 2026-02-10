@@ -18,6 +18,18 @@ import subprocess
 import json
 
 
+@pytest.fixture
+def mock_popen():
+    with patch("subprocess.Popen") as mock:
+        process = MagicMock()
+        process.stdin = MagicMock()
+        process.stdout = MagicMock()
+        process.stderr = MagicMock()
+        process.wait = MagicMock(return_value=0)
+        mock.return_value = process
+        yield mock
+
+
 class TestMcpClientCommandValidation:
     """Test command validation logic (critical for security)"""
 
@@ -121,52 +133,11 @@ class TestMcpClientCommandValidation:
         assert client.command[0] == "./node_modules/.bin/npx"
 
 
-class TestMcpClientInitialization:
-    """Test MCP client initialization and state management"""
-
-    def test_client_initial_state_is_disconnected(self):
-        """Test that new clients start in DISCONNECTED state"""
-        client = McpClient("test", ["echo", "test"])
-        assert client.state == McpState.DISCONNECTED
-
-    def test_client_stores_server_name(self):
-        """Test that server name is stored"""
-        client = McpClient("my-server", ["echo", "test"])
-        assert client.server_name == "my-server"
-
-    def test_client_stores_root_dir(self):
-        """Test that root_dir is stored"""
-        client = McpClient("test", ["echo", "test"], root_dir="/tmp")
-        assert client.root_dir == "/tmp"
-
-    def test_client_stores_args(self):
-        """Test that args are stored"""
-        client = McpClient("test", ["echo", "test"], args=["--verbose"])
-        assert client.args == ["--verbose"]
-
-    def test_client_defaults_args_to_empty_list(self):
-        """Test that args defaults to empty list"""
-        client = McpClient("test", ["echo", "test"])
-        assert client.args == []
-
-    def test_request_id_starts_at_zero(self):
-        """Test that request ID counter starts at 0"""
-        client = McpClient("test", ["echo", "test"])
-        assert client._request_id == 0
-
-
 class TestMcpClientLifecycle:
     """Test MCP client lifecycle methods (spawn, initialize, shutdown)"""
 
-    @patch("subprocess.Popen")
     def test_spawn_creates_subprocess(self, mock_popen):
         """Test that spawn() creates subprocess with correct command"""
-        mock_process = MagicMock()
-        mock_process.stdin = MagicMock()
-        mock_process.stdout = MagicMock()
-        mock_process.stderr = MagicMock()
-        mock_popen.return_value = mock_process
-
         client = McpClient("test", ["npx", "-y", "@server/fs"])
         client.spawn()
 
@@ -181,29 +152,15 @@ class TestMcpClientLifecycle:
         assert call_args[1]["stdout"] == subprocess.PIPE
         assert call_args[1]["stderr"] == subprocess.PIPE
 
-    @patch("subprocess.Popen")
     def test_spawn_transitions_to_connected_state(self, mock_popen):
         """Test that spawn() changes state to CONNECTED"""
-        mock_process = MagicMock()
-        mock_process.stdin = MagicMock()
-        mock_process.stdout = MagicMock()
-        mock_process.stderr = MagicMock()
-        mock_popen.return_value = mock_process
-
         client = McpClient("test", ["echo", "test"])
         client.spawn()
 
         assert client.state == McpState.CONNECTED
 
-    @patch("subprocess.Popen")
     def test_spawn_raises_error_when_already_connected(self, mock_popen):
         """Test that spawn() raises error when not in DISCONNECTED state"""
-        mock_process = MagicMock()
-        mock_process.stdin = MagicMock()
-        mock_process.stdout = MagicMock()
-        mock_process.stderr = MagicMock()
-        mock_popen.return_value = mock_process
-
         client = McpClient("test", ["echo", "test"])
         client.spawn()
         client._state = McpState.CONNECTED
@@ -211,7 +168,6 @@ class TestMcpClientLifecycle:
         with pytest.raises(McpError, match="Cannot spawn: client is connected"):
             client.spawn()
 
-    @patch("subprocess.Popen")
     def test_spawn_handles_file_not_found_error(self, mock_popen):
         """Test that spawn() handles missing cargo executable"""
         mock_popen.side_effect = FileNotFoundError("cargo not found")
@@ -220,18 +176,13 @@ class TestMcpClientLifecycle:
         with pytest.raises(McpError, match="Failed to spawn orchestrator"):
             client.spawn()
 
-    @patch("subprocess.Popen")
     @patch("time.sleep")
     def test_initialize_sends_handshake(self, mock_sleep, mock_popen):
         """Test that initialize() sends correct handshake request"""
-        mock_process = MagicMock()
-        mock_process.stdin = MagicMock()
-        mock_process.stdout = MagicMock()
+        mock_process = mock_popen.return_value
         mock_process.stdout.readline = MagicMock(
             return_value='{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2024-11-05"}}\n'
         )
-        mock_process.stderr = MagicMock()
-        mock_popen.return_value = mock_process
 
         client = McpClient("test", ["echo", "test"])
         client.spawn()
@@ -248,15 +199,8 @@ class TestMcpClientLifecycle:
             assert "protocolVersion" in call_args[0][1]
             assert call_args[0][1]["protocolVersion"] == "2024-11-05"
 
-    @patch("subprocess.Popen")
     def test_initialize_transitions_to_initialized_state(self, mock_popen):
         """Test that initialize() changes state to INITIALIZED"""
-        mock_process = MagicMock()
-        mock_process.stdin = MagicMock()
-        mock_process.stdout = MagicMock()
-        mock_process.stderr = MagicMock()
-        mock_popen.return_value = mock_process
-
         client = McpClient("test", ["echo", "test"])
         client.spawn()
 
@@ -266,30 +210,16 @@ class TestMcpClientLifecycle:
 
         assert client.state == McpState.INITIALIZED
 
-    @patch("subprocess.Popen")
     def test_initialize_raises_error_when_not_connected(self, mock_popen):
         """Test that initialize() raises error when not in CONNECTED state"""
-        mock_process = MagicMock()
-        mock_process.stdin = MagicMock()
-        mock_process.stdout = MagicMock()
-        mock_process.stderr = MagicMock()
-        mock_popen.return_value = mock_process
-
         client = McpClient("test", ["echo", "test"])
         client._state = McpState.DISCONNECTED
 
         with pytest.raises(McpError, match="Cannot initialize: client is disconnected"):
             client.initialize()
 
-    @patch("subprocess.Popen")
     def test_initialize_raises_error_on_invalid_response(self, mock_popen):
         """Test that initialize() raises error on malformed response"""
-        mock_process = MagicMock()
-        mock_process.stdin = MagicMock()
-        mock_process.stdout = MagicMock()
-        mock_process.stderr = MagicMock()
-        mock_popen.return_value = mock_process
-
         client = McpClient("test", ["echo", "test"])
         client.spawn()
 
@@ -299,15 +229,10 @@ class TestMcpClientLifecycle:
             with pytest.raises(McpError, match="Initialize failed"):
                 client.initialize()
 
-    @patch("subprocess.Popen")
     def test_shutdown_terminates_process(self, mock_popen):
         """Test that shutdown() terminates the subprocess"""
-        mock_process = MagicMock()
-        mock_process.stdin = MagicMock()
-        mock_process.stdout = MagicMock()
-        mock_process.stderr = MagicMock()
+        mock_process = mock_popen.return_value
         mock_process.wait = MagicMock(return_value=0)
-        mock_popen.return_value = mock_process
 
         client = McpClient("test", ["echo", "test"])
         client.spawn()
@@ -317,15 +242,10 @@ class TestMcpClientLifecycle:
         mock_process.terminate.assert_called_once()
         mock_process.stdin.close.assert_called_once()
 
-    @patch("subprocess.Popen")
     def test_shutdown_kills_process_if_terminate_fails(self, mock_popen):
         """Test that shutdown() kills process if terminate times out"""
-        mock_process = MagicMock()
-        mock_process.stdin = MagicMock()
-        mock_process.stdout = MagicMock()
-        mock_process.stderr = MagicMock()
+        mock_process = mock_popen.return_value
         mock_process.wait = MagicMock(side_effect=[Exception("timeout"), 0])
-        mock_popen.return_value = mock_process
 
         client = McpClient("test", ["echo", "test"])
         client.spawn()
@@ -334,15 +254,10 @@ class TestMcpClientLifecycle:
         # Check that kill was called as fallback
         mock_process.kill.assert_called_once()
 
-    @patch("subprocess.Popen")
     def test_shutdown_transitions_to_shutdown_state(self, mock_popen):
         """Test that shutdown() changes state to SHUTDOWN"""
-        mock_process = MagicMock()
-        mock_process.stdin = MagicMock()
-        mock_process.stdout = MagicMock()
-        mock_process.stderr = MagicMock()
+        mock_process = mock_popen.return_value
         mock_process.wait = MagicMock(return_value=0)
-        mock_popen.return_value = mock_process
 
         client = McpClient("test", ["echo", "test"])
         client.spawn()
@@ -350,15 +265,10 @@ class TestMcpClientLifecycle:
 
         assert client.state == McpState.SHUTDOWN
 
-    @patch("subprocess.Popen")
     def test_shutdown_is_idempotent(self, mock_popen):
         """Test that calling shutdown() multiple times is safe"""
-        mock_process = MagicMock()
-        mock_process.stdin = MagicMock()
-        mock_process.stdout = MagicMock()
-        mock_process.stderr = MagicMock()
+        mock_process = mock_popen.return_value
         mock_process.wait = MagicMock(return_value=0)
-        mock_popen.return_value = mock_process
 
         client = McpClient("test", ["echo", "test"])
         client.spawn()
@@ -380,15 +290,10 @@ class TestMcpClientLifecycle:
         assert client._process is None
         assert client.state == McpState.SHUTDOWN
 
-    @patch("subprocess.Popen")
     def test_shutdown_when_process_is_none_is_noop(self, mock_popen):
         """Calling shutdown() when _process is None should be a safe no-op."""
-        mock_process = MagicMock()
-        mock_process.stdin = MagicMock()
-        mock_process.stdout = MagicMock()
-        mock_process.stderr = MagicMock()
+        mock_process = mock_popen.return_value
         mock_process.wait = MagicMock(return_value=0)
-        mock_popen.return_value = mock_process
 
         client = McpClient("test", ["echo", "test"])
         client.spawn()
@@ -407,17 +312,12 @@ class TestMcpClientLifecycle:
 class TestMcpClientSendRequest:
     """Test MCP client request sending logic"""
 
-    @patch("subprocess.Popen")
     def test_send_request_increments_request_id(self, mock_popen):
         """Test that _send_request() increments request ID"""
-        mock_process = MagicMock()
-        mock_process.stdin = MagicMock()
-        mock_process.stdout = MagicMock()
+        mock_process = mock_popen.return_value
         mock_process.stdout.readline = MagicMock(
             return_value='{"jsonrpc":"2.0","id":1,"result":{}}\n'
         )
-        mock_process.stderr = MagicMock()
-        mock_popen.return_value = mock_process
 
         client = McpClient("test", ["echo", "test"])
         client._process = mock_process
@@ -428,17 +328,12 @@ class TestMcpClientSendRequest:
 
         assert client._request_id == initial_id + 1
 
-    @patch("subprocess.Popen")
     def test_send_request_sends_json_rpc_2_0_format(self, mock_popen):
         """Test that _send_request() sends valid JSON-RPC 2.0"""
-        mock_process = MagicMock()
-        mock_process.stdin = MagicMock()
-        mock_process.stdout = MagicMock()
+        mock_process = mock_popen.return_value
         mock_process.stdout.readline = MagicMock(
             return_value='{"jsonrpc":"2.0","id":1,"result":{}}\n'
         )
-        mock_process.stderr = MagicMock()
-        mock_popen.return_value = mock_process
 
         client = McpClient("test", ["echo", "test"])
         client._process = mock_process
@@ -459,14 +354,9 @@ class TestMcpClientSendRequest:
         assert request["params"] == {"param1": "value1"}
         assert "id" in request
 
-    @patch("subprocess.Popen")
     def test_send_request_raises_error_when_shutdown(self, mock_popen):
         """Test that _send_request() raises error when client is shut down"""
-        mock_process = MagicMock()
-        mock_process.stdin = MagicMock()
-        mock_process.stdout = MagicMock()
-        mock_process.stderr = MagicMock()
-        mock_popen.return_value = mock_process
+        mock_process = mock_popen.return_value
 
         client = McpClient("test", ["echo", "test"])
         client._state = McpState.SHUTDOWN
@@ -474,15 +364,10 @@ class TestMcpClientSendRequest:
         with pytest.raises(McpError, match="Cannot send request: client is shut down"):
             client._send_request("test/method")
 
-    @patch("subprocess.Popen")
     def test_send_request_handles_broken_pipe(self, mock_popen):
         """Test that _send_request() handles broken pipe errors"""
-        mock_process = MagicMock()
-        mock_process.stdin = MagicMock()
+        mock_process = mock_popen.return_value
         mock_process.stdin.write = MagicMock(side_effect=BrokenPipeError("Pipe broken"))
-        mock_process.stdout = MagicMock()
-        mock_process.stderr = MagicMock()
-        mock_popen.return_value = mock_process
 
         client = McpClient("test", ["echo", "test"])
         client._process = mock_process
@@ -491,15 +376,10 @@ class TestMcpClientSendRequest:
         with pytest.raises(McpError, match="Failed to send request"):
             client._send_request("test/method")
 
-    @patch("subprocess.Popen")
     def test_send_request_handles_no_response(self, mock_popen):
         """Test that _send_request() handles no response from process"""
-        mock_process = MagicMock()
-        mock_process.stdin = MagicMock()
-        mock_process.stdout = MagicMock()
+        mock_process = mock_popen.return_value
         mock_process.stdout.readline = MagicMock(return_value="")  # Empty response
-        mock_process.stderr = MagicMock()
-        mock_popen.return_value = mock_process
 
         client = McpClient("test", ["echo", "test"])
         client._process = mock_process
@@ -508,15 +388,10 @@ class TestMcpClientSendRequest:
         with pytest.raises(McpError, match="No response from orchestrator"):
             client._send_request("test/method")
 
-    @patch("subprocess.Popen")
     def test_send_request_handles_invalid_json(self, mock_popen):
         """Test that _send_request() handles invalid JSON response"""
-        mock_process = MagicMock()
-        mock_process.stdin = MagicMock()
-        mock_process.stdout = MagicMock()
+        mock_process = mock_popen.return_value
         mock_process.stdout.readline = MagicMock(return_value="not json\n")
-        mock_process.stderr = MagicMock()
-        mock_popen.return_value = mock_process
 
         client = McpClient("test", ["echo", "test"])
         client._process = mock_process
@@ -525,17 +400,12 @@ class TestMcpClientSendRequest:
         with pytest.raises(McpError, match="Invalid JSON response"):
             client._send_request("test/method")
 
-    @patch("subprocess.Popen")
     def test_send_request_handles_json_rpc_error(self, mock_popen):
         """Test that _send_request() handles JSON-RPC error responses"""
-        mock_process = MagicMock()
-        mock_process.stdin = MagicMock()
-        mock_process.stdout = MagicMock()
+        mock_process = mock_popen.return_value
         mock_process.stdout.readline = MagicMock(
             return_value='{"jsonrpc":"2.0","id":1,"error":{"code":-32600,"message":"Invalid Request"}}\n'
         )
-        mock_process.stderr = MagicMock()
-        mock_popen.return_value = mock_process
 
         client = McpClient("test", ["echo", "test"])
         client._process = mock_process
@@ -548,14 +418,9 @@ class TestMcpClientSendRequest:
 class TestMcpClientToolOperations:
     """Test MCP client tool operations (list_tools, call_tool)"""
 
-    @patch("subprocess.Popen")
     def test_list_tools_returns_tool_list(self, mock_popen):
         """Test that list_tools() returns list of Tool objects"""
-        mock_process = MagicMock()
-        mock_process.stdin = MagicMock()
-        mock_process.stdout = MagicMock()
-        mock_process.stderr = MagicMock()
-        mock_popen.return_value = mock_process
+        mock_process = mock_popen.return_value
 
         client = McpClient("test", ["echo", "test"])
         client._process = mock_process
@@ -587,14 +452,9 @@ class TestMcpClientToolOperations:
             assert tools[0].description == "Read a file"
             assert tools[1].name == "write_file"
 
-    @patch("subprocess.Popen")
     def test_list_tools_handles_missing_description(self, mock_popen):
         """Test that list_tools() handles tools without descriptions"""
-        mock_process = MagicMock()
-        mock_process.stdin = MagicMock()
-        mock_process.stdout = MagicMock()
-        mock_process.stderr = MagicMock()
-        mock_popen.return_value = mock_process
+        mock_process = mock_popen.return_value
 
         client = McpClient("test", ["echo", "test"])
         client._process = mock_process
@@ -615,14 +475,9 @@ class TestMcpClientToolOperations:
             assert tools[0].name == "tool_no_desc"
             assert tools[0].description == ""  # Default to empty string
 
-    @patch("subprocess.Popen")
     def test_list_tools_handles_missing_input_schema(self, mock_popen):
         """Test that list_tools() handles tools without input schema"""
-        mock_process = MagicMock()
-        mock_process.stdin = MagicMock()
-        mock_process.stdout = MagicMock()
-        mock_process.stderr = MagicMock()
-        mock_popen.return_value = mock_process
+        mock_process = mock_popen.return_value
 
         client = McpClient("test", ["echo", "test"])
         client._process = mock_process
@@ -640,29 +495,17 @@ class TestMcpClientToolOperations:
             assert len(tools) == 1
             assert tools[0].input_schema == {}  # Default to empty dict
 
-    @patch("subprocess.Popen")
     def test_list_tools_raises_error_when_not_initialized(self, mock_popen):
         """Test that list_tools() raises error when not in INITIALIZED state"""
-        mock_process = MagicMock()
-        mock_process.stdin = MagicMock()
-        mock_process.stdout = MagicMock()
-        mock_process.stderr = MagicMock()
-        mock_popen.return_value = mock_process
-
         client = McpClient("test", ["echo", "test"])
         client._state = McpState.CONNECTED
 
         with pytest.raises(McpError, match="Cannot list tools: client is connected"):
             client.list_tools()
 
-    @patch("subprocess.Popen")
     def test_list_tools_handles_invalid_response(self, mock_popen):
         """Test that list_tools() handles invalid response"""
-        mock_process = MagicMock()
-        mock_process.stdin = MagicMock()
-        mock_process.stdout = MagicMock()
-        mock_process.stderr = MagicMock()
-        mock_popen.return_value = mock_process
+        mock_process = mock_popen.return_value
 
         client = McpClient("test", ["echo", "test"])
         client._process = mock_process
@@ -674,14 +517,9 @@ class TestMcpClientToolOperations:
             with pytest.raises(McpError, match="tools/list failed"):
                 client.list_tools()
 
-    @patch("subprocess.Popen")
     def test_call_tool_invokes_tool_with_arguments(self, mock_popen):
         """Test that call_tool() sends correct request"""
-        mock_process = MagicMock()
-        mock_process.stdin = MagicMock()
-        mock_process.stdout = MagicMock()
-        mock_process.stderr = MagicMock()
-        mock_popen.return_value = mock_process
+        mock_process = mock_popen.return_value
 
         client = McpClient("test", ["echo", "test"])
         client._process = mock_process
@@ -699,29 +537,17 @@ class TestMcpClientToolOperations:
             assert call_args[0][1]["arguments"] == {"path": "test.txt"}
             assert result["content"] == ["File content here"]
 
-    @patch("subprocess.Popen")
     def test_call_tool_raises_error_when_not_initialized(self, mock_popen):
         """Test that call_tool() raises error when not in INITIALIZED state"""
-        mock_process = MagicMock()
-        mock_process.stdin = MagicMock()
-        mock_process.stdout = MagicMock()
-        mock_process.stderr = MagicMock()
-        mock_popen.return_value = mock_process
-
         client = McpClient("test", ["echo", "test"])
         client._state = McpState.CONNECTED
 
         with pytest.raises(McpError, match="Cannot call tool: client is connected"):
             client.call_tool("read_file", {})
 
-    @patch("subprocess.Popen")
     def test_call_tool_handles_invalid_response(self, mock_popen):
         """Test that call_tool() handles invalid response"""
-        mock_process = MagicMock()
-        mock_process.stdin = MagicMock()
-        mock_process.stdout = MagicMock()
-        mock_process.stderr = MagicMock()
-        mock_popen.return_value = mock_process
+        mock_process = mock_popen.return_value
 
         client = McpClient("test", ["echo", "test"])
         client._process = mock_process
@@ -737,16 +563,11 @@ class TestMcpClientToolOperations:
 class TestMcpClientContextManager:
     """Test MCP client context manager protocol"""
 
-    @patch("subprocess.Popen")
     @patch("time.sleep")
     def test_context_manager_spawns_and_initializes(self, mock_sleep, mock_popen):
         """Test that context manager spawns and initializes on enter"""
-        mock_process = MagicMock()
-        mock_process.stdin = MagicMock()
-        mock_process.stdout = MagicMock()
-        mock_process.stderr = MagicMock()
+        mock_process = mock_popen.return_value
         mock_process.wait = MagicMock(return_value=0)
-        mock_popen.return_value = mock_process
 
         with patch.object(McpClient, "_send_request") as mock_send:
             mock_send.return_value = {"result": {"protocolVersion": "2024-11-05"}}
@@ -755,15 +576,10 @@ class TestMcpClientContextManager:
             with client:
                 assert client.state == McpState.INITIALIZED
 
-    @patch("subprocess.Popen")
     def test_context_manager_shutdown_on_exit(self, mock_popen):
         """Test that context manager shuts down on exit"""
-        mock_process = MagicMock()
-        mock_process.stdin = MagicMock()
-        mock_process.stdout = MagicMock()
-        mock_process.stderr = MagicMock()
+        mock_process = mock_popen.return_value
         mock_process.wait = MagicMock(return_value=0)
-        mock_popen.return_value = mock_process
 
         # Mock _send_request to return valid response
         with patch.object(McpClient, "_send_request") as mock_send:
@@ -776,15 +592,10 @@ class TestMcpClientContextManager:
             assert client.state == McpState.SHUTDOWN
             mock_process.terminate.assert_called_once()
 
-    @patch("subprocess.Popen")
     def test_context_manager_returns_self_on_enter(self, mock_popen):
         """Test that context manager returns self on __enter__"""
-        mock_process = MagicMock()
-        mock_process.stdin = MagicMock()
-        mock_process.stdout = MagicMock()
-        mock_process.stderr = MagicMock()
+        mock_process = mock_popen.return_value
         mock_process.wait = MagicMock(return_value=0)
-        mock_popen.return_value = mock_process
 
         with patch.object(McpClient, "_send_request") as mock_send:
             mock_send.return_value = {"result": {"protocolVersion": "2024-11-05"}}

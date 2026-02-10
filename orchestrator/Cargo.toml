@@ -39,6 +39,7 @@ reqwest = { version = "0.12", features = ["json"] }
 
 # Random number generation (for retry jitter)
 rand = "0.8"
+chrono = { version = "0.4.43", features = ["serde"] }
 
 # Firecracker HTTP client
 hyper = { version = "1.0", features = ["full"] }

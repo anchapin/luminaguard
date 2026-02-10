@@ -5,3 +5,4 @@
 
 pub mod mcp;
 pub mod vm;
+pub mod approval;

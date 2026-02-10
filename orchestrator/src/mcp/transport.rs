@@ -266,6 +266,21 @@ mod tests {
         format!(r#"{{"jsonrpc":"2.0","id":{},"result":{}}}"#, id, result)
     }
 
+    // Helper to create a test script
+    async fn setup_test_script(path: &str, content: &str) {
+        std::fs::write(path, content).unwrap();
+
+        #[cfg(unix)]
+        {
+            use tokio::process::Command;
+            Command::new("chmod")
+                .args(["+x", path])
+                .output()
+                .await
+                .expect("Failed to make script executable");
+        }
+    }
+
     #[cfg(unix)]
     #[tokio::test]
     async fn test_stdio_transport_send() {
@@ -347,19 +362,10 @@ done
 "#;
 
         let echo_path = "/tmp/mcp_echo_test.sh";
-        std::fs::write(echo_path, echo_script).unwrap();
+        setup_test_script(echo_path, echo_script).await;
 
         #[cfg(unix)]
         {
-            use tokio::process::Command;
-
-            // Make the script executable
-            Command::new("chmod")
-                .args(["+x", echo_path])
-                .output()
-                .await
-                .expect("Failed to make echo script executable");
-
             // Spawn the echo server
             let mut transport = StdioTransport::spawn(echo_path, &[])
                 .await
@@ -404,18 +410,9 @@ sleep 100
 "#;
 
         let echo_path = "/tmp/mcp_kill_test.sh";
-        std::fs::write(echo_path, echo_script).unwrap();
+        setup_test_script(echo_path, echo_script).await;
 
         {
-            use tokio::process::Command;
-
-            // Make the script executable
-            Command::new("chmod")
-                .args(["+x", echo_path])
-                .output()
-                .await
-                .expect("Failed to make script executable");
-
             // Spawn the process
             let mut transport = StdioTransport::spawn(echo_path, &[])
                 .await
@@ -447,18 +444,9 @@ exit 42
 "#;
 
         let echo_path = "/tmp/mcp_wait_test.sh";
-        std::fs::write(echo_path, echo_script).unwrap();
+        setup_test_script(echo_path, echo_script).await;
 
         {
-            use tokio::process::Command;
-
-            // Make the script executable
-            Command::new("chmod")
-                .args(["+x", echo_path])
-                .output()
-                .await
-                .expect("Failed to make script executable");
-
             // Spawn the process
             let mut transport = StdioTransport::spawn(echo_path, &[])
                 .await
@@ -535,17 +523,9 @@ echo "test"
 "#;
 
         let echo_path = "/tmp/mcp_command_test.sh";
-        std::fs::write(echo_path, echo_script).unwrap();
+        setup_test_script(echo_path, echo_script).await;
 
         {
-            use tokio::process::Command;
-
-            Command::new("chmod")
-                .args(["+x", echo_path])
-                .output()
-                .await
-                .expect("Failed to make script executable");
-
             let transport = StdioTransport::spawn(echo_path, &[])
                 .await
                 .expect("Failed to spawn");
