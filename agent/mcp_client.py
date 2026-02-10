@@ -101,9 +101,12 @@ class McpClient:
             command: Command to spawn MCP server (e.g., ["npx", "-y", "@modelcontextprotocol/server-filesystem"])
             root_dir: Root directory for filesystem operations (optional)
             args: Additional arguments for orchestrator (optional)
+
+        Raises:
+            McpError: If command validation fails
         """
         self.server_name = server_name
-        self.command = command
+        self.command = self._validate_command(command)
         self.root_dir = root_dir
         self.args = args or []
 
@@ -117,6 +120,66 @@ class McpClient:
     def state(self) -> McpState:
         """Get current client state"""
         return self._state
+
+    def _validate_command(self, command: List[str]) -> List[str]:
+        """
+        Validate and sanitize user-provided command.
+
+        This implements defense-in-depth for command injection prevention.
+        While subprocess.Popen with list args prevents shell injection,
+        we still validate to catch obvious mistakes and malicious inputs.
+
+        Args:
+            command: Command list to validate
+
+        Returns:
+            Validated command list
+
+        Raises:
+            McpError: If command fails validation
+        """
+        if not command or not isinstance(command, list):
+            raise McpError("Command must be a non-empty list")
+
+        if not all(isinstance(arg, str) for arg in command):
+            raise McpError("All command arguments must be strings")
+
+        # Check for shell metacharacters that could enable injection
+        shell_metachars = [';', '&', '|', '$', '`', '(', ')', '<', '>', '\n', '\r']
+        for arg in command:
+            if any(char in arg for char in shell_metachars):
+                raise McpError(
+                    f"Command argument contains shell metacharacter: {arg!r}. "
+                    "This may indicate an attempted command injection."
+                )
+
+        # Allowlist of known-safe base commands
+        # This is not a security boundary (the subprocess runs locally as the user),
+        # but prevents accidental mistakes and documents expected commands.
+        safe_commands = {
+            'npx',           # Node.js package runner
+            'python', 'python3',  # Python interpreters
+            'node',          # Node.js runtime
+            'cargo',         # Rust toolchain (for testing)
+            'echo',          # Testing (benign)
+            'true',          # Testing (benign)
+            'cat',           # File operations (for trusted input)
+        }
+
+        base_cmd = command[0]
+        # Allow paths (e.g., ./node_modules/.bin/npx) by checking base name
+        base_name = base_cmd.split('/')[-1].split('\\')[-1]
+
+        if base_name not in safe_commands:
+            # Log warning but don't fail - user may have custom setup
+            import sys
+            print(
+                f"Warning: Command '{base_name}' not in known-safe list. "
+                f"Ensure this command is trusted and does not accept untrusted input.",
+                file=sys.stderr
+            )
+
+        return command
 
     def _send_request(
         self, method: str, params: Optional[Dict[str, Any]] = None
@@ -183,6 +246,14 @@ class McpClient:
 
         This starts the ironclaw CLI with the `mcp stdio` subcommand,
         which will spawn the MCP server and communicate with it.
+
+        Security Note:
+            This method spawns a subprocess using user-provided command.
+            While we validate commands for obvious injection patterns,
+            the subprocess runs with the same permissions as the user.
+            This is safe for local-first use where the user controls the
+            MCP server configuration. For untrusted input, additional
+            sandboxing (e.g., JIT Micro-VMs) should be used.
 
         Raises:
             McpError: If process fails to start
