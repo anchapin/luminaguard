@@ -189,7 +189,6 @@ def run_loop(
 
 if __name__ == "__main__":
     # CLI entry point for testing
-    import sys
 
     if len(sys.argv) > 1:
         task = sys.argv[1]
