@@ -224,7 +224,9 @@ class TestMcpClientLifecycle:
         mock_process = MagicMock()
         mock_process.stdin = MagicMock()
         mock_process.stdout = MagicMock()
-        mock_process.stdout.readline = MagicMock(return_value='{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2024-11-05"}}\n')
+        mock_process.stdout.readline = MagicMock(
+            return_value='{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2024-11-05"}}\n'
+        )
         mock_process.stderr = MagicMock()
         mock_popen.return_value = mock_process
 
@@ -372,7 +374,9 @@ class TestMcpClientSendRequest:
         mock_process = MagicMock()
         mock_process.stdin = MagicMock()
         mock_process.stdout = MagicMock()
-        mock_process.stdout.readline = MagicMock(return_value='{"jsonrpc":"2.0","id":1,"result":{}}\n')
+        mock_process.stdout.readline = MagicMock(
+            return_value='{"jsonrpc":"2.0","id":1,"result":{}}\n'
+        )
         mock_process.stderr = MagicMock()
         mock_popen.return_value = mock_process
 
@@ -391,7 +395,9 @@ class TestMcpClientSendRequest:
         mock_process = MagicMock()
         mock_process.stdin = MagicMock()
         mock_process.stdout = MagicMock()
-        mock_process.stdout.readline = MagicMock(return_value='{"jsonrpc":"2.0","id":1,"result":{}}\n')
+        mock_process.stdout.readline = MagicMock(
+            return_value='{"jsonrpc":"2.0","id":1,"result":{}}\n'
+        )
         mock_process.stderr = MagicMock()
         mock_popen.return_value = mock_process
 
@@ -524,13 +530,13 @@ class TestMcpClientToolOperations:
                         {
                             "name": "read_file",
                             "description": "Read a file",
-                            "inputSchema": {"type": "object"}
+                            "inputSchema": {"type": "object"},
                         },
                         {
                             "name": "write_file",
                             "description": "Write a file",
-                            "inputSchema": {"type": "object"}
-                        }
+                            "inputSchema": {"type": "object"},
+                        },
                     ]
                 }
             }
@@ -559,10 +565,7 @@ class TestMcpClientToolOperations:
             mock_send.return_value = {
                 "result": {
                     "tools": [
-                        {
-                            "name": "tool_no_desc",
-                            "inputSchema": {"type": "object"}
-                        }
+                        {"name": "tool_no_desc", "inputSchema": {"type": "object"}}
                     ]
                 }
             }
@@ -589,12 +592,7 @@ class TestMcpClientToolOperations:
         with patch.object(client, "_send_request") as mock_send:
             mock_send.return_value = {
                 "result": {
-                    "tools": [
-                        {
-                            "name": "simple_tool",
-                            "description": "A simple tool"
-                        }
-                    ]
+                    "tools": [{"name": "simple_tool", "description": "A simple tool"}]
                 }
             }
 
@@ -651,11 +649,7 @@ class TestMcpClientToolOperations:
         client._state = McpState.INITIALIZED
 
         with patch.object(client, "_send_request") as mock_send:
-            mock_send.return_value = {
-                "result": {
-                    "content": ["File content here"]
-                }
-            }
+            mock_send.return_value = {"result": {"content": ["File content here"]}}
 
             result = client.call_tool("read_file", {"path": "test.txt"})
 
@@ -767,9 +761,7 @@ class TestToolDataclass:
     def test_tool_creation(self):
         """Test creating a Tool object"""
         tool = Tool(
-            name="test_tool",
-            description="A test tool",
-            input_schema={"type": "object"}
+            name="test_tool", description="A test tool", input_schema={"type": "object"}
         )
 
         assert tool.name == "test_tool"

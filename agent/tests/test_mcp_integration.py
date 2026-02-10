@@ -27,7 +27,7 @@ from mcp_client import McpClient, McpError
 @pytest.mark.integration
 @pytest.mark.skipif(
     not os.environ.get("RUN_INTEGRATION_TESTS"),
-    reason="Set RUN_INTEGRATION_TESTS=1 to run integration tests"
+    reason="Set RUN_INTEGRATION_TESTS=1 to run integration tests",
 )
 class TestMcpFilesystemServer:
     """Integration tests with MCP filesystem server"""
@@ -42,7 +42,7 @@ class TestMcpFilesystemServer:
             # Create MCP client for filesystem server
             client = McpClient(
                 "filesystem",
-                ["npx", "-y", "@modelcontextprotocol/server-filesystem", tmpdir]
+                ["npx", "-y", "@modelcontextprotocol/server-filesystem", tmpdir],
             )
 
             # Test spawn
@@ -64,14 +64,21 @@ class TestMcpFilesystemServer:
             # Test call_tool - read file
             result = client.call_tool("read_file", {"path": "test.txt"})
             assert "content" in result
-            content = result["content"][0] if isinstance(result["content"], list) else result["content"]
+            content = (
+                result["content"][0]
+                if isinstance(result["content"], list)
+                else result["content"]
+            )
             assert "Hello from IronClaw" in str(content)
 
             # Test call_tool - write file
-            write_result = client.call_tool("write_file", {
-                "path": "new_file.txt",
-                "content": "New content from integration test"
-            })
+            write_result = client.call_tool(
+                "write_file",
+                {
+                    "path": "new_file.txt",
+                    "content": "New content from integration test",
+                },
+            )
             assert "content" in write_result or write_result is not None
 
             # Verify file was written
@@ -93,7 +100,7 @@ class TestMcpFilesystemServer:
             # Use context manager
             with McpClient(
                 "filesystem",
-                ["npx", "-y", "@modelcontextprotocol/server-filesystem", tmpdir]
+                ["npx", "-y", "@modelcontextprotocol/server-filesystem", tmpdir],
             ) as client:
                 assert client.state.value == "initialized"
 
@@ -111,7 +118,7 @@ class TestMcpFilesystemServer:
         with tempfile.TemporaryDirectory() as tmpdir:
             with McpClient(
                 "filesystem",
-                ["npx", "-y", "@modelcontextprotocol/server-filesystem", tmpdir]
+                ["npx", "-y", "@modelcontextprotocol/server-filesystem", tmpdir],
             ) as client:
                 # Try to read non-existent file
                 with pytest.raises(McpError):
@@ -121,7 +128,7 @@ class TestMcpFilesystemServer:
 @pytest.mark.integration
 @pytest.mark.skipif(
     not os.environ.get("RUN_INTEGRATION_TESTS"),
-    reason="Set RUN_INTEGRATION_TESTS=1 to run integration tests"
+    reason="Set RUN_INTEGRATION_TESTS=1 to run integration tests",
 )
 class TestMcpServerCapabilities:
     """Test MCP server capabilities and protocol compliance"""
@@ -131,7 +138,7 @@ class TestMcpServerCapabilities:
         with tempfile.TemporaryDirectory() as tmpdir:
             with McpClient(
                 "filesystem",
-                ["npx", "-y", "@modelcontextprotocol/server-filesystem", tmpdir]
+                ["npx", "-y", "@modelcontextprotocol/server-filesystem", tmpdir],
             ) as client:
                 # Check that client received server capabilities
                 # (This would be stored if we expanded the client to save them)
@@ -142,7 +149,7 @@ class TestMcpServerCapabilities:
         with tempfile.TemporaryDirectory() as tmpdir:
             with McpClient(
                 "filesystem",
-                ["npx", "-y", "@modelcontextprotocol/server-filesystem", tmpdir]
+                ["npx", "-y", "@modelcontextprotocol/server-filesystem", tmpdir],
             ) as client:
                 tools = client.list_tools()
 
@@ -166,7 +173,7 @@ class TestMcpServerCapabilities:
 
             with McpClient(
                 "filesystem",
-                ["npx", "-y", "@modelcontextprotocol/server-filesystem", tmpdir]
+                ["npx", "-y", "@modelcontextprotocol/server-filesystem", tmpdir],
             ) as client:
                 # Read all files
                 results = []
@@ -183,7 +190,7 @@ class TestMcpServerCapabilities:
 @pytest.mark.integration
 @pytest.mark.skipif(
     not os.environ.get("RUN_INTEGRATION_TESTS"),
-    reason="Set RUN_INTEGRATION_TESTS=1 to run integration tests"
+    reason="Set RUN_INTEGRATION_TESTS=1 to run integration tests",
 )
 class TestMcpErrorHandling:
     """Test error handling in real MCP server scenarios"""
@@ -193,7 +200,7 @@ class TestMcpErrorHandling:
         with tempfile.TemporaryDirectory() as tmpdir:
             with McpClient(
                 "filesystem",
-                ["npx", "-y", "@modelcontextprotocol/server-filesystem", tmpdir]
+                ["npx", "-y", "@modelcontextprotocol/server-filesystem", tmpdir],
             ) as client:
                 with pytest.raises(McpError):
                     client.call_tool("invalid_tool_name", {})
@@ -203,7 +210,7 @@ class TestMcpErrorHandling:
         with tempfile.TemporaryDirectory() as tmpdir:
             with McpClient(
                 "filesystem",
-                ["npx", "-y", "@modelcontextprotocol/server-filesystem", tmpdir]
+                ["npx", "-y", "@modelcontextprotocol/server-filesystem", tmpdir],
             ) as client:
                 # read_file requires "path" parameter
                 with pytest.raises(McpError):
@@ -215,7 +222,7 @@ class TestMcpErrorHandling:
         with tempfile.TemporaryDirectory() as tmpdir:
             with McpClient(
                 "filesystem",
-                ["npx", "-y", "@modelcontextprotocol/server-filesystem", tmpdir]
+                ["npx", "-y", "@modelcontextprotocol/server-filesystem", tmpdir],
             ) as client:
                 # Try to read file outside allowed directory
                 with pytest.raises(McpError):
@@ -225,7 +232,7 @@ class TestMcpErrorHandling:
 @pytest.mark.integration
 @pytest.mark.skipif(
     not os.environ.get("RUN_INTEGRATION_TESTS"),
-    reason="Set RUN_INTEGRATION_TESTS=1 to run integration tests"
+    reason="Set RUN_INTEGRATION_TESTS=1 to run integration tests",
 )
 def test_mcp_client_performance():
     """Test performance characteristics with real server"""
@@ -236,7 +243,7 @@ def test_mcp_client_performance():
         start = time.time()
         client = McpClient(
             "filesystem",
-            ["npx", "-y", "@modelcontextprotocol/server-filesystem", tmpdir]
+            ["npx", "-y", "@modelcontextprotocol/server-filesystem", tmpdir],
         )
         client.spawn()
         client.initialize()
@@ -271,4 +278,6 @@ if __name__ == "__main__":
         pytest.main([__file__, "-v", "-s"])
     else:
         print("Integration tests skipped. Set RUN_INTEGRATION_TESTS=1 to run.")
-        print("Example: RUN_INTEGRATION_TESTS=1 python -m pytest tests/test_mcp_integration.py -v")
+        print(
+            "Example: RUN_INTEGRATION_TESTS=1 python -m pytest tests/test_mcp_integration.py -v"
+        )
