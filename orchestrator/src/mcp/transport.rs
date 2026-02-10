@@ -234,13 +234,12 @@ impl Transport for StdioTransport {
         tracing::debug!("Received from MCP server: {}", self.line_buffer.trim());
 
         // Deserialize the JSON line
-        let response: McpResponse = serde_json::from_str(&self.line_buffer)
-            .with_context(|| {
-                format!(
-                    "Failed to deserialize MCP response from JSON: {}",
-                    self.line_buffer
-                )
-            })?;
+        let response: McpResponse = serde_json::from_str(&self.line_buffer).with_context(|| {
+            format!(
+                "Failed to deserialize MCP response from JSON: {}",
+                self.line_buffer
+            )
+        })?;
 
         Ok(response)
     }
