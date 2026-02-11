@@ -304,9 +304,25 @@ mod tests {
 
         // We also need resources/vmlinux and resources/rootfs.ext4
         // Since we are running from orchestrator root usually
-        if !Path::new("resources/vmlinux").exists() {
+        let vmlinux_path = Path::new("resources/vmlinux");
+        let rootfs_path = Path::new("resources/rootfs.ext4");
+
+        if !vmlinux_path.exists() {
             println!("Skipping test: resources/vmlinux not found");
             return;
+        }
+
+        if !rootfs_path.exists() {
+            println!("Skipping test: resources/rootfs.ext4 not found");
+            return;
+        }
+
+        // Check if vmlinux is not a placeholder (less than 1KB)
+        if let Ok(metadata) = vmlinux_path.metadata() {
+            if metadata.len() < 1000 {
+                println!("Skipping test: resources/vmlinux is a placeholder");
+                return;
+            }
         }
 
         let result = spawn_vm().await;
