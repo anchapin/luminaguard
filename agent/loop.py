@@ -17,21 +17,30 @@ Architecture Principles:
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+import json
+import os
+import re
+import sys
 from dataclasses import dataclass
 from enum import Enum
-import os
-import sys
+from typing import Any, Dict, List, Optional, Tuple
 
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 try:
     # When imported as module
-    from agent.mcp_client import McpClient, McpError
+    from agent.mcp_client import McpClient, McpError, Tool
+    from agent.llm_client import LlmClient, LlmError
 except ImportError:
-    # When run directly
-    from mcp_client import McpClient, McpError
+    # When run directly or in tests without package structure
+    try:
+        from mcp_client import McpClient, McpError, Tool
+        from llm_client import LlmClient, LlmError
+    except ImportError:
+        # Fallback for circular imports or when running from root
+        from agent.mcp_client import McpClient, McpError, Tool
+        from agent.llm_client import LlmClient, LlmError
 
 
 class ActionKind(Enum):
@@ -39,6 +48,11 @@ class ActionKind(Enum):
 
     GREEN = "green"  # Autonomous: read-only, safe
     RED = "red"  # Requires approval: destructive, external
+
+
+# Keywords for action classification
+GREEN_KEYWORDS = ("read_", "list_", "get_", "search_", "find_")
+RED_KEYWORDS = ("write_", "delete_", "create_", "update_", "send_", "execute_")
 
 
 @dataclass
@@ -55,7 +69,7 @@ class AgentState:
     """Current state of the agent"""
 
     messages: List[Dict[str, Any]]
-    tools: List[str]
+    tools: List[Tool]
     context: Dict[str, Any]
 
     def add_message(self, role: str, content: str) -> None:
@@ -63,7 +77,131 @@ class AgentState:
         self.messages.append({"role": role, "content": content})
 
 
-def think(state: AgentState) -> Optional[ToolCall]:
+def determine_action_kind(tool_name: str) -> ActionKind:
+    """
+    Determine if an action is GREEN (safe) or RED (requires approval).
+
+    Heuristic based on tool naming patterns:
+    - Green: read_*, list_*, get_*, search_*, find_*
+    - Red: write_*, delete_*, create_*, update_*, send_*, execute_*
+    - Default: Red (safe by default)
+    """
+    if tool_name.startswith(GREEN_KEYWORDS):
+        return ActionKind.GREEN
+
+    # Default to RED for safety
+    return ActionKind.RED
+
+
+def present_diff_card(action: ToolCall) -> str:
+    """
+    Present a Diff Card for user approval.
+    """
+    return f"I am about to {action.name}. Approve?"
+
+
+def construct_system_prompt(tools: List[Tool]) -> str:
+    """
+    Construct the ReAct system prompt with tool definitions.
+    """
+    tool_descriptions = []
+    for tool in tools:
+        # Schema might be None or empty
+        schema = json.dumps(tool.input_schema, indent=2) if tool.input_schema else "{}"
+        tool_descriptions.append(
+            f"<tool_definition>\n"
+            f"<name>{tool.name}</name>\n"
+            f"<description>{tool.description}</description>\n"
+            f"<parameters>\n{schema}\n</parameters>\n"
+            f"</tool_definition>"
+        )
+
+    tools_xml = "\n".join(tool_descriptions)
+
+    return f"""You are IronClaw, a secure autonomous agent.
+
+You have access to the following tools:
+
+<tools>
+{tools_xml}
+</tools>
+
+Instructions:
+1. Analyze the user's request and the current state.
+2. Decide on the next step.
+3. Use a tool if necessary to gather information or perform an action.
+4. If the task is complete, return a final answer.
+
+Format your response as follows:
+<thought>
+Explain your reasoning here.
+</thought>
+<function_calls>
+<function_call name="tool_name">
+<arg name="arg_name">value</arg>
+...
+</function_call>
+</function_calls>
+
+Start with a <thought> block.
+"""
+
+
+def parse_response(response: str) -> Tuple[str, Optional[ToolCall]]:
+    """
+    Parse LLM response for thought and tool call.
+
+    Returns:
+        Tuple of (thought_content, ToolCall or None)
+    """
+    # Extract thought
+    thought_match = re.search(r"<thought>(.*?)</thought>", response, re.DOTALL)
+    thought = thought_match.group(1).strip() if thought_match else ""
+
+    # Extract function calls
+    # We look for <function_calls>...</function_calls>
+    # Inside, we look for <function_call name="...">...</function_call>
+
+    calls_match = re.search(
+        r"<function_calls>(.*?)</function_calls>", response, re.DOTALL
+    )
+    if not calls_match:
+        return thought, None
+
+    calls_content = calls_match.group(1)
+
+    # Naive XML parsing for function_call
+    # Using regex to find the first function call (IronClaw currently supports one call per turn)
+    # TODO: Support multiple calls if needed
+
+    call_match = re.search(
+        r'<function_call name="(.*?)">(.*?)</function_call>', calls_content, re.DOTALL
+    )
+    if not call_match:
+        return thought, None
+
+    tool_name = call_match.group(1)
+    args_content = call_match.group(2)
+
+    # Parse arguments
+    # <arg name="key">value</arg>
+    arguments = {}
+    arg_matches = re.finditer(r'<arg name="(.*?)">(.*?)</arg>', args_content, re.DOTALL)
+    for match in arg_matches:
+        key = match.group(1)
+        value = match.group(2).strip()
+        arguments[key] = value
+
+    action_kind = determine_action_kind(tool_name)
+
+    return thought, ToolCall(
+        name=tool_name, arguments=arguments, action_kind=action_kind
+    )
+
+
+def think(
+    state: AgentState, llm_client: Optional[LlmClient] = None
+) -> Optional[ToolCall]:
     """
     Main reasoning loop - decides next action based on state.
 
@@ -80,9 +218,45 @@ def think(state: AgentState) -> Optional[ToolCall]:
         Must remain deterministic and observable.
         All logging must be explicit.
     """
-    # TODO: Implement Nanobot-style reasoning loop
-    # For now, this is a placeholder that returns None
-    return None
+    if not llm_client:
+        # Cannot think without a brain
+        print("Warning: No LLM client provided to think()")
+        return None
+
+    # 1. Construct system prompt with tools
+    system_prompt = construct_system_prompt(state.tools)
+
+    # 2. Prepare messages for LLM
+    # Ensure all content is string
+    llm_messages = []
+    for msg in state.messages:
+        llm_messages.append({"role": msg["role"], "content": str(msg["content"])})
+
+    # 3. Call LLM
+    try:
+        response = llm_client.complete(
+            messages=llm_messages,
+            system=system_prompt,
+            temperature=0.0,  # Deterministic
+            max_tokens=4096,
+        )
+    except Exception as e:
+        print(f"Error during LLM completion: {e}")
+        return None
+
+    # 4. Update state with assistant's response (maintains history)
+    state.add_message("assistant", response)
+
+    # 5. Parse response
+    thought, tool_call = parse_response(response)
+
+    if thought:
+        # Logging/Observation
+        # In a real system, we might stream this.
+        # Here we just rely on it being in history.
+        pass
+
+    return tool_call
 
 
 def execute_tool(call: ToolCall, mcp_client) -> Dict[str, Any]:
@@ -121,37 +295,44 @@ def execute_tool(call: ToolCall, mcp_client) -> Dict[str, Any]:
 
 
 def run_loop(
-    task: str, tools: List[str], mcp_client: Optional[McpClient] = None
+    task: str,
+    mcp_client: Optional[McpClient] = None,
+    tools: Optional[List[Tool]] = None,
+    llm_client: Optional[LlmClient] = None,
 ) -> AgentState:
     """
     Run the agent reasoning loop for a given task.
 
-    This is the main entry point for the agent.
-
     Args:
         task: User task description
-        tools: List of available tools (currently informational only)
         mcp_client: Optional McpClient instance for tool execution
+        tools: Optional list of tools (if mcp_client not provided or for testing)
+        llm_client: Optional LlmClient instance (if None, attempts to create one)
 
     Returns:
         Final agent state
-
-    Loop:
-        1. Think: Decide next action
-        2. Execute: Run tool (if action chosen)
-        3. Update: Add result to state
-        4. Repeat: Until task complete
-
-    Example:
-        >>> client = McpClient("filesystem", ["npx", "-y", "@server"])
-        >>> client.spawn()
-        >>> client.initialize()
-        >>> state = run_loop("Read /tmp/test.txt", ["read_file"], client)
-        >>> client.shutdown()
     """
-    print(f"\n🚀 Starting task: \033[1m{task}\033[0m")
+    # Initialize LLM client if not provided
+    if not llm_client:
+        try:
+            llm_client = LlmClient()
+        except Exception as e:
+            print(f"Warning: Failed to initialize LLM client: {e}")
+            llm_client = None
+
+    # Fetch tools from MCP client if available
+    available_tools = []
+    if mcp_client:
+        try:
+            available_tools = mcp_client.list_tools()
+        except Exception as e:
+            print(f"Warning: Failed to list tools: {e}")
+            available_tools = []
+    elif tools:
+        available_tools = tools
+
     state = AgentState(
-        messages=[{"role": "user", "content": task}], tools=tools, context={}
+        messages=[{"role": "user", "content": task}], tools=available_tools, context={}
     )
 
     max_iterations = 100
@@ -159,15 +340,12 @@ def run_loop(
 
     while iteration < max_iterations:
         # Think about next action
-        print(f"\n🧠 Thinking... (Iteration {iteration + 1}/{max_iterations})")
-        action = think(state)
+        action = think(state, llm_client)
 
         if action is None:
-            # Task complete
-            print("\n✅ Task complete!")
+            # Task complete or no LLM
             break
 
-        print(f"🛠️  Executing tool: \033[36m{action.name}\033[0m")
         # Execute tool (if MCP client provided)
         if mcp_client is not None:
             result = execute_tool(action, mcp_client)
@@ -180,7 +358,12 @@ def run_loop(
             }
 
         # Update state with result
-        state.add_message("tool", str(result))
+        # The result message should be from 'user' or a specific 'tool' role if the LLM supports it.
+        # Claude typically uses 'user' for tool results in the prompt if not using native tool calling.
+        # But here we are using ReAct prompting, so 'user' role is appropriate for observations.
+
+        observation_content = f"<observation>\n{result}\n</observation>"
+        state.add_message("user", observation_content)
 
         iteration += 1
 
@@ -196,5 +379,18 @@ if __name__ == "__main__":
     else:
         task = "Hello, IronClaw!"
 
-    state = run_loop(task, ["read_file", "write_file", "search"])
+    # Dummy tools for testing
+    dummy_tools = [
+        Tool(
+            name="read_file", description="Read file", input_schema={"path": "string"}
+        ),
+        Tool(
+            name="write_file",
+            description="Write file",
+            input_schema={"path": "string", "content": "string"},
+        ),
+    ]
+
+    print(f"Running agent with task: {task}")
+    state = run_loop(task, tools=dummy_tools)
     print(f"Final state: {len(state.messages)} messages")

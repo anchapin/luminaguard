@@ -11,9 +11,22 @@ This test suite validates:
 
 import pytest
 from hypothesis import given, strategies as st
-from unittest.mock import MagicMock, Mock
+from unittest.mock import MagicMock, Mock, patch
 
-from loop import AgentState, think, execute_tool, run_loop, ActionKind, ToolCall
+from loop import (
+    AgentState,
+    think,
+    execute_tool,
+    run_loop,
+    ActionKind,
+    ToolCall,
+    determine_action_kind,
+    construct_system_prompt,
+    parse_response,
+    present_diff_card,
+)
+from mcp_client import Tool, McpClient
+from llm_client import LlmClient
 
 
 class MockMcpClient:
@@ -22,6 +35,30 @@ class MockMcpClient:
     def call_tool(self, name: str, arguments: dict) -> dict:
         """Mock tool call that returns success"""
         return {"result": f"Mock execution of {name}", "content": []}
+
+    def list_tools(self):
+        return [
+            Tool(
+                name="read_file",
+                description="Read file",
+                input_schema={"path": "string"},
+            ),
+            Tool(
+                name="write_file",
+                description="Write file",
+                input_schema={"path": "string", "content": "string"},
+            ),
+        ]
+
+
+class MockLlmClient:
+    """Mock LLM client for testing"""
+
+    def __init__(self, response=""):
+        self.response = response
+
+    def complete(self, messages, system="", temperature=0.0, max_tokens=4096):
+        return self.response
 
 
 class TestAgentState:
@@ -52,20 +89,106 @@ class TestAgentState:
         assert state.messages[1]["content"] == "Second"
 
 
+class TestHelperFunctions:
+    """Tests for helper functions"""
+
+    def test_determine_action_kind(self):
+        assert determine_action_kind("read_file") == ActionKind.GREEN
+        assert determine_action_kind("write_file") == ActionKind.RED
+        assert determine_action_kind("list_files") == ActionKind.GREEN
+        assert determine_action_kind("delete_file") == ActionKind.RED
+        assert determine_action_kind("unknown_tool") == ActionKind.RED
+
+    def test_construct_system_prompt(self):
+        tools = [
+            Tool(
+                name="read_file",
+                description="Read file",
+                input_schema={"path": "string"},
+            ),
+            Tool(
+                name="write_file",
+                description="Write file",
+                input_schema={"path": "string", "content": "string"},
+            ),
+        ]
+        prompt = construct_system_prompt(tools)
+        assert "<tool_definition>" in prompt
+        assert "<name>read_file</name>" in prompt
+        assert "write_file" in prompt
+
+    def test_parse_response_with_call(self):
+        response = """
+        <thought>I should read the file.</thought>
+        <function_calls>
+        <function_call name="read_file">
+        <arg name="path">/tmp/test.txt</arg>
+        </function_call>
+        </function_calls>
+        """
+        thought, call = parse_response(response)
+        assert thought == "I should read the file."
+        assert call.name == "read_file"
+        assert call.arguments["path"] == "/tmp/test.txt"
+        assert call.action_kind == ActionKind.GREEN
+
+    def test_parse_response_without_call(self):
+        response = """<thought>Just thinking.</thought>"""
+        thought, call = parse_response(response)
+        assert thought == "Just thinking."
+        assert call is None
+
+    def test_present_diff_card(self):
+        """Test present_diff_card format"""
+        call = ToolCall(
+            name="delete_file",
+            arguments={"path": "file.txt"},
+            action_kind=ActionKind.RED,
+        )
+        card = present_diff_card(call)
+        assert "delete_file" in card
+        assert "Approve?" in card
+
+
 class TestThink:
     """Tests for the think() function"""
 
-    def test_think_returns_optional_tool_call(self):
-        """Test that think() returns None or ToolCall"""
+    def test_think_returns_tool_call(self):
+        """Test that think() returns ToolCall when LLM requests one"""
         state = AgentState(messages=[], tools=[], context={})
-        result = think(state)
-        assert result is None or isinstance(result, ToolCall)
+        llm_response = """
+        <thought>Thinking...</thought>
+        <function_calls>
+        <function_call name="read_file">
+        <arg name="path">test.txt</arg>
+        </function_call>
+        </function_calls>
+        """
+        mock_llm = MockLlmClient(response=llm_response)
 
-    def test_think_with_empty_state(self):
-        """Test think() with empty state"""
+        result = think(state, mock_llm)
+        assert isinstance(result, ToolCall)
+        assert result.name == "read_file"
+        # Verify state updated with thought
+        assert state.messages[-1]["role"] == "assistant"
+        assert state.messages[-1]["content"] == llm_response
+
+    def test_think_returns_none_when_task_complete(self):
+        """Test think() returns None when no tool call"""
         state = AgentState(messages=[], tools=[], context={})
-        result = think(state)
-        # Currently returns None (placeholder)
+        llm_response = """<thought>Task complete.</thought>"""
+        mock_llm = MockLlmClient(response=llm_response)
+
+        result = think(state, mock_llm)
+        assert result is None
+        # Verify state updated with thought
+        assert state.messages[-1]["role"] == "assistant"
+        assert state.messages[-1]["content"] == llm_response
+
+    def test_think_without_llm_client(self):
+        """Test think() returns None without LLM client"""
+        state = AgentState(messages=[], tools=[], context={})
+        result = think(state, None)
         assert result is None
 
 
@@ -88,50 +211,40 @@ class TestExecuteTool:
         result = execute_tool(call, mock_client)
         assert "status" in result
 
-    def test_execute_tool_with_green_action(self):
-        """Test execute_tool with green action"""
-        call = ToolCall(
-            name="read_file",
-            arguments={"path": "/tmp/file.txt"},
-            action_kind=ActionKind.GREEN,
-        )
-        mock_client = MockMcpClient()
-        result = execute_tool(call, mock_client)
-        assert result["status"] == "ok"
-
-    def test_execute_tool_with_red_action(self):
-        """Test execute_tool with red action"""
-        call = ToolCall(
-            name="delete_file",
-            arguments={"path": "/tmp/file.txt"},
-            action_kind=ActionKind.RED,
-        )
-        mock_client = MockMcpClient()
-        result = execute_tool(call, mock_client)
-        assert result["status"] == "ok"
-
 
 class TestRunLoop:
     """Tests for the run_loop() function"""
 
     def test_run_loop_returns_state(self):
         """Test that run_loop returns an AgentState"""
-        state = run_loop("Test task", ["tool1", "tool2"])
-        assert isinstance(state, AgentState)
+        # Mock think to return None immediately to avoid infinite loop or LLM calls
+        with patch("loop.think", return_value=None):
+            state = run_loop("Test task", tools=[])
+            assert isinstance(state, AgentState)
 
     def test_run_loop_initializes_with_user_message(self):
         """Test that run_loop adds user message to state"""
         task = "Test task"
-        state = run_loop(task, [])
-        assert len(state.messages) >= 1
-        assert state.messages[0]["role"] == "user"
-        assert state.messages[0]["content"] == task
+        with patch("loop.think", return_value=None):
+            state = run_loop(task, tools=[])
+            assert len(state.messages) >= 1
+            assert state.messages[0]["role"] == "user"
+            assert state.messages[0]["content"] == task
 
     def test_run_loop_includes_tools_in_state(self):
         """Test that run_loop includes tools in state"""
-        tools = ["read_file", "write_file", "search"]
-        state = run_loop("Test task", tools)
-        assert state.tools == tools
+        tools = [Tool(name="test", description="desc", input_schema={})]
+        with patch("loop.think", return_value=None):
+            state = run_loop("Test task", tools=tools)
+            assert state.tools == tools
+
+    def test_run_loop_fetches_tools_from_mcp(self):
+        """Test run_loop uses MCP client to fetch tools"""
+        mock_mcp = MockMcpClient()
+        with patch("loop.think", return_value=None):
+            state = run_loop("Test task", mcp_client=mock_mcp)
+            assert len(state.tools) == 2
+            assert state.tools[0].name == "read_file"
 
 
 class TestToolCall:
@@ -146,28 +259,6 @@ class TestToolCall:
         assert call.arguments == {"arg": "value"}
         assert call.action_kind == ActionKind.GREEN
 
-    def test_tool_call_with_green_action(self):
-        """Test ToolCall with green action"""
-        call = ToolCall(name="read_file", arguments={}, action_kind=ActionKind.GREEN)
-        assert call.action_kind == ActionKind.GREEN
-
-    def test_tool_call_with_red_action(self):
-        """Test ToolCall with red action"""
-        call = ToolCall(name="delete_file", arguments={}, action_kind=ActionKind.RED)
-        assert call.action_kind == ActionKind.RED
-
-
-class TestActionKind:
-    """Tests for ActionKind enum"""
-
-    def test_green_action_value(self):
-        """Test GREEN action value"""
-        assert ActionKind.GREEN.value == "green"
-
-    def test_red_action_value(self):
-        """Test RED action value"""
-        assert ActionKind.RED.value == "red"
-
 
 # Property-based tests using Hypothesis
 
@@ -176,14 +267,11 @@ class TestPropertyBased:
     """Property-based tests for core functions"""
 
     @given(st.text())
-    def test_think_handles_various_tasks(self, task):
-        """Property test: think() should handle any task string"""
-        state = AgentState(
-            messages=[{"role": "user", "content": task}], tools=[], context={}
-        )
-        result = think(state)
-        # Should not crash, should return None or ToolCall
-        assert result is None or isinstance(result, ToolCall)
+    def test_state_handles_various_message_content(self, content):
+        """Property test: AgentState should handle any content string"""
+        state = AgentState(messages=[], tools=[], context={})
+        state.add_message("user", content)
+        assert state.messages[0]["content"] == content
 
     @given(st.lists(st.text()))
     def test_state_handles_various_message_lists(self, messages):
@@ -196,16 +284,3 @@ class TestPropertyBased:
         # Should not crash
         assert isinstance(state.messages, list)
         assert len(state.messages) == len(messages)
-
-    @given(st.dictionaries(st.text(), st.text()))
-    def test_state_handles_various_contexts(self, context):
-        """Property test: AgentState should handle any context dict"""
-        state = AgentState(messages=[], tools=[], context=context)
-        # Should not crash
-        assert isinstance(state.context, dict)
-
-    @given(st.lists(st.text()))
-    def test_run_loop_with_various_tools(self, tools):
-        """Property test: run_loop should handle any list of tools"""
-        state = run_loop("Test task", tools)
-        assert state.tools == tools

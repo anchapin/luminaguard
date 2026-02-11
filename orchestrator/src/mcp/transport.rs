@@ -72,12 +72,6 @@ pub struct StdioTransport {
 
     /// Whether the transport is still connected
     connected: bool,
-
-    /// Reusable buffer for reading lines
-    line_buffer: String,
-
-    /// Reusable buffer for serializing requests
-    write_buffer: Vec<u8>,
 }
 
 impl StdioTransport {
@@ -101,8 +95,7 @@ impl StdioTransport {
     /// ).await?;
     /// ```
     pub async fn spawn(command: &str, args: &[&str]) -> Result<Self> {
-        tracing::info!("Spawning MCP server: {}", command);
-        tracing::debug!("Server arguments: {:?}", args);
+        tracing::info!("Spawning MCP server: {} {}", command, args.join(" "));
 
         // Spawn the child process with piped stdin/stdout
         let mut child = Command::new(command)
@@ -123,8 +116,6 @@ impl StdioTransport {
             stdout: BufReader::new(stdout),
             command: format!("{} {}", command, args.join(" ")),
             connected: true,
-            line_buffer: String::with_capacity(4096),
-            write_buffer: Vec::with_capacity(4096),
         })
     }
 
@@ -185,28 +176,23 @@ impl Transport for StdioTransport {
             return Err(anyhow::anyhow!("Transport is not connected"));
         }
 
-        // Clear buffer for reuse to avoid allocation
-        self.write_buffer.clear();
+        // Serialize the request to JSON
+        let json =
+            serde_json::to_string(request).context("Failed to serialize MCP request to JSON")?;
 
-        // Serialize the request to JSON directly into the buffer
-        serde_json::to_writer(&mut self.write_buffer, request)
-            .context("Failed to serialize MCP request to JSON")?;
+        tracing::debug!("Sending to MCP server: {}", json);
 
-        // Append newline (JSON-RPC uses line-based protocol)
-        self.write_buffer.push(b'\n');
-
-        // Log the message if debug logging is enabled
-        // We do a lossy conversion here which is cheap enough for debug logging
-        if tracing::enabled!(tracing::Level::DEBUG) {
-            let json_str = String::from_utf8_lossy(&self.write_buffer);
-            tracing::debug!("Sending to MCP server: {}", json_str.trim());
-        }
-
-        // Write the buffer to stdin in a single call
+        // Write the JSON line to stdin
         self.stdin
-            .write_all(&self.write_buffer)
+            .write_all(json.as_bytes())
             .await
             .context("Failed to write to MCP server stdin")?;
+
+        // Write newline (JSON-RPC uses line-based protocol)
+        self.stdin
+            .write_all(b"\n")
+            .await
+            .context("Failed to write newline to MCP server stdin")?;
 
         // Flush to ensure the message is sent immediately
         self.stdin
@@ -225,13 +211,11 @@ impl Transport for StdioTransport {
             return Err(anyhow::anyhow!("Transport is not connected"));
         }
 
-        // Clear buffer for reuse to avoid allocation
-        self.line_buffer.clear();
-
         // Read a line from stdout
+        let mut line = String::new();
         let bytes_read = self
             .stdout
-            .read_line(&mut self.line_buffer)
+            .read_line(&mut line)
             .await
             .context("Failed to read from MCP server stdout")?;
 
@@ -241,15 +225,11 @@ impl Transport for StdioTransport {
             return Err(anyhow::anyhow!("MCP server closed connection (EOF)"));
         }
 
-        tracing::debug!("Received from MCP server: {}", self.line_buffer.trim());
+        tracing::debug!("Received from MCP server: {}", line.trim());
 
         // Deserialize the JSON line
-        let response: McpResponse = serde_json::from_str(&self.line_buffer).with_context(|| {
-            format!(
-                "Failed to deserialize MCP response from JSON: {}",
-                self.line_buffer
-            )
-        })?;
+        let response: McpResponse = serde_json::from_str(&line)
+            .with_context(|| format!("Failed to deserialize MCP response from JSON: {}", line))?;
 
         Ok(response)
     }

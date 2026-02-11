@@ -4,4 +4,3 @@
 //! including MCP client implementation, VM spawning, and memory management.
 
 pub mod mcp;
-pub mod vm;
