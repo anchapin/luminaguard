@@ -98,7 +98,13 @@ async fn main() -> Result<()> {
             test_mcp(command, args, list_tools).await?;
         }
         None => {
-            info!("No command specified. Use 'ironclaw --help' for usage.");
+            println!("🦊 IronClaw Orchestrator v{}", env!("CARGO_PKG_VERSION"));
+            println!("   Secure Agentic AI Runtime with JIT Micro-VMs\n");
+            println!("Usage:");
+            println!("  ironclaw run \"<task>\"       - Run an agent task");
+            println!("  ironclaw spawn-vm           - Spawn a test Micro-VM");
+            println!("  ironclaw test-mcp           - Test MCP connection\n");
+            println!("For more information, try 'ironclaw --help'.");
         }
     }
 
