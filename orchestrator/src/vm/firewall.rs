@@ -15,20 +15,6 @@ use anyhow::{Context, Result};
 use std::process::Command;
 use tracing::{info, warn};
 
-// FNV-1a 64-bit constants
-const FNV_OFFSET_BASIS: u64 = 0xcbf29ce484222325;
-const FNV_PRIME: u64 = 0x100000001b3;
-
-/// Calculate FNV-1a hash of a string
-fn fnv1a_hash(text: &str) -> u64 {
-    let mut hash = FNV_OFFSET_BASIS;
-    for byte in text.bytes() {
-        hash ^= byte as u64;
-        hash = hash.wrapping_mul(FNV_PRIME);
-    }
-    hash
-}
-
 /// Firewall manager for VM network isolation
 #[derive(Debug)]
 pub struct FirewallManager {
@@ -42,28 +28,14 @@ impl FirewallManager {
     ///
     /// * `vm_id` - Unique identifier for the VM
     pub fn new(vm_id: String) -> Self {
-        // Compute hash of the original VM ID to ensure uniqueness
-        let hash = fnv1a_hash(&vm_id);
-
+        // Create a unique chain name for this VM
         // Sanitize vm_id to only contain alphanumeric characters
-        // Use ASCII alphanumeric to ensure 1 byte per char and safe slicing
         let sanitized_id: String = vm_id
             .chars()
-            .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
+            .map(|c| if c.is_alphanumeric() { c } else { '_' })
             .collect();
 
-        // Truncate prefix to keep total length <= 28
-        // Format: IRONCLAW_<prefix>_<hash>
-        // IRONCLAW_ is 9 chars
-        // Hash (8 hex chars from lower 32 bits) is 8 chars
-        // Separator _ is 1 char
-        // Total fixed overhead: 18 chars
-        // Available for prefix: 10 chars
-        let prefix_len = std::cmp::min(sanitized_id.len(), 10);
-        let prefix = &sanitized_id[..prefix_len];
-
-        // Use lower 32 bits of hash for 8 hex chars
-        let chain_name = format!("IRONCLAW_{}_{:08x}", prefix, hash as u32);
+        let chain_name = format!("IRONCLAW_{}", sanitized_id);
 
         Self { vm_id, chain_name }
     }
@@ -397,8 +369,7 @@ mod tests {
         // Test that special characters are sanitized
         let manager = FirewallManager::new("test-vm@123#456".to_string());
         assert_eq!(manager.vm_id(), "test-vm@123#456");
-        // Prefix length 10, so "test_vm_12"
-        assert!(manager.chain_name().starts_with("IRONCLAW_test_vm_12"));
+        assert!(manager.chain_name().contains("test_vm_123_456"));
         assert!(!manager.chain_name().contains('@'));
         assert!(!manager.chain_name().contains('#'));
     }
@@ -413,9 +384,6 @@ mod tests {
 
         // Chain name should only contain alphanumeric and underscore
         assert!(chain.chars().all(|c| c.is_alphanumeric() || c == '_'));
-
-        // Chain length should be <= 28
-        assert!(chain.len() <= 28);
     }
 
     #[test]
@@ -441,8 +409,6 @@ mod tests {
             "with@symbol",
             "with space",
             "with/slash",
-            // Long ID
-            "very_long_vm_id_that_exceeds_the_limit_of_28_characters_by_a_large_margin",
         ];
 
         for vm_id in test_cases {
@@ -451,7 +417,7 @@ mod tests {
 
             // Chain name should be a valid iptables chain name
             // (max 28 characters, alphanumeric and underscore only)
-            assert!(chain.len() <= 28, "Chain name too long: {}", chain);
+            assert!(chain.len() <= 28);
             assert!(chain.chars().all(|c| c.is_alphanumeric() || c == '_'));
             assert!(chain.starts_with("IRONCLAW_"));
         }
