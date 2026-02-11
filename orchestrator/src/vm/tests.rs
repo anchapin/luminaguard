@@ -210,6 +210,7 @@ mod tests {
 
     /// Test that vsock messages enforce size limits
     #[test]
+    #[cfg(unix)]
     fn test_vsock_message_size_limit() {
         use crate::vm::vsock::{VsockMessage, MAX_MESSAGE_SIZE};
         use serde_json::json;
@@ -230,6 +231,7 @@ mod tests {
 
     /// Test that vsock message types are properly serialized
     #[test]
+    #[cfg(unix)]
     fn test_vsock_message_serialization() {
         use crate::vm::vsock::VsockMessage;
         use serde_json::json;
