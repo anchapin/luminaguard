@@ -67,9 +67,6 @@ path = "src/lib.rs"
 name = "ironclaw"
 path = "src/main.rs"
 
-[features]
-vm-prototype = []
-
 [profile.dev]
 opt-level = 0
 debug = true

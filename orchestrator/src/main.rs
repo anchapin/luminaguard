@@ -11,10 +11,10 @@
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use ironclaw_orchestrator::mcp::{McpClient, StdioTransport};
-use ironclaw_orchestrator::vm::{self, destroy_vm};
 use serde_json::json;
 use tracing::{error, info, Level};
 use tracing_subscriber::EnvFilter;
+use ironclaw_orchestrator::vm::{self, destroy_vm};
 
 /// IronClaw: Local-first Agentic AI Runtime
 #[derive(Parser, Debug)]
@@ -323,8 +323,8 @@ mod tests {
         // We also need resources/vmlinux and resources/rootfs.ext4
         // Since we are running from orchestrator root usually
         if !Path::new("resources/vmlinux").exists() {
-            println!("Skipping test: resources/vmlinux not found");
-            return;
+             println!("Skipping test: resources/vmlinux not found");
+             return;
         }
 
         let result = spawn_vm().await;

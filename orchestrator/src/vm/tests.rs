@@ -37,7 +37,7 @@ mod tests {
         let mut config = VmConfig::new("test-networking".to_string());
         config.enable_networking = true;
 
-        let result = config.validate();
+        let result = config.validate_anyhow();
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("MUST be disabled"));
     }
@@ -155,21 +155,21 @@ mod tests {
         // Test 1: Networking must be disabled
         let mut config = VmConfig::new("security-test-1".to_string());
         config.enable_networking = true;
-        assert!(config.validate().is_err());
+        assert!(config.validate_anyhow().is_err());
 
         // Test 2: vCPU count must be > 0
         let mut config = VmConfig::new("security-test-2".to_string());
         config.vcpu_count = 0;
-        assert!(config.validate().is_err());
+        assert!(config.validate_anyhow().is_err());
 
         // Test 3: Memory must be at least 128 MB
         let mut config = VmConfig::new("security-test-3".to_string());
         config.memory_mb = 64;
-        assert!(config.validate().is_err());
+        assert!(config.validate_anyhow().is_err());
 
         // Test 4: All constraints must be satisfied
         let config = VmConfig::new("security-test-4".to_string());
-        assert!(config.validate().is_ok());
+        assert!(config.validate_anyhow().is_ok());
         assert!(!config.enable_networking);
         assert!(config.vcpu_count > 0);
         assert!(config.memory_mb >= 128);
@@ -432,10 +432,6 @@ mod tests {
     /// Test: Multiple rapid VM spawns and destroys
     #[tokio::test]
     async fn test_rapid_vm_lifecycle() {
-        if !resources_available() {
-            println!("Skipping test: resources not available");
-            return;
-        }
         for i in 0..10 {
             let (kernel_path, rootfs_path) = create_test_resources().unwrap();
 
