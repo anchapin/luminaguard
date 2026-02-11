@@ -452,7 +452,7 @@ class TestMcpClientSendRequest:
 
         # Parse the written JSON
         written_data = mock_process.stdin.write.call_args[0][0]
-        request = json.loads(written_data.decode())
+        request = json.loads(written_data)
 
         assert request["jsonrpc"] == "2.0"
         assert request["method"] == "test/method"
