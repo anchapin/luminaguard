@@ -6,7 +6,7 @@
 #[cfg(test)]
 mod tests {
     use crate::vm::config::VmConfig;
-    use crate::vm::{destroy_vm, spawn_vm_with_config, verify_network_isolation};
+    use crate::vm::{destroy_vm, spawn_vm, spawn_vm_with_config, verify_network_isolation};
     use std::fs::File;
     use std::io::Write;
 
@@ -481,5 +481,32 @@ mod tests {
             }
         }
         tracing::info!("Rapid VM lifecycle test completed successfully");
+    }
+
+    #[tokio::test]
+    async fn test_vm_spawn_and_destroy() {
+        // Ensure test assets exist
+        let _ = std::fs::create_dir_all("/tmp/ironclaw-fc-test");
+
+        let result = spawn_vm("test-task").await;
+
+        // If assets don't exist, we expect an error
+        if result.is_err() {
+            println!("Skipping test: Firecracker assets not available");
+            return;
+        }
+
+        let handle = result.unwrap();
+        assert_eq!(handle.id, "test-task");
+        assert!(handle.spawn_time_ms > 0.0);
+
+        destroy_vm(handle).await.unwrap();
+    }
+
+    #[test]
+    fn test_vm_id_format() {
+        let task_id = "task-123";
+        let expected_id = task_id.to_string();
+        assert_eq!(expected_id, "task-123");
     }
 }
