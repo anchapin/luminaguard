@@ -31,25 +31,17 @@ mod tests {
         ))
     }
 
-    // Helper to check if firecracker is available AND resources exist
-    fn firecracker_available() -> bool {
-        // First check if firecracker binary exists
-        let has_binary = std::process::Command::new("firecracker")
-            .arg("--version")
-            .output()
-            .is_ok()
-            || std::path::Path::new("/usr/local/bin/firecracker").exists()
-            || std::path::Path::new("/usr/bin/firecracker").exists();
-
-        if !has_binary {
+    fn check_vm_requirements() -> bool {
+        if !std::path::Path::new("/usr/local/bin/firecracker").exists() {
             return false;
         }
-
-        // Check if required resources exist
-        let kernel_exists = std::path::Path::new("./resources/vmlinux").exists();
-        let rootfs_exists = std::path::Path::new("./resources/rootfs.ext4").exists();
-
-        kernel_exists && rootfs_exists
+        if !std::path::Path::new("./resources/vmlinux").exists() {
+            return false;
+        }
+        if !std::path::Path::new("./resources/rootfs.ext4").exists() {
+            return false;
+        }
+        true
     }
 
     /// Test that VM cannot be created with networking enabled
@@ -455,8 +447,7 @@ mod tests {
     /// Test: Multiple rapid VM spawns and destroys
     #[tokio::test]
     async fn test_rapid_vm_lifecycle() {
-        if !firecracker_available() {
-            println!("Skipping test: firecracker not available");
+        if !check_vm_requirements() {
             return;
         }
 
@@ -485,6 +476,12 @@ mod tests {
 
     #[tokio::test]
     async fn test_vm_spawn_and_destroy() {
+        // This test requires actual Firecracker installation
+        // Skip in CI if not available
+        if !std::path::Path::new("/usr/local/bin/firecracker").exists() {
+            return;
+        }
+
         // Ensure test assets exist
         let _ = std::fs::create_dir_all("/tmp/ironclaw-fc-test");
 
