@@ -3,7 +3,7 @@
   "checkpoint_id": "bdf40454b1a2",
   "strategy": "manual-commit",
   "branch": "remove-windows-from-ci",
-  "checkpoints_count": 7,
+  "checkpoints_count": 9,
   "files_touched": [
     ".claude/skills/README.md",
     ".claude/skills/pr-swarmit.md",
@@ -14,8 +14,7 @@
     "CLAUDE.md",
     "PLATFORMS.md",
     "README.md",
-    "orchestrator/Cargo.toml",
-    "orchestrator/src/vm/tests.rs"
+    "orchestrator/Cargo.toml"
   ],
   "sessions": [
     {
@@ -62,10 +61,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 9795233,
+    "input_tokens": 9928130,
     "cache_creation_tokens": 0,
-    "cache_read_tokens": 53381501,
-    "output_tokens": 173633,
-    "api_call_count": 772
+    "cache_read_tokens": 48004093,
+    "output_tokens": 160208,
+    "api_call_count": 684
   }
 }
