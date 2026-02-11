@@ -1,11 +1,16 @@
 // JIT Micro-VM Configuration
 //
-// Firecracker VM configuration for secure agent execution
+// Firecracker VM configuration for secure agent execution.
+// This module handles the configuration for individual Micro-VMs, including
+// resource limits, kernel/rootfs paths, and security settings.
 
+use crate::vm::firecracker_types::{BootSource, Drive, FirecrackerConfig, MachineConfiguration};
 use crate::vm::seccomp::SeccompFilter;
 use serde::{Deserialize, Serialize};
 
 /// VM configuration for Firecracker
+///
+/// Contains all settings required to spawn a Firecracker VM.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VmConfig {
     /// VM ID (unique identifier)
@@ -52,6 +57,10 @@ impl Default for VmConfig {
 
 impl VmConfig {
     /// Create a new VM config with defaults
+    ///
+    /// # Arguments
+    ///
+    /// * `vm_id` - Unique identifier for the VM
     pub fn new(vm_id: String) -> Self {
         let mut config = Self {
             vm_id,
@@ -65,6 +74,8 @@ impl VmConfig {
     }
 
     /// Validate configuration
+    ///
+    /// Checks that the configuration meets security and resource requirements.
     pub fn validate(&self) -> anyhow::Result<()> {
         if self.enable_networking {
             anyhow::bail!("Networking MUST be disabled for security");
@@ -75,28 +86,38 @@ impl VmConfig {
         if self.memory_mb < 128 {
             anyhow::bail!("Memory must be at least 128 MB");
         }
-        if self.enable_networking {
-            anyhow::bail!("Networking MUST be disabled for security");
-        }
         Ok(())
     }
 
     /// Convert to Firecracker JSON config
+    ///
+    /// Generates the JSON configuration expected by Firecracker's `--config-file` argument.
     pub fn to_firecracker_json(&self) -> String {
-        // TODO: Implement actual Firecracker JSON format
-        format!(
-            r#"{{
-  "boot-source": {{
-    "kernel_image_path": "{}"
-  }},
-  "machine-config": {{
-    "vcpu_count": {},
-    "mem_size_mib": {},
-    "ht_enabled": false
-  }}
-}}"#,
-            self.kernel_path, self.vcpu_count, self.memory_mb
-        )
+        let boot_source = BootSource {
+            kernel_image_path: self.kernel_path.clone(),
+            boot_args: Some("console=ttyS0 reboot=k panic=1 pci=off".to_string()),
+        };
+
+        let drives = vec![Drive {
+            drive_id: "rootfs".to_string(),
+            path_on_host: self.rootfs_path.clone(),
+            is_root_device: true,
+            is_read_only: false,
+        }];
+
+        let machine_config = MachineConfiguration {
+            vcpu_count: self.vcpu_count,
+            mem_size_mib: self.memory_mb,
+            ht_enabled: Some(false),
+        };
+
+        let config = FirecrackerConfig {
+            boot_source,
+            drives,
+            machine_config,
+        };
+
+        serde_json::to_string_pretty(&config).expect("Failed to serialize Firecracker config")
     }
 }
 
@@ -131,5 +152,7 @@ mod tests {
         let json = config.to_firecracker_json();
         assert!(json.contains("boot-source"));
         assert!(json.contains("machine-config"));
+        assert!(json.contains("drives"));
+        assert!(json.contains("rootfs"));
     }
 }

@@ -9,6 +9,7 @@
 
 pub mod config;
 pub mod firecracker;
+pub mod firecracker_types;
 pub mod firewall;
 pub mod seccomp;
 pub mod vsock;
