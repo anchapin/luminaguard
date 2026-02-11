@@ -267,7 +267,6 @@ mod spawn_tests {
         let expected_id = task_id.to_string();
         assert_eq!(expected_id, "task-123");
     }
-    hash
 }
 
 /// Unit tests for VmHandle
@@ -405,6 +404,28 @@ mod spawn_config_tests {
         let should_add_seccomp = config.seccomp_filter.is_none();
         assert!(!should_add_seccomp);
     }
+}
+
+/// Compute FNV-1a 64-bit hash of a string
+///
+/// This is used to generate unique, deterministic identifiers from VM IDs
+/// for firewall chain names and vsock paths, preventing collisions and
+/// path traversal attacks.
+///
+/// # Arguments
+///
+/// * `data` - String to hash
+///
+/// # Returns
+///
+/// 64-bit hash value
+pub fn fnv1a_hash(data: &str) -> u64 {
+    // FNV-1a 64-bit parameters
+    const FNV_OFFSET_BASIS: u64 = 0xcbf29ce484222325;
+    const FNV_PRIME: u64 = 0x100000001b3;
+
+    data.bytes()
+        .fold(FNV_OFFSET_BASIS, |acc, byte| (acc ^ u64::from(byte)).wrapping_mul(FNV_PRIME))
 }
 
 /// Verify that a VM is properly network-isolated

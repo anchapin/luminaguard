@@ -77,9 +77,6 @@ lto = true
 codegen-units = 1
 strip = true
 
-[features]
-vm-prototype = []
-
 [[bench]]
 name = "mcp_startup"
 harness = false
