@@ -11,10 +11,10 @@
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use ironclaw_orchestrator::mcp::{McpClient, StdioTransport};
-use ironclaw_orchestrator::vm::{self, destroy_vm};
 use serde_json::json;
 use tracing::{error, info, Level};
 use tracing_subscriber::EnvFilter;
+use ironclaw_orchestrator::vm::{self, destroy_vm};
 
 /// IronClaw: Local-first Agentic AI Runtime
 #[derive(Parser, Debug)]
@@ -55,16 +55,6 @@ enum Commands {
         #[arg(long)]
         list_tools: bool,
     },
-    /// Run as MCP client/server
-    Mcp {
-        /// Transport type
-        #[arg(default_value = "stdio")]
-        transport: String,
-
-        /// Command to run
-        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
-        command: Vec<String>,
-    },
 }
 
 #[tokio::main]
@@ -80,7 +70,6 @@ async fn main() -> Result<()> {
     };
     tracing_subscriber::fmt()
         .with_max_level(filter)
-        .with_writer(std::io::stderr)
         .with_env_filter(
             EnvFilter::builder()
                 .with_default_directive(filter.into())
@@ -107,21 +96,6 @@ async fn main() -> Result<()> {
         }) => {
             info!("Testing MCP connection...");
             test_mcp(command, args, list_tools).await?;
-        }
-        Some(Commands::Mcp {
-            transport: _,
-            command,
-        }) => {
-            if command.is_empty() {
-                anyhow::bail!("No command specified for MCP agent");
-            }
-            // Assume server name from first arg
-            let server_name = command[0].clone();
-
-            use ironclaw_orchestrator::agent_rpc::{run_agent_rpc_server, AgentConfig};
-
-            let config = AgentConfig::new(server_name, command);
-            run_agent_rpc_server(config).await?;
         }
         None => {
             info!("No command specified. Use 'ironclaw --help' for usage.");
@@ -304,25 +278,9 @@ mod tests {
 
         // We also need resources/vmlinux and resources/rootfs.ext4
         // Since we are running from orchestrator root usually
-        let vmlinux_path = Path::new("resources/vmlinux");
-        let rootfs_path = Path::new("resources/rootfs.ext4");
-
-        if !vmlinux_path.exists() {
-            println!("Skipping test: resources/vmlinux not found");
-            return;
-        }
-
-        if !rootfs_path.exists() {
-            println!("Skipping test: resources/rootfs.ext4 not found");
-            return;
-        }
-
-        // Check if vmlinux is not a placeholder (less than 1KB)
-        if let Ok(metadata) = vmlinux_path.metadata() {
-            if metadata.len() < 1000 {
-                println!("Skipping test: resources/vmlinux is a placeholder");
-                return;
-            }
+        if !Path::new("resources/vmlinux").exists() {
+             println!("Skipping test: resources/vmlinux not found");
+             return;
         }
 
         let result = spawn_vm().await;
