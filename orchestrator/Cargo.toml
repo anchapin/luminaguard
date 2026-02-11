@@ -58,6 +58,7 @@ proptest = "1.4"
 
 # Testing utilities
 criterion = "0.8"
+tempfile = "3.10"
 
 [lib]
 name = "ironclaw_orchestrator"
@@ -79,4 +80,8 @@ strip = true
 
 [[bench]]
 name = "mcp_startup"
+harness = false
+
+[[bench]]
+name = "mcp_transport"
 harness = false
