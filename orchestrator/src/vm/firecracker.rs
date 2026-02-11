@@ -11,19 +11,31 @@ use hyper_util::rt::TokioIo;
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 use std::time::Instant;
+#[cfg(unix)]
 use tokio::net::UnixStream;
 use tokio::process::{Child, Command};
 use tracing::{debug, info};
 
 use crate::vm::config::VmConfig;
 
+// Type aliases to simplify complex hyper types
+type HttpSendRequest = hyper::client::conn::http1::SendRequest<Full<Bytes>>;
+type HttpConnection = hyper::client::conn::http1::Connection<TokioIo<UnixStream>, Full<Bytes>>;
+
 /// Firecracker VM process manager
-#[cfg(target_os = "linux")]
+#[cfg(all(unix, target_os = "linux"))]
 #[derive(Debug)]
 pub struct FirecrackerProcess {
     pub pid: u32,
     pub socket_path: String,
     pub child_process: Option<Child>,
+    pub spawn_time_ms: f64,
+}
+
+// Stub type for non-Linux Unix systems (e.g., macOS)
+#[cfg(all(unix, not(target_os = "linux")))]
+#[derive(Debug)]
+pub struct FirecrackerProcess {
     pub spawn_time_ms: f64,
 }
 
@@ -57,7 +69,7 @@ struct Action {
 }
 
 /// Start a Firecracker VM process
-#[cfg(target_os = "linux")]
+#[cfg(all(unix, target_os = "linux"))]
 pub async fn start_firecracker(config: &VmConfig) -> Result<FirecrackerProcess> {
     let start_time = Instant::now();
     info!("Starting Firecracker VM: {}", config.vm_id);
@@ -143,7 +155,7 @@ pub async fn start_firecracker(config: &VmConfig) -> Result<FirecrackerProcess> 
 }
 
 /// Stop a Firecracker VM process
-#[cfg(target_os = "linux")]
+#[cfg(all(unix, target_os = "linux"))]
 pub async fn stop_firecracker(mut process: FirecrackerProcess) -> Result<()> {
     info!("Stopping Firecracker VM (PID: {})", process.pid);
 
@@ -167,6 +179,7 @@ pub async fn stop_firecracker(mut process: FirecrackerProcess) -> Result<()> {
 
 // Helper functions for API interaction
 
+#[cfg(unix)]
 async fn send_request<T: Serialize>(
     socket_path: &str,
     method: hyper::Method,
@@ -177,13 +190,14 @@ async fn send_request<T: Serialize>(
     // though reusing it would be slightly faster.
     // Given the low number of requests, this is acceptable.
 
-    let stream = UnixStream::connect(socket_path)
+    let stream: UnixStream = UnixStream::connect(socket_path)
         .await
         .context("Failed to connect to firecracker socket")?;
     let io = TokioIo::new(stream);
-    let (mut sender, conn) = hyper::client::conn::http1::handshake(io)
-        .await
-        .context("Handshake failed")?;
+    let (mut sender, conn): (HttpSendRequest, HttpConnection) =
+        hyper::client::conn::http1::handshake(io)
+            .await
+            .context("Handshake failed")?;
 
     tokio::task::spawn(async move {
         if let Err(err) = conn.await {
@@ -207,7 +221,7 @@ async fn send_request<T: Serialize>(
         .body(req_body)
         .context("Failed to build request")?;
 
-    let res = sender
+    let res: hyper::Response<hyper::body::Incoming> = sender
         .send_request(req)
         .await
         .context("Failed to send request")?;
@@ -216,12 +230,13 @@ async fn send_request<T: Serialize>(
         Ok(())
     } else {
         let status = res.status();
-        let body_bytes = res.collect().await?.to_bytes();
+        let body_bytes: Bytes = res.collect().await?.to_bytes();
         let body_str = String::from_utf8_lossy(&body_bytes);
         Err(anyhow!("Firecracker API error: {} - {}", status, body_str))
     }
 }
 
+#[cfg(unix)]
 async fn configure_vm(socket_path: &str, config: &VmConfig) -> Result<()> {
     // 1. Set Boot Source
     let boot_source = BootSource {
@@ -270,6 +285,7 @@ async fn configure_vm(socket_path: &str, config: &VmConfig) -> Result<()> {
     Ok(())
 }
 
+#[cfg(unix)]
 async fn start_instance(socket_path: &str) -> Result<()> {
     let action = Action {
         action_type: "InstanceStart".to_string(),
@@ -277,6 +293,29 @@ async fn start_instance(socket_path: &str) -> Result<()> {
     send_request(socket_path, hyper::Method::PUT, "/actions", Some(&action))
         .await
         .context("Failed to start instance")?;
+    Ok(())
+}
+
+// Stub implementations for Unix systems that aren't Linux (e.g., macOS)
+#[cfg(all(unix, not(target_os = "linux")))]
+pub async fn start_firecracker(_config: &VmConfig) -> anyhow::Result<FirecrackerProcess> {
+    anyhow::bail!("Firecracker is only supported on Linux")
+}
+
+#[cfg(all(unix, not(target_os = "linux")))]
+pub async fn stop_firecracker(_process: FirecrackerProcess) -> anyhow::Result<()> {
+    // No-op stub for macOS
+    Ok(())
+}
+
+// Dummy implementations for non-unix systems (Windows)
+#[cfg(not(unix))]
+pub async fn start_firecracker(_config: &VmConfig) -> anyhow::Result<()> {
+    anyhow::bail!("Firecracker is only supported on Unix systems")
+}
+
+#[cfg(not(unix))]
+pub async fn stop_firecracker(_process: ()) -> anyhow::Result<()> {
     Ok(())
 }
 

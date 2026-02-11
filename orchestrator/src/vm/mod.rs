@@ -189,7 +189,7 @@ mod tests {
 =======
 
 /// Unit tests for VmHandle
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod vm_handle_tests {
     use super::*;
 
@@ -226,7 +226,7 @@ mod vm_handle_tests {
 }
 
 /// Unit tests for verify_network_isolation
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod isolation_tests {
     use super::*;
 
@@ -264,7 +264,7 @@ mod isolation_tests {
 }
 
 /// Unit tests for destroy_vm
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod destroy_tests {
     use super::*;
 
@@ -285,7 +285,7 @@ mod destroy_tests {
 }
 
 /// Unit tests for spawn_vm config logic
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod spawn_config_tests {
     use super::*;
 
