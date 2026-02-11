@@ -34,12 +34,17 @@ mod tests {
     // Helper to check if firecracker is available
     fn firecracker_available() -> bool {
         // Check PATH
-        if std::process::Command::new("firecracker").arg("--version").output().is_ok() {
+        if std::process::Command::new("firecracker")
+            .arg("--version")
+            .output()
+            .is_ok()
+        {
             return true;
         }
         // Check standard locations
-        if std::path::Path::new("/usr/local/bin/firecracker").exists() ||
-           std::path::Path::new("/usr/bin/firecracker").exists() {
+        if std::path::Path::new("/usr/local/bin/firecracker").exists()
+            || std::path::Path::new("/usr/bin/firecracker").exists()
+        {
             return true;
         }
         false
