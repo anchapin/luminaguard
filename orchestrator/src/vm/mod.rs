@@ -190,7 +190,9 @@ pub async fn spawn_vm_with_config(task_id: &str, config: &VmConfig) -> Result<Vm
     #[cfg(not(unix))]
     {
         tracing::warn!("VM spawning is not supported on non-Unix systems. Returning error.");
-        return Err(anyhow::anyhow!("VM spawning is only supported on Unix systems (requires KVM/Firecracker)"));
+        return Err(anyhow::anyhow!(
+            "VM spawning is only supported on Unix systems (requires KVM/Firecracker)"
+        ));
     }
 
     #[cfg(unix)]
