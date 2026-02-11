@@ -432,6 +432,11 @@ mod tests {
     /// Test: Multiple rapid VM spawns and destroys
     #[tokio::test]
     async fn test_rapid_vm_lifecycle() {
+        if !has_firecracker_resources() {
+            println!("Skipping test: Firecracker resources not found");
+            return;
+        }
+
         for i in 0..10 {
             let (kernel_path, rootfs_path) = create_test_resources().unwrap();
 
