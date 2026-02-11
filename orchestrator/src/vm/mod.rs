@@ -188,12 +188,12 @@ impl VmHandle {
 }
 
 #[cfg(not(unix))]
-pub async fn spawn_vm(task_id: &str) -> Result<VmHandle> {
+pub async fn spawn_vm(_task_id: &str) -> Result<VmHandle> {
     anyhow::bail!("JIT Micro-VMs are only supported on Unix-like systems (Linux/macOS)")
 }
 
 #[cfg(not(unix))]
-pub async fn spawn_vm_with_config(task_id: &str, _config: &VmConfig) -> Result<VmHandle> {
+pub async fn spawn_vm_with_config(_task_id: &str, _config: &VmConfig) -> Result<VmHandle> {
     anyhow::bail!("JIT Micro-VMs are only supported on Unix-like systems (Linux/macOS)")
 }
 
