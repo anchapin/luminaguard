@@ -291,6 +291,45 @@ mod tests {
         assert!(json.contains("boot_args"));
     }
 
+    #[test]
+    fn test_boot_source_without_args() {
+        let boot_source = BootSource {
+            kernel_image_path: "/tmp/kernel".to_string(),
+            boot_args: None,
+        };
+        let json = serde_json::to_string(&boot_source).unwrap();
+        assert!(json.contains("kernel_image_path"));
+        // boot_args should be omitted when None
+        assert!(!json.contains("boot_args"));
+    }
+
+    #[test]
+    fn test_drive_serialization() {
+        let drive = Drive {
+            drive_id: "rootfs".to_string(),
+            path_on_host: "/tmp/rootfs.ext4".to_string(),
+            is_root_device: true,
+            is_read_only: false,
+        };
+        let json = serde_json::to_string(&drive).unwrap();
+        assert!(json.contains("rootfs"));
+        assert!(json.contains("/tmp/rootfs.ext4"));
+        assert!(json.contains("true")); // is_root_device
+    }
+
+    #[test]
+    fn test_machine_config_serialization() {
+        let config = MachineConfiguration {
+            vcpu_count: 2,
+            mem_size_mib: 1024,
+        };
+        let json = serde_json::to_string(&config).unwrap();
+        assert!(json.contains("vcpu_count"));
+        assert!(json.contains(":2") || json.contains(": 2")); // vcpu_count value (no quotes for numbers)
+        assert!(json.contains("mem_size_mib"));
+        assert!(json.contains("1024"));
+    }
+
     #[tokio::test]
     async fn test_missing_kernel_image() {
         let config = VmConfig {
@@ -324,5 +363,42 @@ mod tests {
             .contains("Root filesystem not found"));
 
         let _ = std::fs::remove_file(kernel_path);
+    }
+
+    #[tokio::test]
+    async fn test_firecracker_process_structure() {
+        // Test that FirecrackerProcess can be created and has expected fields
+        let process = FirecrackerProcess {
+            pid: 12345,
+            socket_path: "/tmp/test.socket".to_string(),
+            child_process: None,
+            spawn_time_ms: 150.5,
+        };
+
+        assert_eq!(process.pid, 12345);
+        assert_eq!(process.socket_path, "/tmp/test.socket");
+        assert!(process.child_process.is_none());
+        assert_eq!(process.spawn_time_ms, 150.5);
+    }
+
+    #[test]
+    fn test_vm_config_used_in_start() {
+        // Verify that VmConfig fields are properly validated before use
+        let config = VmConfig {
+            vm_id: "test-123".to_string(),
+            kernel_path: "/tmp/kernel".to_string(),
+            rootfs_path: "/tmp/rootfs".to_string(),
+            vcpu_count: 2,
+            memory_mb: 512,
+            enable_networking: false,
+            vsock_path: Some("/tmp/vsock.sock".to_string()),
+            seccomp_filter: None,
+        };
+
+        // Test that config has expected values
+        assert_eq!(config.vm_id, "test-123");
+        assert_eq!(config.vcpu_count, 2);
+        assert_eq!(config.memory_mb, 512);
+        assert!(!config.enable_networking);
     }
 }

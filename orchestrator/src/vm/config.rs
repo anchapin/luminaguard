@@ -100,6 +100,7 @@ impl VmConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::vm::seccomp::SeccompLevel;
 
     #[test]
     fn test_default_config() {
@@ -123,10 +124,73 @@ mod tests {
     }
 
     #[test]
+    fn test_config_validation_low_memory() {
+        let mut config = VmConfig::default();
+        config.memory_mb = 64; // Below 128 MB minimum
+        let result = config.validate();
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("at least 128 MB"));
+    }
+
+    #[test]
+    fn test_config_validation_networking_disabled() {
+        let mut config = VmConfig::default();
+        config.enable_networking = true;
+        let result = config.validate();
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("MUST be disabled for security"));
+    }
+
+    #[test]
+    fn test_new_config_generates_vsock_path() {
+        let config = VmConfig::new("my-vm-123".to_string());
+        assert!(config.vsock_path.is_some());
+        assert!(config
+            .vsock_path
+            .unwrap()
+            .contains("/tmp/ironclaw/vsock/my-vm-123.sock"));
+    }
+
+    #[test]
     fn test_to_json() {
         let config = VmConfig::new("test-vm".to_string());
         let json = config.to_firecracker_json();
         assert!(json.contains("boot-source"));
         assert!(json.contains("machine-config"));
+    }
+
+    #[test]
+    fn test_to_json_contains_config_values() {
+        let mut config = VmConfig::new("test-vm".to_string());
+        config.vcpu_count = 4;
+        config.memory_mb = 2048;
+        config.kernel_path = "/custom/kernel".to_string();
+
+        let json = config.to_firecracker_json();
+        assert!(json.contains("/custom/kernel"));
+        assert!(json.contains("\"vcpu_count\": 4"));
+        assert!(json.contains("\"mem_size_mib\": 2048"));
+    }
+
+    #[test]
+    fn test_config_with_seccomp_filter() {
+        let filter = SeccompFilter::new(SeccompLevel::Minimal);
+        let mut config = VmConfig::default();
+        config.seccomp_filter = Some(filter);
+
+        assert!(config.seccomp_filter.is_some());
+        assert!(config.validate().is_ok());
+    }
+
+    #[test]
+    fn test_vm_id_uniqueness() {
+        let config1 = VmConfig::new("vm-1".to_string());
+        let config2 = VmConfig::new("vm-2".to_string());
+
+        assert_ne!(config1.vm_id, config2.vm_id);
+        assert_ne!(config1.vsock_path, config2.vsock_path);
     }
 }

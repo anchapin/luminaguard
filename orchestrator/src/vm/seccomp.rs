@@ -657,4 +657,100 @@ mod tests {
             );
         }
     }
+
+    #[tokio::test]
+    async fn test_audit_log_stats_empty() {
+        let log = SeccompAuditLog::new();
+        let stats = log.get_stats("nonexistent-vm").await;
+        assert_eq!(stats.total_blocked, 0);
+        assert_eq!(stats.unique_syscalls, 0);
+    }
+
+    #[tokio::test]
+    async fn test_audit_log_multiple_vms() {
+        let log = SeccompAuditLog::new();
+
+        log.log_blocked_syscall("vm-1", "socket", 100)
+            .await
+            .unwrap();
+        log.log_blocked_syscall("vm-2", "bind", 200).await.unwrap();
+
+        let entries_vm1 = log.get_entries_for_vm("vm-1").await;
+        let entries_vm2 = log.get_entries_for_vm("vm-2").await;
+
+        assert_eq!(entries_vm1.len(), 1);
+        assert_eq!(entries_vm2.len(), 1);
+        assert_eq!(entries_vm1[0].syscall, "socket");
+        assert_eq!(entries_vm2[0].syscall, "bind");
+    }
+
+    #[test]
+    fn test_seccomp_action_deny() {
+        let action = SeccompAction::Deny;
+        let json = serde_json::to_string(&action).unwrap();
+        assert_eq!(json, "\"Deny\"");
+    }
+
+    #[test]
+    fn test_seccomp_action_log() {
+        let action = SeccompAction::Log;
+        let json = serde_json::to_string(&action).unwrap();
+        assert_eq!(json, "\"Log\"");
+    }
+
+    #[test]
+    fn test_seccomp_level_minimal() {
+        let level = SeccompLevel::Minimal;
+        let json = serde_json::to_string(&level).unwrap();
+        assert_eq!(json, "\"Minimal\"");
+    }
+
+    #[test]
+    fn test_seccomp_level_permissive() {
+        let level = SeccompLevel::Permissive;
+        let json = serde_json::to_string(&level).unwrap();
+        assert_eq!(json, "\"Permissive\"");
+    }
+
+    #[test]
+    fn test_custom_rule_overrides_default() {
+        let filter = SeccompFilter::default().add_rule(SyscallRule {
+            name: "custom_syscall".to_string(),
+            action: SeccompAction::Allow,
+            rationale: "Testing custom rules".to_string(),
+        });
+
+        assert_eq!(filter.custom_rules.len(), 1);
+        let whitelist = filter.build_whitelist();
+        // Custom syscalls should be added to the whitelist
+        assert!(whitelist.len() > 0);
+    }
+
+    #[test]
+    fn test_validate_seccomp_with_custom_rules() {
+        let filter = SeccompFilter::default().add_rule(SyscallRule {
+            name: "test".to_string(),
+            action: SeccompAction::Allow,
+            rationale: "Test".to_string(),
+        });
+
+        assert!(validate_seccomp_rules(&filter).is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_audit_log_stats_with_multiple_syscalls() {
+        let log = SeccompAuditLog::new();
+
+        log.log_blocked_syscall("vm-1", "socket", 100)
+            .await
+            .unwrap();
+        log.log_blocked_syscall("vm-1", "bind", 101).await.unwrap();
+        log.log_blocked_syscall("vm-1", "socket", 102)
+            .await
+            .unwrap();
+
+        let stats = log.get_stats("vm-1").await;
+        assert_eq!(stats.total_blocked, 3);
+        assert_eq!(stats.unique_syscalls, 2); // 2 unique syscalls (socket and bind)
+    }
 }

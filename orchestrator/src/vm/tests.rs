@@ -25,6 +25,30 @@ mod tests {
         assert!(result.unwrap_err().to_string().contains("MUST be disabled"));
     }
 
+    /// Test VmHandle vsock_path method with config
+    #[test]
+    fn test_vm_handle_vsock_path() {
+        use crate::vm::config::VmConfig;
+
+        let config = VmConfig::new("test-vm".to_string());
+        // Config should automatically generate vsock path
+        assert!(config.vsock_path.is_some());
+        assert!(config
+            .vsock_path
+            .unwrap()
+            .contains("/tmp/ironclaw/vsock/test-vm.sock"));
+    }
+
+    /// Test VmHandle config without custom vsock path
+    #[test]
+    fn test_config_default_vsock() {
+        use crate::vm::config::VmConfig;
+
+        let config = VmConfig::default();
+        // Default config should not have vsock path
+        assert!(config.vsock_path.is_none());
+    }
+
     /// Test that multiple VMs can be spawned with unique firewall chains
     #[tokio::test]
     async fn test_multiple_vms_isolation() {
@@ -355,5 +379,87 @@ mod tests {
             destroy_vm(handle).await.unwrap();
         }
         tracing::info!("Rapid VM lifecycle test completed successfully");
+    }
+
+    /// Test: Config with different vcpu counts
+    #[test]
+    fn test_config_vcpu_variations() {
+        use crate::vm::config::VmConfig;
+
+        let mut config1 = VmConfig::default();
+        config1.vcpu_count = 1;
+        assert!(config1.validate().is_ok());
+
+        let mut config2 = VmConfig::default();
+        config2.vcpu_count = 4;
+        assert!(config2.validate().is_ok());
+
+        let mut config3 = VmConfig::default();
+        config3.vcpu_count = 8;
+        assert!(config3.validate().is_ok());
+    }
+
+    /// Test: Config with different memory sizes
+    #[test]
+    fn test_config_memory_variations() {
+        use crate::vm::config::VmConfig;
+
+        let mut config1 = VmConfig::default();
+        config1.memory_mb = 128;
+        assert!(config1.validate().is_ok());
+
+        let mut config2 = VmConfig::default();
+        config2.memory_mb = 512;
+        assert!(config2.validate().is_ok());
+
+        let mut config3 = VmConfig::default();
+        config3.memory_mb = 2048;
+        assert!(config3.validate().is_ok());
+    }
+
+    /// Test: Config path setters
+    #[test]
+    fn test_config_path_assignments() {
+        use crate::vm::config::VmConfig;
+
+        let mut config = VmConfig::default();
+        config.kernel_path = "/custom/kernel".to_string();
+        config.rootfs_path = "/custom/rootfs.ext4".to_string();
+
+        assert_eq!(config.kernel_path, "/custom/kernel");
+        assert_eq!(config.rootfs_path, "/custom/rootfs.ext4");
+        assert!(config.validate().is_ok());
+    }
+
+    /// Test: Firewall manager chain naming
+    #[test]
+    fn test_firewall_chain_naming() {
+        use crate::vm::firewall::FirewallManager;
+
+        let fw1 = FirewallManager::new("vm-1".to_string());
+        let fw2 = FirewallManager::new("vm-2".to_string());
+
+        assert_ne!(fw1.chain_name(), fw2.chain_name());
+        assert!(fw1.chain_name().contains("IRONCLAW"));
+        assert!(fw1.chain_name().len() < 30); // iptables limit
+    }
+
+    /// Test: Seccomp filter with config
+    #[test]
+    fn test_config_with_different_seccomp_levels() {
+        use crate::vm::config::VmConfig;
+        use crate::vm::seccomp::{SeccompFilter, SeccompLevel};
+
+        let mut config1 = VmConfig::default();
+        config1.seccomp_filter = Some(SeccompFilter::new(SeccompLevel::Minimal));
+        assert!(config1.validate().is_ok());
+
+        let mut config2 = VmConfig::default();
+        config2.seccomp_filter = Some(SeccompFilter::new(SeccompLevel::Basic));
+        assert!(config2.validate().is_ok());
+
+        let mut config3 = VmConfig::default();
+        config3.seccomp_filter = Some(SeccompFilter::new(SeccompLevel::Permissive));
+        assert!(config3.validate().is_ok());
     }
 }
