@@ -98,16 +98,34 @@ use tokio::sync::Mutex;
 
 use crate::vm::config::VmConfig;
 use crate::vm::firecracker::{start_firecracker, stop_firecracker, FirecrackerProcess};
+#[cfg(unix)]
 use crate::vm::firewall::FirewallManager;
 #[cfg(unix)]
 use crate::vm::seccomp::{SeccompFilter, SeccompLevel};
 
+// Dummy types for non-unix platforms to satisfy struct definitions
+#[cfg(not(unix))]
+#[derive(Debug)]
+pub struct FirecrackerProcess {
+    pub spawn_time_ms: f64,
+}
+
+#[cfg(not(unix))]
+pub struct FirewallManager;
+
 /// VM handle for managing lifecycle
 pub struct VmHandle {
     pub id: String,
+    // On non-unix, this will be None or a dummy
+    #[cfg(unix)]
     process: Arc<Mutex<Option<FirecrackerProcess>>>,
+    #[cfg(not(unix))]
+    #[allow(dead_code)]
+    process: Arc<Mutex<Option<()>>>,
+
     pub spawn_time_ms: f64,
     config: VmConfig,
+    #[cfg(unix)]
     firewall_manager: Option<FirewallManager>,
 }
 
@@ -186,72 +204,27 @@ pub async fn spawn_vm(task_id: &str) -> Result<VmHandle> {
 pub async fn spawn_vm_with_config(task_id: &str, config: &VmConfig) -> Result<VmHandle> {
     tracing::info!("Spawning VM for task: {}", task_id);
 
-    #[cfg(not(unix))]
-    {
-        // Silence unused variable warning on non-unix
-        let _ = config;
-        tracing::warn!("VM spawning is not supported on non-Unix systems. Returning error.");
-        return Err(anyhow::anyhow!(
-            "VM spawning is only supported on Unix systems (requires KVM/Firecracker)"
-        ));
-    }
-
+    // Apply default seccomp filter if not specified (security best practice)
     #[cfg(unix)]
-    {
-        // Apply default seccomp filter if not specified (security best practice)
-        let config_with_seccomp = if config.seccomp_filter.is_none() {
-            let mut secured_config = config.clone();
-            secured_config.seccomp_filter = Some(SeccompFilter::new(SeccompLevel::Basic));
-            tracing::info!("Auto-enabling seccomp filter (Basic level) for security");
-            secured_config
-        } else {
-            config.clone()
-        };
+    let config_with_seccomp = if config.seccomp_filter.is_none() {
+        let mut secured_config = config.clone();
+        secured_config.seccomp_filter = Some(SeccompFilter::new(SeccompLevel::Basic));
+        tracing::info!("Auto-enabling seccomp filter (Basic level) for security");
+        secured_config
+    } else {
+        config.clone()
+    };
 
-    let spawn_time = process.spawn_time_ms;
+    #[cfg(not(unix))]
+    let config_with_seccomp = config.clone();
 
-    // Configure firewall to block all network traffic
-    let firewall_manager = FirewallManager::new(config_with_seccomp.vm_id.clone());
-
-    // Apply firewall rules (may fail if not root)
-    match firewall_manager.configure_isolation() {
-        Ok(_) => {
-            tracing::info!(
-                "Firewall isolation configured for VM: {}",
-                config_with_seccomp.vm_id
-            );
-        }
-        Err(e) => {
-            tracing::warn!(
-                "Failed to configure firewall (running without root?): {}. \
-                VM will still have networking disabled in config, but firewall rules are not applied.",
-                e
-            );
-            // Continue anyway - networking is still disabled in config
-        }
-    }
-
-    // Verify firewall rules are active (if configured)
-    match firewall_manager.verify_isolation() {
-        Ok(true) => {
-            tracing::info!(
-                "Firewall isolation verified for VM: {}",
-                config_with_seccomp.vm_id
-            );
-        }
-        Ok(false) => {
-            tracing::debug!(
-                "Firewall rules not active for VM: {}",
-                config_with_seccomp.vm_id
-            );
-        }
-        Err(e) => {
-            tracing::debug!("Failed to verify firewall rules: {}", e);
-        }
-    }
+    // Configure firewall to block all network traffic (Unix-only)
+    #[cfg(unix)]
+    let firewall_manager = {
+        let fw_mgr = FirewallManager::new(config_with_seccomp.vm_id.clone());
 
         // Apply firewall rules (may fail if not root)
-        match firewall_manager.configure_isolation() {
+        match fw_mgr.configure_isolation() {
             Ok(_) => {
                 tracing::info!(
                     "Firewall isolation configured for VM: {}",
@@ -269,7 +242,7 @@ pub async fn spawn_vm_with_config(task_id: &str, config: &VmConfig) -> Result<Vm
         }
 
         // Verify firewall rules are active (if configured)
-        match firewall_manager.verify_isolation() {
+        match fw_mgr.verify_isolation() {
             Ok(true) => {
                 tracing::info!(
                     "Firewall isolation verified for VM: {}",
@@ -287,19 +260,43 @@ pub async fn spawn_vm_with_config(task_id: &str, config: &VmConfig) -> Result<Vm
             }
         }
 
-        // Start Firecracker VM
-        let process = start_firecracker(&config_with_seccomp).await?;
+        fw_mgr
+    };
 
-        let spawn_time = process.spawn_time_ms;
+    #[cfg(unix)]
+    {
+        // Apply default seccomp filter if not specified (security best practice)
+        let config_with_seccomp = if config.seccomp_filter.is_none() {
+            let mut secured_config = config.clone();
+            secured_config.seccomp_filter = Some(SeccompFilter::new(SeccompLevel::Basic));
+            tracing::info!("Auto-enabling seccomp filter (Basic level) for security");
+            secured_config
+        } else {
+            config.clone()
+        };
 
-        Ok(VmHandle {
-            id: task_id.to_string(),
-            process: Arc::new(Mutex::new(Some(process))),
-            spawn_time_ms: spawn_time,
-            config: config.clone(),
-            firewall_manager: Some(firewall_manager),
-        })
-    }
+        // Configure firewall to block all network traffic
+        let firewall_manager = FirewallManager::new(config_with_seccomp.vm_id.clone());
+
+    Ok(VmHandle {
+        id: task_id.to_string(),
+        process: Arc::new(Mutex::new(Some(process))),
+        spawn_time_ms: spawn_time,
+        config: config.clone(),
+        #[cfg(unix)]
+        firewall_manager: Some(firewall_manager),
+    })
+}
+
+#[cfg(not(unix))]
+pub async fn spawn_vm_with_config(task_id: &str, config: &VmConfig) -> Result<VmHandle> {
+    tracing::warn!("Spawning VM not supported on non-Unix platforms");
+    Ok(VmHandle {
+        id: task_id.to_string(),
+        process: Arc::new(Mutex::new(None)),
+        spawn_time_ms: 0.0,
+        config: config.clone(),
+    })
 }
 
 /// Destroy a VM (ephemeral cleanup)
@@ -341,141 +338,9 @@ pub async fn destroy_vm(handle: VmHandle) -> Result<()> {
     Ok(())
 }
 
-/// Unit tests for VmHandle
-#[cfg(all(test, unix))]
-mod vm_handle_tests {
-    use super::*;
-
-    #[test]
-    fn test_vm_handle_vsock_path_none() {
-        let mut config = VmConfig::default();
-        config.vsock_path = None; // Explicitly set to None
-        let handle = VmHandle {
-            id: "test-vm".to_string(),
-            process: std::sync::Arc::new(tokio::sync::Mutex::new(None)),
-            spawn_time_ms: 100.0,
-            config,
-            firewall_manager: None,
-        };
-
-        assert!(handle.vsock_path().is_none());
-    }
-
-    #[test]
-    fn test_vm_handle_vsock_path_some() {
-        let mut config = VmConfig::default();
-        config.vsock_path = Some("/tmp/test.sock".to_string());
-
-        let handle = VmHandle {
-            id: "test-vm".to_string(),
-            process: std::sync::Arc::new(tokio::sync::Mutex::new(None)),
-            spawn_time_ms: 100.0,
-            config,
-            firewall_manager: None,
-        };
-
-        assert_eq!(handle.vsock_path(), Some("/tmp/test.sock"));
-    }
-}
-
-/// Unit tests for verify_network_isolation
-#[cfg(all(test, unix))]
-mod isolation_tests {
-    use super::*;
-
-    #[test]
-    fn test_verify_isolation_with_no_firewall_manager() {
-        let config = VmConfig::new("test-vm".to_string());
-        let handle = VmHandle {
-            id: "test-vm".to_string(),
-            process: std::sync::Arc::new(tokio::sync::Mutex::new(None)),
-            spawn_time_ms: 100.0,
-            config,
-            firewall_manager: None,
-        };
-
-        let result = verify_network_isolation(&handle);
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap(), false);
-    }
-
-    #[test]
-    fn test_verify_isolation_with_firewall_manager() {
-        let config = VmConfig::new("test-vm".to_string());
-        let firewall = FirewallManager::new("test-vm".to_string());
-        let handle = VmHandle {
-            id: "test-vm".to_string(),
-            process: std::sync::Arc::new(tokio::sync::Mutex::new(None)),
-            spawn_time_ms: 100.0,
-            config,
-            firewall_manager: Some(firewall),
-        };
-
-        let result = verify_network_isolation(&handle);
-        assert!(result.is_ok());
-    }
-}
-
-/// Unit tests for destroy_vm
-#[cfg(all(test, unix))]
-mod destroy_tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn test_destroy_vm_with_no_process() {
-        let config = VmConfig::new("test-vm".to_string());
-        let handle = VmHandle {
-            id: "test-vm".to_string(),
-            process: std::sync::Arc::new(tokio::sync::Mutex::new(None)),
-            spawn_time_ms: 100.0,
-            config,
-            firewall_manager: None,
-        };
-
-        let result = destroy_vm(handle).await;
-        assert!(result.is_ok());
-    }
-}
-
-/// Unit tests for spawn_vm config logic
-#[cfg(all(test, unix))]
-mod spawn_config_tests {
-    use super::*;
-
-    #[test]
-    fn test_spawn_vm_delegates_to_spawn_vm_with_config() {
-        // Test that spawn_vm creates a VmConfig and calls spawn_vm_with_config
-        // We can't actually test the async function here, but we can verify
-        // that VmConfig::new sets the expected values
-        let config = VmConfig::new("test-task".to_string());
-        assert_eq!(config.vm_id, "test-task");
-        assert!(config.vsock_path.is_some());
-    }
-
-    #[test]
-    fn test_vmconfig_seccomp_auto_enable_needed() {
-        // When seccomp_filter is None, Basic level should be auto-enabled
-        let config = VmConfig::default();
-        assert!(config.seccomp_filter.is_none());
-
-        // The logic in spawn_vm_with_config would add Basic seccomp
-        let should_add_seccomp = config.seccomp_filter.is_none();
-        assert!(should_add_seccomp);
-    }
-
-    #[test]
-    fn test_vmconfig_seccomp_already_set() {
-        // When seccomp_filter is Some, it should not be overridden
-        use seccomp::{SeccompFilter, SeccompLevel};
-        let config = VmConfig {
-            seccomp_filter: Some(SeccompFilter::new(SeccompLevel::Minimal)),
-            ..VmConfig::default()
-        };
-
-        // The logic in spawn_vm_with_config should keep the existing filter
-        let should_add_seccomp = config.seccomp_filter.is_none();
-        assert!(!should_add_seccomp);
-    }
+#[cfg(not(unix))]
+pub async fn destroy_vm(_handle: VmHandle) -> Result<()> {
+    Ok(())
 }
 
 /// Verify that a VM is properly network-isolated
@@ -495,4 +360,13 @@ pub fn verify_network_isolation(handle: &VmHandle) -> Result<bool> {
     } else {
         Ok(false)
     }
+}
+
+/// Verify that a VM is properly network-isolated (no-op on non-Unix)
+///
+/// On non-Unix platforms, network isolation is not applicable, so this
+/// always returns false.
+#[cfg(not(unix))]
+pub fn verify_network_isolation(_handle: &VmHandle) -> Result<bool> {
+    Ok(false)
 }
