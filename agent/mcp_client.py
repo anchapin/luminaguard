@@ -214,7 +214,7 @@ class McpClient:
         # Send request via stdin
         request_json = json.dumps(request) + "\n"
         try:
-            self._process.stdin.write(request_json.encode())
+            self._process.stdin.write(request_json)
             self._process.stdin.flush()
         except (BrokenPipeError, OSError) as e:
             raise McpError(f"Failed to send request: {e}") from e
@@ -266,6 +266,10 @@ class McpClient:
 
         # Add server command
         orch_cmd.extend(self.command)
+
+        # If root_dir is provided, append it to command arguments
+        if self.root_dir:
+            orch_cmd.append(self.root_dir)
 
         # Spawn process
         try:

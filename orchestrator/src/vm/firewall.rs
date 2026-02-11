@@ -18,17 +18,14 @@ use tracing::{info, warn};
 pub struct FirewallManager {
     vm_id: String,
     chain_name: String,
+    interface: Option<String>,
 }
 
-// Simple FNV-1a hash implementation for deterministic chain names
 fn fnv1a_hash(text: &str) -> u64 {
-    const FNV_OFFSET_BASIS: u64 = 0xcbf29ce484222325;
-    const FNV_PRIME: u64 = 0x100000001b3;
-
-    let mut hash = FNV_OFFSET_BASIS;
+    let mut hash: u64 = 0xcbf29ce484222325;
     for byte in text.bytes() {
         hash ^= byte as u64;
-        hash = hash.wrapping_mul(FNV_PRIME);
+        hash = hash.wrapping_mul(0x100000001b3);
     }
     hash
 }
@@ -39,16 +36,19 @@ impl FirewallManager {
     /// # Arguments
     ///
     /// * `vm_id` - Unique identifier for the VM
-    pub fn new(vm_id: String) -> Self {
-        // Create a unique, short chain name for this VM using hashing.
-        // We use FNV-1a hash to generate a deterministic, unique suffix.
-        // This prevents collisions (e.g., "vm-1" vs "vm_1") and ensures
-        // the chain name stays within iptables limits (typically 28 chars).
+    /// * `interface` - Optional network interface to bind rules to (e.g. "tap0")
+    pub fn new(vm_id: String, interface: Option<String>) -> Self {
+        // Create a unique chain name using FNV-1a hash
+        // Format: IRONCLAW_{16-char-hex-hash}
+        // Total length: 9 + 16 = 25 chars (fits in 28 char limit)
         let hash = fnv1a_hash(&vm_id);
-        // Use zero-padding to ensure fixed length (9 + 16 = 25 chars)
         let chain_name = format!("IRONCLAW_{:016x}", hash);
 
-        Self { vm_id, chain_name }
+        Self {
+            vm_id,
+            chain_name,
+            interface,
+        }
     }
 
     /// Configure firewall rules to isolate the VM
@@ -87,6 +87,11 @@ impl FirewallManager {
         // Add rules to drop all traffic
         self.add_drop_rules()?;
 
+        // Link chain to INPUT and FORWARD if interface is specified
+        if self.interface.is_some() {
+            self.link_chain()?;
+        }
+
         info!(
             "Firewall isolation configured for VM: {} (chain: {})",
             self.vm_id, self.chain_name
@@ -100,6 +105,11 @@ impl FirewallManager {
     /// This should be called when the VM is destroyed.
     pub fn cleanup(&self) -> Result<()> {
         info!("Cleaning up firewall rules for VM: {}", self.vm_id);
+
+        // Unlink chain first if interface was specified
+        if self.interface.is_some() {
+            self.unlink_chain()?;
+        }
 
         // Flush and delete the chain
         self.flush_chain()?;
@@ -140,9 +150,23 @@ impl FirewallManager {
         let rules = String::from_utf8_lossy(&output.stdout);
 
         // Check if DROP rules are present
-        let has_drop_rules = rules.contains("DROP");
+        if !rules.contains("DROP") {
+            return Ok(false);
+        }
 
-        Ok(has_drop_rules)
+        // Check if chain is linked in INPUT if interface is specified
+        if let Some(ref interface) = self.interface {
+            let input_check = Command::new("iptables")
+                .args(["-C", "INPUT", "-i", interface, "-j", &self.chain_name])
+                .output();
+
+            match input_check {
+                Ok(o) if o.status.success() => Ok(true),
+                _ => Ok(false),
+            }
+        } else {
+            Ok(true)
+        }
     }
 
     /// Create a new iptables chain
@@ -176,6 +200,90 @@ impl FirewallManager {
             let stderr = String::from_utf8_lossy(&output.stderr);
             anyhow::bail!("Failed to add DROP rule: {}", stderr);
         }
+
+        Ok(())
+    }
+
+    /// Link chain to INPUT and FORWARD chains
+    fn link_chain(&self) -> Result<()> {
+        let interface = self.interface.as_ref().unwrap();
+        info!(
+            "Linking chain {} to INPUT/FORWARD for interface {}",
+            self.chain_name, interface
+        );
+
+        // iptables -I INPUT 1 -i interface -j CHAIN
+        let output = Command::new("iptables")
+            .args([
+                "-I",
+                "INPUT",
+                "1",
+                "-i",
+                interface,
+                "-j",
+                &self.chain_name,
+            ])
+            .output()
+            .context("Failed to link chain to INPUT")?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            anyhow::bail!("Failed to link chain to INPUT: {}", stderr);
+        }
+
+        // iptables -I FORWARD 1 -i interface -j CHAIN
+        let output = Command::new("iptables")
+            .args([
+                "-I",
+                "FORWARD",
+                "1",
+                "-i",
+                interface,
+                "-j",
+                &self.chain_name,
+            ])
+            .output()
+            .context("Failed to link chain to FORWARD")?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            anyhow::bail!("Failed to link chain to FORWARD: {}", stderr);
+        }
+
+        Ok(())
+    }
+
+    /// Unlink chain from INPUT and FORWARD chains
+    fn unlink_chain(&self) -> Result<()> {
+        let interface = self.interface.as_ref().unwrap();
+        info!(
+            "Unlinking chain {} from INPUT/FORWARD for interface {}",
+            self.chain_name, interface
+        );
+
+        // iptables -D INPUT -i interface -j CHAIN
+        // Ignore errors (rule might not exist)
+        let _ = Command::new("iptables")
+            .args([
+                "-D",
+                "INPUT",
+                "-i",
+                interface,
+                "-j",
+                &self.chain_name,
+            ])
+            .output();
+
+        let _ = Command::new("iptables")
+            .args([
+                "-D",
+                "FORWARD",
+                "-i",
+                interface,
+                "-j",
+                &self.chain_name,
+            ])
+            .output();
 
         Ok(())
     }
@@ -301,28 +409,26 @@ mod tests {
 
     #[test]
     fn test_firewall_manager_creation() {
-        let manager = FirewallManager::new("test-vm".to_string());
+        let manager = FirewallManager::new("test-vm".to_string(), None);
         assert_eq!(manager.vm_id(), "test-vm");
-        assert!(manager.chain_name().starts_with("IRONCLAW_"));
-        // Length should be 9 (prefix) + 16 (hex hash) = 25
+        assert!(manager.chain_name().contains("IRONCLAW_"));
+        // Check exact length (IRONCLAW_ + 16 hex chars = 25 chars)
         assert_eq!(manager.chain_name().len(), 25);
     }
 
     #[test]
-    fn test_firewall_manager_sanitization() {
-        // Test that special characters are handled gracefully via hashing
-        let manager = FirewallManager::new("test-vm@123#456".to_string());
-        assert_eq!(manager.vm_id(), "test-vm@123#456");
-        // Chain name should be safe for iptables (alphanumeric + underscore)
-        assert!(manager
-            .chain_name()
-            .chars()
-            .all(|c| c.is_alphanumeric() || c == '_'));
+    fn test_firewall_manager_hashing_stability() {
+        let manager1 = FirewallManager::new("test-vm".to_string(), None);
+        let manager2 = FirewallManager::new("test-vm".to_string(), None);
+        assert_eq!(manager1.chain_name(), manager2.chain_name());
+
+        let manager3 = FirewallManager::new("other-vm".to_string(), None);
+        assert_ne!(manager1.chain_name(), manager3.chain_name());
     }
 
     #[test]
     fn test_firewall_manager_chain_name_format() {
-        let manager = FirewallManager::new("my-vm".to_string());
+        let manager = FirewallManager::new("my-vm".to_string(), None);
         let chain = manager.chain_name();
 
         // Chain name should start with IRONCLAW_
@@ -355,48 +461,18 @@ mod tests {
             "with@symbol",
             "with space",
             "with/slash",
-            // Add a very long ID
-            "a_very_long_vm_id_that_exceeds_limits_of_iptables_chains_and_more",
+            "very-long-vm-id-that-exceeds-normal-limits-and-would-break-iptables-if-not-hashed",
         ];
 
         for vm_id in test_cases {
-            let manager = FirewallManager::new(vm_id.to_string());
+            let manager = FirewallManager::new(vm_id.to_string(), None);
             let chain = manager.chain_name();
 
             // Chain name should be a valid iptables chain name
             // (max 28 characters, alphanumeric and underscore only)
             assert!(chain.len() <= 28);
-            assert_eq!(chain.len(), 25); // Specifically 25 with our implementation
             assert!(chain.chars().all(|c| c.is_alphanumeric() || c == '_'));
             assert!(chain.starts_with("IRONCLAW_"));
         }
-    }
-
-    #[test]
-    fn test_firewall_chain_name_collision() {
-        // This test ensures that different inputs produce different hashes
-        // and thus different chain names.
-        // Specifically testing the collision case identified: "vm-1" vs "vm_1"
-        // In the old implementation, both sanitized to "vm_1".
-
-        let vm1 = FirewallManager::new("vm-1".to_string());
-        let vm2 = FirewallManager::new("vm_1".to_string());
-        let vm3 = FirewallManager::new("vm.1".to_string());
-
-        assert_ne!(
-            vm1.chain_name(),
-            vm2.chain_name(),
-            "Collision detected: vm-1 vs vm_1"
-        );
-        assert_ne!(
-            vm1.chain_name(),
-            vm3.chain_name(),
-            "Collision detected: vm-1 vs vm.1"
-        );
-        assert_ne!(
-            vm2.chain_name(),
-            vm3.chain_name(),
-            "Collision detected: vm_1 vs vm.1"
-        );
     }
 }

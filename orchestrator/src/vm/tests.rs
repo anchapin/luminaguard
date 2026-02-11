@@ -6,9 +6,12 @@
 #[cfg(test)]
 mod tests {
     use crate::vm::config::VmConfig;
-    use crate::vm::{destroy_vm, spawn_vm, spawn_vm_with_config, verify_network_isolation};
+    use crate::vm::firewall::FirewallManager;
+    use crate::vm::seccomp::{SeccompFilter, SeccompLevel};
+    use crate::vm::{destroy_vm, spawn_vm, spawn_vm_with_config, verify_network_isolation, VmHandle};
     use std::fs::File;
     use std::io::Write;
+    use std::sync::Arc;
 
     /// Create temporary stub resources for testing
     /// Tests should fail if code can't handle these correctly
@@ -31,17 +34,25 @@ mod tests {
         ))
     }
 
-    fn check_vm_requirements() -> bool {
-        if !std::path::Path::new("/usr/local/bin/firecracker").exists() {
+    // Helper to check if firecracker is available AND resources exist
+    fn firecracker_available() -> bool {
+        // First check if firecracker binary exists
+        let has_binary = std::process::Command::new("firecracker")
+            .arg("--version")
+            .output()
+            .is_ok()
+            || std::path::Path::new("/usr/local/bin/firecracker").exists()
+            || std::path::Path::new("/usr/bin/firecracker").exists();
+
+        if !has_binary {
             return false;
         }
-        if !std::path::Path::new("./resources/vmlinux").exists() {
-            return false;
-        }
-        if !std::path::Path::new("./resources/rootfs.ext4").exists() {
-            return false;
-        }
-        true
+
+        // Check if required resources exist
+        let kernel_exists = std::path::Path::new("./resources/vmlinux").exists();
+        let rootfs_exists = std::path::Path::new("./resources/rootfs.ext4").exists();
+
+        kernel_exists && rootfs_exists
     }
 
     /// Test that VM cannot be created with networking enabled
@@ -163,8 +174,6 @@ mod tests {
     /// Test that VM config validation enforces security constraints
     #[test]
     fn test_config_validation_security() {
-        use crate::vm::config::VmConfig;
-
         // Test 1: Networking must be disabled
         let mut config = VmConfig::new("security-test-1".to_string());
         config.enable_networking = true;
@@ -188,11 +197,9 @@ mod tests {
         assert!(config.memory_mb >= 128);
     }
 
-    /// Test that firewall manager properly handles VM IDs via hashing
+    /// Test that firewall manager properly sanitizes VM IDs
     #[test]
     fn test_firewall_sanitizes_vm_ids() {
-        use crate::vm::firewall::FirewallManager;
-
         let test_cases = vec![
             "simple",
             "with-dash",
@@ -203,16 +210,12 @@ mod tests {
         ];
 
         for vm_id in test_cases {
-            let manager = FirewallManager::new(vm_id.to_string());
+            let manager = FirewallManager::new(vm_id.to_string(), None);
             let chain = manager.chain_name();
 
-            // Check prefix
             assert!(chain.starts_with("IRONCLAW_"));
-
-            // Check length (9 + 16 = 25)
             assert_eq!(chain.len(), 25);
-
-            // Check allowed characters (alphanumeric + underscore)
+            // Verify alphanumeric + underscore
             assert!(chain.chars().all(|c| c.is_alphanumeric() || c == '_'));
         }
     }
@@ -315,9 +318,10 @@ mod tests {
             // Verify ID is handled correctly
             assert!(handle.id.len() <= 128);
 
-            // Verify firewall chain name is valid (may be truncated)
+            // Verify firewall chain name is valid and short
             let chain = handle.firewall_manager.as_ref().unwrap().chain_name();
             assert!(chain.chars().all(|c| c.is_alphanumeric() || c == '_'));
+            assert_eq!(chain.len(), 25);
 
             destroy_vm(handle).await.ok();
         }
@@ -350,6 +354,8 @@ mod tests {
             assert!(!chain.contains('$'));
             assert!(!chain.contains('%'));
 
+            assert_eq!(chain.len(), 25);
+
             // Verify vsock path exists and is safe
             let vsock_path = handle.vsock_path().unwrap();
             assert!(vsock_path.contains("test-vm-123"));
@@ -361,8 +367,6 @@ mod tests {
     /// Property-based test: All VM configs must have networking disabled
     #[test]
     fn test_property_networking_always_disabled() {
-        use crate::vm::config::VmConfig;
-
         let test_ids = vec![
             "test-1",
             "test-2",
@@ -383,8 +387,6 @@ mod tests {
     /// Property-based test: All firewall chain names must be valid
     #[test]
     fn test_property_firewall_chains_valid() {
-        use crate::vm::firewall::FirewallManager;
-
         let test_ids = vec![
             "",
             "a",
@@ -398,11 +400,12 @@ mod tests {
         ];
 
         for id in test_ids {
-            let manager = FirewallManager::new(id.to_string());
+            let manager = FirewallManager::new(id.to_string(), None);
             let chain = manager.chain_name();
 
-            // Chain name must be <= 28 characters
+            // Chain name must be <= 28 characters (actually 25)
             assert!(chain.len() <= 28, "Chain name too long: {}", chain);
+            assert_eq!(chain.len(), 25);
 
             // Chain name must only contain alphanumeric and underscore
             assert!(
@@ -456,7 +459,8 @@ mod tests {
     /// Test: Multiple rapid VM spawns and destroys
     #[tokio::test]
     async fn test_rapid_vm_lifecycle() {
-        if !check_vm_requirements() {
+        if !firecracker_available() {
+            println!("Skipping test: firecracker not available");
             return;
         }
 
@@ -485,12 +489,6 @@ mod tests {
 
     #[tokio::test]
     async fn test_vm_spawn_and_destroy() {
-        // This test requires actual Firecracker installation
-        // Skip in CI if not available
-        if !std::path::Path::new("/usr/local/bin/firecracker").exists() {
-            return;
-        }
-
         // Ensure test assets exist
         let _ = std::fs::create_dir_all("/tmp/ironclaw-fc-test");
 
@@ -514,5 +512,108 @@ mod tests {
         let task_id = "task-123";
         let expected_id = task_id.to_string();
         assert_eq!(expected_id, "task-123");
+    }
+
+    // New tests from mod.rs inline modules
+
+    #[test]
+    fn test_vm_handle_vsock_path_none() {
+        let mut config = VmConfig::default();
+        config.vsock_path = None; // Explicitly set to None
+        let handle = VmHandle {
+            id: "test-vm".to_string(),
+            process: Arc::new(tokio::sync::Mutex::new(None)),
+            spawn_time_ms: 100.0,
+            config,
+            firewall_manager: None,
+        };
+
+        assert!(handle.vsock_path().is_none());
+    }
+
+    #[test]
+    fn test_vm_handle_vsock_path_some() {
+        let mut config = VmConfig::default();
+        config.vsock_path = Some("/tmp/test.sock".to_string());
+
+        let handle = VmHandle {
+            id: "test-vm".to_string(),
+            process: Arc::new(tokio::sync::Mutex::new(None)),
+            spawn_time_ms: 100.0,
+            config,
+            firewall_manager: None,
+        };
+
+        assert_eq!(handle.vsock_path(), Some("/tmp/test.sock"));
+    }
+
+    #[test]
+    fn test_verify_isolation_with_no_firewall_manager() {
+        let config = VmConfig::new("test-vm".to_string());
+        let handle = VmHandle {
+            id: "test-vm".to_string(),
+            process: Arc::new(tokio::sync::Mutex::new(None)),
+            spawn_time_ms: 100.0,
+            config,
+            firewall_manager: None,
+        };
+
+        let result = verify_network_isolation(&handle);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), false);
+    }
+
+    #[test]
+    fn test_verify_isolation_with_firewall_manager() {
+        let config = VmConfig::new("test-vm".to_string());
+        let firewall = FirewallManager::new("test-vm".to_string(), None);
+        let handle = VmHandle {
+            id: "test-vm".to_string(),
+            process: Arc::new(tokio::sync::Mutex::new(None)),
+            spawn_time_ms: 100.0,
+            config,
+            firewall_manager: Some(firewall),
+        };
+
+        let result = verify_network_isolation(&handle);
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_destroy_vm_with_no_process() {
+        let config = VmConfig::new("test-vm".to_string());
+        let handle = VmHandle {
+            id: "test-vm".to_string(),
+            process: Arc::new(tokio::sync::Mutex::new(None)),
+            spawn_time_ms: 100.0,
+            config,
+            firewall_manager: None,
+        };
+
+        let result = destroy_vm(handle).await;
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_spawn_vm_delegates_to_spawn_vm_with_config() {
+        let config = VmConfig::new("test-task".to_string());
+        assert_eq!(config.vm_id, "test-task");
+        assert!(config.vsock_path.is_some());
+    }
+
+    #[test]
+    fn test_vmconfig_seccomp_auto_enable_needed() {
+        let config = VmConfig::default();
+        assert!(config.seccomp_filter.is_none());
+    }
+
+    #[test]
+    fn test_vmconfig_seccomp_already_set() {
+        let config = VmConfig {
+            seccomp_filter: Some(SeccompFilter::new(SeccompLevel::Minimal)),
+            ..VmConfig::default()
+        };
+        // This test logic in inline mod was incomplete/weird, but the point is config respects existing filter
+        assert!(config.seccomp_filter.is_some());
     }
 }

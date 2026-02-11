@@ -9,8 +9,6 @@
 // - Low latency communication
 // - Secure by design (isolated communication channel)
 
-#![cfg(unix)]
-
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -488,6 +486,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg(unix)]
     async fn test_vsock_host_listener_creation() {
         let listener = VsockHostListener::new("test-vm".to_string()).await.unwrap();
         assert!(listener.socket_path().contains("test-vm"));
