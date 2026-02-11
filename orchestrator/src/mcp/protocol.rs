@@ -664,11 +664,7 @@ mod tests {
     #[test]
     fn test_request_response_roundtrip() {
         // Test that a request can be serialized and deserialized back
-        let original = McpRequest::new(
-            42,
-            "tools/test",
-            Some(serde_json::json!({"arg": "value"})),
-        );
+        let original = McpRequest::new(42, "tools/test", Some(serde_json::json!({"arg": "value"})));
 
         let json = serde_json::to_string(&original).unwrap();
         let deserialized: McpRequest = serde_json::from_str(&json).unwrap();
@@ -702,8 +698,14 @@ mod tests {
         let deserialized: McpResponse = serde_json::from_str(&json).unwrap();
 
         assert_eq!(original.id, deserialized.id);
-        assert_eq!(original.error.as_ref().unwrap().code, deserialized.error.as_ref().unwrap().code);
-        assert_eq!(original.error.as_ref().unwrap().message, deserialized.error.as_ref().unwrap().message);
+        assert_eq!(
+            original.error.as_ref().unwrap().code,
+            deserialized.error.as_ref().unwrap().code
+        );
+        assert_eq!(
+            original.error.as_ref().unwrap().message,
+            deserialized.error.as_ref().unwrap().message
+        );
     }
 
     #[test]
