@@ -110,6 +110,10 @@ class McpClient:
         self.root_dir = root_dir
         self.args = args or []
 
+        # Validate basic type first
+        if not command or not isinstance(command, list):
+            raise McpError("Command must be a non-empty list")
+
         # Construct full command
         full_command = command.copy()
         if self.root_dir:
