@@ -275,7 +275,6 @@ mod tests {
         format!(r#"{{"jsonrpc":"2.0","id":{},"result":{}}}"#, id, result)
     }
 
-    #[cfg(unix)]
     #[tokio::test]
     async fn test_stdio_transport_send() {
         // This test verifies serialization works, but doesn't actually spawn a process
@@ -299,7 +298,6 @@ mod tests {
         assert!(response.result.is_some());
     }
 
-    #[cfg(unix)]
     #[tokio::test]
     async fn test_stdio_transport_recv_error() {
         // Test error response deserialization
@@ -316,7 +314,6 @@ mod tests {
         assert!(error.message.contains("Method not found"));
     }
 
-    #[cfg(unix)]
     #[tokio::test]
     async fn test_stdio_transport_round_trip() {
         // Test that we can serialize and deserialize correctly
@@ -340,68 +337,56 @@ mod tests {
         assert_eq!(error.code, -32601);
     }
 
-    #[cfg(unix)]
+    // Helper to create a test script
+    async fn setup_test_script(name: &str, content: &str) -> String {
+        let path = format!("/tmp/{}", name);
+        tokio::fs::write(&path, content)
+            .await
+            .expect("Failed to write test script");
+
+        tokio::process::Command::new("chmod")
+            .args(["+x", &path])
+            .output()
+            .await
+            .expect("Failed to make script executable");
+
+        path
+    }
+
     #[tokio::test]
     async fn test_echo_server_mock() {
         // This test demonstrates how the transport would work with a real process
-        // For now, we'll skip actual process spawning in unit tests
-        // Real integration tests will be in Task 1.5
-
-        // Create a mock echo server script (in /tmp)
         let echo_script = r#"#!/bin/bash
 # Simple echo server that reads lines from stdin and writes them to stdout
 while IFS= read -r line; do
     echo "$line"
 done
 "#;
+        let echo_path = setup_test_script("mcp_echo_test.sh", echo_script).await;
 
-        let echo_path = "/tmp/mcp_echo_test.sh";
-        std::fs::write(echo_path, echo_script).unwrap();
+        // Spawn the echo server
+        let mut transport = StdioTransport::spawn(&echo_path, &[])
+            .await
+            .expect("Failed to spawn echo server");
 
-        #[cfg(unix)]
-        {
-            use tokio::process::Command;
+        // Send a request
+        let request = create_test_request(1, "test");
+        transport
+            .send(&request)
+            .await
+            .expect("Failed to send request");
 
-            // Make the script executable
-            Command::new("chmod")
-                .args(["+x", echo_path])
-                .output()
-                .await
-                .expect("Failed to make echo script executable");
+        // Receive the echoed response
+        let response = transport.recv().await.expect("Failed to receive response");
 
-            // Spawn the echo server
-            let mut transport = StdioTransport::spawn(echo_path, &[])
-                .await
-                .expect("Failed to spawn echo server");
+        // The echo server should echo back our JSON
+        assert_eq!(response.id, 1);
 
-            // Send a request
-            let request = create_test_request(1, "test");
-            transport
-                .send(&request)
-                .await
-                .expect("Failed to send request");
-
-            // Receive the echoed response
-            let response = transport.recv().await.expect("Failed to receive response");
-
-            // The echo server should echo back our JSON
-            assert_eq!(response.id, 1);
-
-            // Clean up
-            transport.kill().await.expect("Failed to kill echo server");
-
-            // Clean up the test file
-            let _ = std::fs::remove_file(echo_path);
-        }
-
-        #[cfg(not(unix))]
-        {
-            // Skip this test on non-Unix platforms
-            println!("Skipping echo server test on non-Unix platform");
-        }
+        // Clean up
+        transport.kill().await.expect("Failed to kill echo server");
+        let _ = tokio::fs::remove_file(echo_path).await;
     }
 
-    #[cfg(not(windows))]
     #[tokio::test]
     async fn test_transport_kill_and_wait() {
         // Test kill() and wait() methods
@@ -411,42 +396,28 @@ done
 # Sleep for a long time so we can kill it
 sleep 100
 "#;
+        let echo_path = setup_test_script("mcp_kill_test.sh", echo_script).await;
 
-        let echo_path = "/tmp/mcp_kill_test.sh";
-        std::fs::write(echo_path, echo_script).unwrap();
+        // Spawn the process
+        let mut transport = StdioTransport::spawn(&echo_path, &[])
+            .await
+            .expect("Failed to spawn process");
 
-        {
-            use tokio::process::Command;
+        // Kill the process
+        let result = transport.kill().await;
+        assert!(result.is_ok());
 
-            // Make the script executable
-            Command::new("chmod")
-                .args(["+x", echo_path])
-                .output()
-                .await
-                .expect("Failed to make script executable");
+        // Verify transport is disconnected
+        assert!(!transport.is_connected());
 
-            // Spawn the process
-            let mut transport = StdioTransport::spawn(echo_path, &[])
-                .await
-                .expect("Failed to spawn process");
+        // Calling kill again should be ok (no-op)
+        let result2 = transport.kill().await;
+        assert!(result2.is_ok());
 
-            // Kill the process
-            let result = transport.kill().await;
-            assert!(result.is_ok());
-
-            // Verify transport is disconnected
-            assert!(!transport.is_connected());
-
-            // Calling kill again should be ok (no-op)
-            let result2 = transport.kill().await;
-            assert!(result2.is_ok());
-
-            // Clean up
-            let _ = std::fs::remove_file(echo_path);
-        }
+        // Clean up
+        let _ = tokio::fs::remove_file(echo_path).await;
     }
 
-    #[cfg(not(windows))]
     #[tokio::test]
     async fn test_transport_wait_without_kill() {
         // Test wait() method without killing the process first
@@ -454,36 +425,23 @@ sleep 100
 # Exit immediately
 exit 42
 "#;
+        let echo_path = setup_test_script("mcp_wait_test.sh", echo_script).await;
 
-        let echo_path = "/tmp/mcp_wait_test.sh";
-        std::fs::write(echo_path, echo_script).unwrap();
+        // Spawn the process
+        let mut transport = StdioTransport::spawn(&echo_path, &[])
+            .await
+            .expect("Failed to spawn process");
 
-        {
-            use tokio::process::Command;
+        // Wait for the process to exit
+        let exit_code = transport.wait().await;
+        assert!(exit_code.is_ok());
+        assert_eq!(exit_code.unwrap(), Some(42));
 
-            // Make the script executable
-            Command::new("chmod")
-                .args(["+x", echo_path])
-                .output()
-                .await
-                .expect("Failed to make script executable");
+        // Verify transport is disconnected
+        assert!(!transport.is_connected());
 
-            // Spawn the process
-            let mut transport = StdioTransport::spawn(echo_path, &[])
-                .await
-                .expect("Failed to spawn process");
-
-            // Wait for the process to exit
-            let exit_code = transport.wait().await;
-            assert!(exit_code.is_ok());
-            assert_eq!(exit_code.unwrap(), Some(42));
-
-            // Verify transport is disconnected
-            assert!(!transport.is_connected());
-
-            // Clean up
-            let _ = std::fs::remove_file(echo_path);
-        }
+        // Clean up
+        let _ = tokio::fs::remove_file(echo_path).await;
     }
 
     #[test]
@@ -535,36 +493,150 @@ exit 42
         assert!(result.is_err());
     }
 
-    #[cfg(not(windows))]
     #[tokio::test]
     async fn test_transport_command_getter() {
         // Test that we can get the command string from a spawned transport
         let echo_script = r#"#!/bin/bash
 echo "test"
 "#;
+        let echo_path = setup_test_script("mcp_command_test.sh", echo_script).await;
 
-        let echo_path = "/tmp/mcp_command_test.sh";
-        std::fs::write(echo_path, echo_script).unwrap();
+        let transport = StdioTransport::spawn(&echo_path, &[])
+            .await
+            .expect("Failed to spawn");
 
-        {
-            use tokio::process::Command;
+        // Check that command() returns the command string
+        let cmd = transport.command();
+        assert!(cmd.contains(&echo_path));
 
-            Command::new("chmod")
-                .args(["+x", echo_path])
-                .output()
-                .await
-                .expect("Failed to make script executable");
+        // Clean up
+        let _ = tokio::fs::remove_file(echo_path).await;
+    }
 
-            let transport = StdioTransport::spawn(echo_path, &[])
-                .await
-                .expect("Failed to spawn");
+    #[tokio::test]
+    async fn test_server_crash() {
+        // Test that recv fails when the server crashes
+        let crash_script = r#"#!/bin/bash
+# Read one line (the request)
+read line
+# Exit with error immediately without sending response
+exit 1
+"#;
+        let crash_path = setup_test_script("mcp_crash_test.sh", crash_script).await;
 
-            // Check that command() returns the command string
-            let cmd = transport.command();
-            assert!(cmd.contains(echo_path));
+        let mut transport = StdioTransport::spawn(&crash_path, &[])
+            .await
+            .expect("Failed to spawn process");
 
-            // Clean up
-            let _ = std::fs::remove_file(echo_path);
-        }
+        // Send a request
+        let request = create_test_request(1, "test");
+        transport
+            .send(&request)
+            .await
+            .expect("Failed to send request");
+
+        // Recv should fail because the server exits without sending a response
+        let result = transport.recv().await;
+        assert!(result.is_err());
+
+        let err = result.unwrap_err();
+        // The error should be related to EOF
+        assert!(err.to_string().contains("EOF"));
+
+        // Clean up
+        let _ = tokio::fs::remove_file(crash_path).await;
+    }
+
+    #[tokio::test]
+    async fn test_invalid_json_response() {
+        // Test that recv fails when the server returns invalid JSON
+        let invalid_json_script = r#"#!/bin/bash
+read line
+echo "not valid json"
+"#;
+        let script_path = setup_test_script("mcp_invalid_json_test.sh", invalid_json_script).await;
+
+        let mut transport = StdioTransport::spawn(&script_path, &[])
+            .await
+            .expect("Failed to spawn process");
+
+        // Send a request
+        let request = create_test_request(1, "test");
+        transport
+            .send(&request)
+            .await
+            .expect("Failed to send request");
+
+        // Recv should fail due to deserialization error
+        let result = transport.recv().await;
+        assert!(result.is_err());
+
+        let err = result.unwrap_err();
+        // The error should mention JSON or deserialization
+        assert!(err.to_string().contains("JSON") || err.to_string().contains("deserialize"));
+
+        // Clean up
+        let _ = tokio::fs::remove_file(script_path).await;
+    }
+
+    #[tokio::test]
+    async fn test_write_error_broken_pipe() {
+        // Test that send fails when the server stdin is closed (process exited)
+        let exit_script = r#"#!/bin/bash
+exit 0
+"#;
+        let script_path = setup_test_script("mcp_write_error_test.sh", exit_script).await;
+
+        let mut transport = StdioTransport::spawn(&script_path, &[])
+            .await
+            .expect("Failed to spawn process");
+
+        // Wait a bit to ensure the process has exited
+        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+
+        // Send a request
+        let request = create_test_request(1, "test");
+        let result = transport.send(&request).await;
+
+        // Writing to a closed pipe should fail (EPIPE)
+        assert!(result.is_err(), "Send should fail when process has exited");
+
+        // Clean up
+        let _ = tokio::fs::remove_file(script_path).await;
+    }
+
+    #[tokio::test]
+    async fn test_partial_line_response() {
+        // Test that recv fails when the server sends a partial line and exits
+        // Using printf without \n to simulate partial write
+        let partial_script = r#"#!/bin/bash
+read line
+printf '{"jsonrpc":"2.0"'
+exit 0
+"#;
+        let script_path = setup_test_script("mcp_partial_test.sh", partial_script).await;
+
+        let mut transport = StdioTransport::spawn(&script_path, &[])
+            .await
+            .expect("Failed to spawn process");
+
+        // Send a request
+        let request = create_test_request(1, "test");
+        transport
+            .send(&request)
+            .await
+            .expect("Failed to send request");
+
+        // Recv should fail because the line is incomplete/invalid JSON
+        let result = transport.recv().await;
+        assert!(result.is_err());
+
+        // Since `read_line` might return the partial line if EOF is reached,
+        // it will try to deserialize `{"jsonrpc":"2.0"` which is invalid JSON.
+        let err = result.unwrap_err();
+        assert!(err.to_string().contains("JSON") || err.to_string().contains("deserialize"));
+
+        // Clean up
+        let _ = tokio::fs::remove_file(script_path).await;
     }
 }
