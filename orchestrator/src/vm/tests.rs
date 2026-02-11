@@ -42,7 +42,7 @@ mod tests {
         assert!(result
             .unwrap_err()
             .to_string()
-            .contains("networking must be disabled"));
+            .contains("MUST be disabled"));
     }
 
     // Helper to check if Firecracker resources are available
