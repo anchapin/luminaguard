@@ -3,32 +3,31 @@
   "checkpoint_id": "bdf40454b1a2",
   "session_id": "eaa1ab91-d8c7-49bb-af22-e3fb1c01c355",
   "strategy": "manual-commit",
-  "created_at": "2026-02-11T15:10:38.256738414Z",
+  "created_at": "2026-02-11T15:25:35.30994055Z",
   "branch": "remove-windows-from-ci",
-  "checkpoints_count": 4,
+  "checkpoints_count": 1,
   "files_touched": [
     ".claude/skills/pr-swarmit/SKILL.md",
-    ".claude/skills/pr-swarmit/pr-swarmit.sh",
-    ".github/workflows/ci.yml"
+    ".claude/skills/pr-swarmit/pr-swarmit.sh"
   ],
   "agent": "Claude Code",
-  "transcript_identifier_at_start": "6c310f48-8c5e-4b38-a2e3-18ba4d25f52d",
-  "checkpoint_transcript_start": 877,
-  "transcript_lines_at_start": 877,
+  "transcript_identifier_at_start": "0a27d49c-2079-49d8-afe4-ac5534c5a911",
+  "checkpoint_transcript_start": 1233,
+  "transcript_lines_at_start": 1233,
   "token_usage": {
-    "input_tokens": 735804,
+    "input_tokens": 4207,
     "cache_creation_tokens": 0,
-    "cache_read_tokens": 3629824,
-    "output_tokens": 8745,
-    "api_call_count": 35
+    "cache_read_tokens": 977792,
+    "output_tokens": 1965,
+    "api_call_count": 7
   },
   "initial_attribution": {
-    "calculated_at": "2026-02-11T15:10:38.075749594Z",
-    "agent_lines": 1,
-    "human_added": 611,
+    "calculated_at": "2026-02-11T15:25:35.095885456Z",
+    "agent_lines": 0,
+    "human_added": 11,
     "human_modified": 0,
     "human_removed": 0,
-    "total_committed": 612,
-    "agent_percentage": 0.16339869281045752
+    "total_committed": 11,
+    "agent_percentage": 0
   }
 }
