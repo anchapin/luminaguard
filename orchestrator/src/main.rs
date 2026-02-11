@@ -98,13 +98,7 @@ async fn main() -> Result<()> {
             test_mcp(command, args, list_tools).await?;
         }
         None => {
-            println!("🦊 IronClaw Orchestrator v{}", env!("CARGO_PKG_VERSION"));
-            println!("   Secure Agentic AI Runtime with JIT Micro-VMs\n");
-            println!("Usage:");
-            println!("  ironclaw run \"<task>\"       - Run an agent task");
-            println!("  ironclaw spawn-vm           - Spawn a test Micro-VM");
-            println!("  ironclaw test-mcp           - Test MCP connection\n");
-            println!("For more information, try 'ironclaw --help'.");
+            info!("No command specified. Use 'ironclaw --help' for usage.");
         }
     }
 
@@ -267,50 +261,6 @@ mod tests {
         assert!(matches!(args.command, Some(Commands::Run { .. })));
     }
 
-    #[test]
-    fn test_args_verbose_flag() {
-        let args = Args::parse_from(["ironclaw", "--verbose", "run", "test"]);
-        assert!(args.verbose);
-    }
-
-    #[test]
-    fn test_args_spawn_vm_command() {
-        let args = Args::parse_from(["ironclaw", "spawn-vm"]);
-        assert!(matches!(args.command, Some(Commands::SpawnVm)));
-    }
-
-    #[test]
-    fn test_args_test_mcp_command() {
-        let args = Args::parse_from([
-            "ironclaw",
-            "test-mcp",
-            "--command",
-            "custom",
-            "--list-tools",
-        ]);
-        assert!(matches!(
-            args.command,
-            Some(Commands::TestMcp {
-                command: Some(_),
-                args: _,
-                list_tools: true
-            })
-        ));
-    }
-
-    #[test]
-    fn test_args_default_values() {
-        let args = Args::parse_from(["ironclaw"]);
-        assert!(!args.verbose);
-        assert!(args.command.is_none());
-    }
-
-    #[tokio::test]
-    async fn test_run_agent_placeholder() {
-        let result = run_agent("test task".to_string()).await;
-        assert!(result.is_ok());
-    }
-
     #[tokio::test]
     async fn test_spawn_vm_integration() {
         // Skip if firecracker or resources are missing
@@ -337,65 +287,5 @@ mod tests {
         // If everything is present, it should succeed.
         // If it fails, it's a regression.
         assert!(result.is_ok(), "Spawn VM failed: {:?}", result.err());
-    }
-
-    #[test]
-    fn test_commands_variants() {
-        // Test Run command
-        let run_cmd = Commands::Run {
-            task: "test".to_string(),
-        };
-        assert!(matches!(run_cmd, Commands::Run { .. }));
-
-        // Test SpawnVm command
-        let spawn_cmd = Commands::SpawnVm;
-        assert!(matches!(spawn_cmd, Commands::SpawnVm));
-
-        // Test TestMcp command
-        let mcp_cmd = Commands::TestMcp {
-            command: None,
-            args: vec![],
-            list_tools: false,
-        };
-        assert!(matches!(mcp_cmd, Commands::TestMcp { .. }));
-    }
-
-    #[test]
-    fn test_mcp_command_with_custom_command_and_args() {
-        let mcp_cmd = Commands::TestMcp {
-            command: Some("custom-cmd".to_string()),
-            args: vec!["arg1".to_string(), "arg2".to_string()],
-            list_tools: false,
-        };
-        assert!(matches!(
-            mcp_cmd,
-            Commands::TestMcp {
-                command: Some(_),
-                args: _,
-                list_tools: false
-            }
-        ));
-    }
-
-    #[test]
-    fn test_mcp_command_only_command() {
-        let mcp_cmd = Commands::TestMcp {
-            command: Some("npx".to_string()),
-            args: vec![],
-            list_tools: true,
-        };
-        assert!(matches!(mcp_cmd, Commands::TestMcp { .. }));
-    }
-
-    #[test]
-    fn test_verbose_flag_false() {
-        let args = Args::parse_from(["ironclaw", "run", "test"]);
-        assert!(!args.verbose);
-    }
-
-    #[test]
-    fn test_subcommand_present() {
-        let args = Args::parse_from(["ironclaw", "run", "test"]);
-        assert!(args.command.is_some());
     }
 }

@@ -2,7 +2,6 @@
   "rust": "50.0",
   "python": "78.0",
   "rust_target": "75.0",
-  "python_ratchet": "78.0",
   "python_target": "75.0",
   "rust_ratchet": "50.0",
   "python_ratchet": "78.0"

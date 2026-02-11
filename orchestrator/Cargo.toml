@@ -8,18 +8,6 @@ license = "MIT"
 repository = "https://github.com/your-username/ironclaw"
 readme = "../README.md"
 
-[features]
-default = []
-vm-prototype = []
-
-[lib]
-name = "ironclaw_orchestrator"
-path = "src/lib.rs"
-
-[[bin]]
-name = "ironclaw"
-path = "src/main.rs"
-
 [dependencies]
 # Async runtime
 tokio = { version = "1.40", features = ["full"] }
@@ -66,7 +54,14 @@ proptest = "1.4"
 
 # Testing utilities
 criterion = "0.8"
-tempfile = "3.10"
+
+[lib]
+name = "ironclaw_orchestrator"
+path = "src/lib.rs"
+
+[[bin]]
+name = "ironclaw"
+path = "src/main.rs"
 
 [profile.dev]
 opt-level = 0

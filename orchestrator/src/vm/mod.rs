@@ -25,19 +25,19 @@ pub mod prototype;
 #[cfg(test)]
 mod tests;
 
-use crate::vm::config::VmConfig;
 use anyhow::Result;
+use crate::vm::config::VmConfig;
 
+#[cfg(unix)]
+use std::sync::Arc;
+#[cfg(unix)]
+use tokio::sync::Mutex;
 #[cfg(unix)]
 use crate::vm::firecracker::{start_firecracker, stop_firecracker, FirecrackerProcess};
 #[cfg(unix)]
 use crate::vm::firewall::FirewallManager;
 #[cfg(unix)]
 use crate::vm::seccomp::{SeccompFilter, SeccompLevel};
-#[cfg(unix)]
-use std::sync::Arc;
-#[cfg(unix)]
-use tokio::sync::Mutex;
 
 // ------------------------------------------------------------------------------------------------
 // UNIX IMPLEMENTATION
@@ -45,18 +45,11 @@ use tokio::sync::Mutex;
 
 #[cfg(unix)]
 /// VM handle for managing lifecycle
-#[derive(Debug)]
 pub struct VmHandle {
     pub id: String,
-    #[cfg(target_os = "linux")]
     process: Arc<Mutex<Option<FirecrackerProcess>>>,
-    #[cfg(not(target_os = "linux"))]
-    #[allow(dead_code)] // Field is unused on non-Linux platforms
-    process: Arc<Mutex<Option<()>>>,
     pub spawn_time_ms: f64,
-    #[allow(dead_code)] // Field is unused on Windows but required on Linux
     config: VmConfig,
-    #[allow(dead_code)] // Field is unused on Windows but required on Linux
     firewall_manager: Option<FirewallManager>,
 }
 
