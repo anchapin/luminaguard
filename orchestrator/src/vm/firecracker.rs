@@ -285,6 +285,7 @@ async fn configure_vm(socket_path: &str, config: &VmConfig) -> Result<()> {
         drive_id: "rootfs".to_string(),
         path_on_host: config.rootfs_path.clone(),
         is_root_device: true,
+        // Ensure rootfs is read-only to prevent corruption
         is_read_only: true,
     };
     send_request(

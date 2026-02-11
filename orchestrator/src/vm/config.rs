@@ -126,6 +126,13 @@ mod tests {
     }
 
     #[test]
+    fn test_config_validation_fails_networking() {
+        let mut config = VmConfig::default();
+        config.enable_networking = true;
+        assert!(config.validate().is_err());
+    }
+
+    #[test]
     fn test_to_json() {
         let config = VmConfig::new("test-vm".to_string());
         let json = config.to_firecracker_json();
