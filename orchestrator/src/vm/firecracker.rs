@@ -18,7 +18,10 @@ use tracing::{debug, info};
 use crate::vm::config::VmConfig;
 
 // Type aliases to simplify complex hyper types
+// TODO: These will be used when implementing full HTTP client for Firecracker API
+#[allow(dead_code)]
 type HttpSendRequest = hyper::client::conn::http1::SendRequest<Full<Bytes>>;
+#[allow(dead_code)]
 type HttpConnection = hyper::client::conn::http1::Connection<TokioIo<UnixStream>, Full<Bytes>>;
 
 /// Firecracker VM process manager
