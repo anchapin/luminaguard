@@ -18,10 +18,10 @@ pub mod seccomp;
 #[cfg(unix)]
 pub mod vsock;
 
-#[cfg(not(unix))]
-pub mod firecracker {
-    use crate::vm::config::VmConfig;
-    use anyhow::{anyhow, Result};
+// Prototype module for feasibility testing
+// TODO: Add vm-prototype feature to Cargo.toml when prototype module is ready
+// #[cfg(feature = "vm-prototype")]
+// pub mod prototype;
 
     #[derive(Debug)]
     pub struct FirecrackerProcess {
