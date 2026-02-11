@@ -165,7 +165,8 @@ impl FirewallManager {
         // Check for exact match to avoid substring false positives
         // The chain name must be followed by a space or end of line
         let is_linked = all_rules.lines().any(|line| {
-            line.contains(&target) && (line.ends_with(&target) || line.contains(&format!("{} ", target)))
+            line.contains(&target)
+                && (line.ends_with(&target) || line.contains(&format!("{} ", target)))
         });
 
         if !is_linked {
