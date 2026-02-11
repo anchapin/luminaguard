@@ -119,7 +119,7 @@ pub async fn spawn_vm_with_config(task_id: &str, config: &VmConfig) -> Result<Vm
 }
 
 #[cfg(not(unix))]
-pub async fn spawn_vm_with_config(task_id: &str, config: &VmConfig) -> Result<VmHandle> {
+pub async fn spawn_vm_with_config(_task_id: &str, _config: &VmConfig) -> Result<VmHandle> {
     anyhow::bail!("VM spawning is only supported on Unix systems");
 }
 
