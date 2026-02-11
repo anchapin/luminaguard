@@ -2,31 +2,39 @@
 //
 // This module handles the actual Firecracker VM spawning using the HTTP API over Unix sockets.
 
+#[cfg(unix)]
 use anyhow::{anyhow, Context, Result};
+#[cfg(unix)]
 use bytes::Bytes;
+#[cfg(unix)]
 use http_body_util::{BodyExt, Full};
+#[cfg(unix)]
 use hyper::{Request, StatusCode};
+#[cfg(unix)]
 use hyper_util::rt::TokioIo;
 use serde::Serialize;
+#[cfg(unix)]
 use std::path::{Path, PathBuf};
+#[cfg(unix)]
 use std::time::Instant;
 #[cfg(unix)]
 use tokio::net::UnixStream;
+#[cfg(unix)]
 use tokio::process::{Child, Command};
+#[cfg(unix)]
 use tracing::{debug, info};
 
 use crate::vm::config::VmConfig;
-
-// Type aliases to simplify complex hyper types
-type HttpSendRequest = hyper::client::conn::http1::SendRequest<Full<Bytes>>;
-type HttpConnection = hyper::client::conn::http1::Connection<TokioIo<UnixStream>, Full<Bytes>>;
 
 /// Firecracker VM process manager
 #[derive(Debug)]
 pub struct FirecrackerProcess {
     pub pid: u32,
     pub socket_path: String,
+    #[cfg(unix)]
     pub child_process: Option<Child>,
+    #[cfg(not(unix))]
+    pub child_process: Option<()>, // Dummy for non-unix
     pub spawn_time_ms: f64,
 }
 
@@ -181,14 +189,13 @@ async fn send_request<T: Serialize>(
     // though reusing it would be slightly faster.
     // Given the low number of requests, this is acceptable.
 
-    let stream: UnixStream = UnixStream::connect(socket_path)
+    let stream = UnixStream::connect(socket_path)
         .await
         .context("Failed to connect to firecracker socket")?;
     let io = TokioIo::new(stream);
-    let (mut sender, conn): (HttpSendRequest, HttpConnection) =
-        hyper::client::conn::http1::handshake(io)
-            .await
-            .context("Handshake failed")?;
+    let (mut sender, conn) = hyper::client::conn::http1::handshake(io)
+        .await
+        .context("Handshake failed")?;
 
     tokio::task::spawn(async move {
         if let Err(err) = conn.await {
@@ -212,7 +219,7 @@ async fn send_request<T: Serialize>(
         .body(req_body)
         .context("Failed to build request")?;
 
-    let res: hyper::Response<hyper::body::Incoming> = sender
+    let res = sender
         .send_request(req)
         .await
         .context("Failed to send request")?;
@@ -221,7 +228,7 @@ async fn send_request<T: Serialize>(
         Ok(())
     } else {
         let status = res.status();
-        let body_bytes: Bytes = res.collect().await?.to_bytes();
+        let body_bytes = res.collect().await?.to_bytes();
         let body_str = String::from_utf8_lossy(&body_bytes);
         Err(anyhow!("Firecracker API error: {} - {}", status, body_str))
     }
@@ -314,6 +321,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg(unix)]
     async fn test_missing_kernel_image() {
         let config = VmConfig {
             kernel_path: "/non/existent/kernel".to_string(),
@@ -328,6 +336,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg(unix)]
     async fn test_missing_rootfs() {
         // Create dummy kernel file to pass first check
         let kernel_path = std::env::temp_dir().join("dummy_kernel");
