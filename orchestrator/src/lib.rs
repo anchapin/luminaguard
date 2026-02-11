@@ -4,10 +4,10 @@
 //! including MCP client implementation, VM spawning, and memory management.
 
 pub mod mcp;
-#[cfg(unix)]
+#[cfg(target_os = "linux")]
 pub mod vm;
 
-#[cfg(not(unix))]
+#[cfg(not(target_os = "linux"))]
 pub mod vm {
     use anyhow::{anyhow, Result};
 
@@ -17,7 +17,7 @@ pub mod vm {
     }
 
     pub async fn spawn_vm(task_id: &str) -> Result<VmHandle> {
-        Err(anyhow!("VM spawning is only supported on Unix-like systems"))
+        Err(anyhow!("VM spawning is only supported on Linux (Firecracker)"))
     }
 
     pub async fn destroy_vm(_handle: VmHandle) -> Result<()> {
