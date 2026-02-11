@@ -80,8 +80,34 @@ def think(state: AgentState) -> Optional[ToolCall]:
         Must remain deterministic and observable.
         All logging must be explicit.
     """
-    # TODO: Implement Nanobot-style reasoning loop
-    # For now, this is a placeholder that returns None
+    # Check if we have already executed a tool (simple one-shot agent for now)
+    tool_responses = [m for m in state.messages if m["role"] == "tool"]
+    if len(tool_responses) > 0:
+        return None
+
+    # Get the last user message
+    user_msgs = [m for m in state.messages if m["role"] == "user"]
+    if not user_msgs:
+        return None
+
+    content = user_msgs[-1]["content"].lower()
+
+    # Simple keyword-based reasoning for testing
+    # TODO: Replace with real LLM reasoning logic in Phase 2
+    if "read" in content:
+        return ToolCall(
+            name="read_file",
+            arguments={"path": "test.txt"},
+            action_kind=ActionKind.GREEN
+        )
+    elif "write" in content:
+        return ToolCall(
+            name="write_file",
+            arguments={"path": "test.txt", "content": "Hello"},
+            action_kind=ActionKind.GREEN
+        )
+
+    # Default: Task complete
     return None
 
 
