@@ -75,6 +75,9 @@ pub struct StdioTransport {
 
     /// Reusable buffer for reading lines
     line_buffer: String,
+
+    /// Reusable buffer for serializing requests
+    write_buffer: Vec<u8>,
 }
 
 impl StdioTransport {
@@ -121,6 +124,7 @@ impl StdioTransport {
             command: format!("{} {}", command, args.join(" ")),
             connected: true,
             line_buffer: String::with_capacity(4096),
+            write_buffer: Vec::with_capacity(4096),
         })
     }
 
@@ -181,23 +185,28 @@ impl Transport for StdioTransport {
             return Err(anyhow::anyhow!("Transport is not connected"));
         }
 
-        // Serialize the request to JSON
-        let json =
-            serde_json::to_string(request).context("Failed to serialize MCP request to JSON")?;
+        // Clear buffer for reuse to avoid allocation
+        self.write_buffer.clear();
 
-        tracing::debug!("Sending to MCP server: {}", json);
+        // Serialize the request to JSON directly into the buffer
+        serde_json::to_writer(&mut self.write_buffer, request)
+            .context("Failed to serialize MCP request to JSON")?;
 
-        // Write the JSON line to stdin
+        // Append newline (JSON-RPC uses line-based protocol)
+        self.write_buffer.push(b'\n');
+
+        // Log the message if debug logging is enabled
+        // We do a lossy conversion here which is cheap enough for debug logging
+        if tracing::enabled!(tracing::Level::DEBUG) {
+            let json_str = String::from_utf8_lossy(&self.write_buffer);
+            tracing::debug!("Sending to MCP server: {}", json_str.trim());
+        }
+
+        // Write the buffer to stdin in a single call
         self.stdin
-            .write_all(json.as_bytes())
+            .write_all(&self.write_buffer)
             .await
             .context("Failed to write to MCP server stdin")?;
-
-        // Write newline (JSON-RPC uses line-based protocol)
-        self.stdin
-            .write_all(b"\n")
-            .await
-            .context("Failed to write newline to MCP server stdin")?;
 
         // Flush to ensure the message is sent immediately
         self.stdin
