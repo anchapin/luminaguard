@@ -16,6 +16,10 @@ use tracing::{debug, info};
 
 use crate::vm::config::VmConfig;
 
+// Type aliases to simplify complex hyper types
+type HttpSendRequest = hyper::client::conn::http1::SendRequest<Full<Bytes>>;
+type HttpConnection = hyper::client::conn::http1::Connection<TokioIo<UnixStream>, Full<Bytes>>;
+
 /// Firecracker VM process manager
 #[derive(Debug)]
 pub struct FirecrackerProcess {
@@ -177,12 +181,10 @@ async fn send_request<T: Serialize>(
         .await
         .context("Failed to connect to firecracker socket")?;
     let io = TokioIo::new(stream);
-    let (mut sender, conn): (
-        hyper::client::conn::http1::SendRequest<Full<Bytes>>,
-        hyper::client::conn::http1::Connection<TokioIo<UnixStream>, Full<Bytes>>,
-    ) = hyper::client::conn::http1::handshake(io)
-        .await
-        .context("Handshake failed")?;
+    let (mut sender, conn): (HttpSendRequest, HttpConnection) =
+        hyper::client::conn::http1::handshake(io)
+            .await
+            .context("Handshake failed")?;
 
     tokio::task::spawn(async move {
         if let Err(err) = conn.await {
