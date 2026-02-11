@@ -59,6 +59,9 @@ proptest = "1.4"
 # Testing utilities
 criterion = "0.8"
 
+[features]
+vm-prototype = []
+
 [lib]
 name = "ironclaw_orchestrator"
 path = "src/lib.rs"
