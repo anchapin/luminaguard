@@ -44,6 +44,13 @@ mod tests {
         assert!(result.unwrap_err().to_string().contains("MUST be disabled"));
     }
 
+    // Helper to check if Firecracker resources are available
+    fn resources_available() -> bool {
+        std::path::Path::new("/usr/local/bin/firecracker").exists()
+            && std::path::Path::new("./resources/vmlinux").exists()
+            && std::path::Path::new("./resources/rootfs.ext4").exists()
+    }
+
     /// Test that multiple VMs can be spawned with unique firewall chains
     #[tokio::test]
     #[cfg(target_os = "linux")]
@@ -395,8 +402,7 @@ mod tests {
     #[tokio::test]
     #[cfg(target_os = "linux")]
     async fn test_rapid_vm_lifecycle() {
-        if !ensure_firecracker_env() {
-            println!("Skipping test: Firecracker not available");
+        if !resources_available() {
             return;
         }
         for i in 0..10 {
