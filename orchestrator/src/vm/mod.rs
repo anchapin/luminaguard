@@ -9,7 +9,9 @@
 
 pub mod config;
 pub mod firecracker;
+#[cfg(unix)]
 pub mod firewall;
+#[cfg(unix)]
 pub mod seccomp;
 pub mod vsock;
 
@@ -26,19 +28,19 @@ use tokio::sync::Mutex;
 
 use crate::vm::config::VmConfig;
 use crate::vm::firecracker::{start_firecracker, stop_firecracker, FirecrackerProcess};
+#[cfg(unix)]
 use crate::vm::firewall::FirewallManager;
+#[cfg(unix)]
 use crate::vm::seccomp::{SeccompFilter, SeccompLevel};
 
 /// VM handle for managing lifecycle
 #[derive(Debug)]
 pub struct VmHandle {
     pub id: String,
-    #[allow(dead_code)] // Field is unused on Windows but required on Linux
     process: Arc<Mutex<Option<FirecrackerProcess>>>,
     pub spawn_time_ms: f64,
-    #[allow(dead_code)] // Field is unused on Windows but required on Linux
     config: VmConfig,
-    #[allow(dead_code)] // Field is unused on Windows but required on Linux
+    #[cfg(unix)]
     firewall_manager: Option<FirewallManager>,
 }
 
@@ -118,6 +120,7 @@ pub async fn spawn_vm_with_config(task_id: &str, config: &VmConfig) -> Result<Vm
     tracing::info!("Spawning VM for task: {}", task_id);
 
     // Apply default seccomp filter if not specified (security best practice)
+    #[cfg(unix)]
     let config_with_seccomp = if config.seccomp_filter.is_none() {
         let mut secured_config = config.clone();
         secured_config.seccomp_filter = Some(SeccompFilter::new(SeccompLevel::Basic));
@@ -127,45 +130,52 @@ pub async fn spawn_vm_with_config(task_id: &str, config: &VmConfig) -> Result<Vm
         config.clone()
     };
 
-    // Configure firewall to block all network traffic
-    let firewall_manager = FirewallManager::new(config_with_seccomp.vm_id.clone());
+    #[cfg(not(unix))]
+    let config_with_seccomp = config.clone();
 
-    // Apply firewall rules (may fail if not root)
-    match firewall_manager.configure_isolation() {
-        Ok(_) => {
-            tracing::info!(
-                "Firewall isolation configured for VM: {}",
-                config_with_seccomp.vm_id
-            );
-        }
-        Err(e) => {
-            tracing::warn!(
+    // Configure firewall to block all network traffic
+    #[cfg(unix)]
+    let firewall_manager = {
+        let manager = FirewallManager::new(config_with_seccomp.vm_id.clone());
+
+        // Apply firewall rules (may fail if not root)
+        match manager.configure_isolation() {
+            Ok(_) => {
+                tracing::info!(
+                    "Firewall isolation configured for VM: {}",
+                    config_with_seccomp.vm_id
+                );
+            }
+            Err(e) => {
+                tracing::warn!(
                 "Failed to configure firewall (running without root?): {}. \
                 VM will still have networking disabled in config, but firewall rules are not applied.",
                 e
             );
-            // Continue anyway - networking is still disabled in config
+                // Continue anyway - networking is still disabled in config
+            }
         }
-    }
 
-    // Verify firewall rules are active (if configured)
-    match firewall_manager.verify_isolation() {
-        Ok(true) => {
-            tracing::info!(
-                "Firewall isolation verified for VM: {}",
-                config_with_seccomp.vm_id
-            );
+        // Verify firewall rules are active (if configured)
+        match manager.verify_isolation() {
+            Ok(true) => {
+                tracing::info!(
+                    "Firewall isolation verified for VM: {}",
+                    config_with_seccomp.vm_id
+                );
+            }
+            Ok(false) => {
+                tracing::debug!(
+                    "Firewall rules not active for VM: {}",
+                    config_with_seccomp.vm_id
+                );
+            }
+            Err(e) => {
+                tracing::debug!("Failed to verify firewall rules: {}", e);
+            }
         }
-        Ok(false) => {
-            tracing::debug!(
-                "Firewall rules not active for VM: {}",
-                config_with_seccomp.vm_id
-            );
-        }
-        Err(e) => {
-            tracing::debug!("Failed to verify firewall rules: {}", e);
-        }
-    }
+        Some(manager)
+    };
 
     // Start Firecracker VM
     let process = start_firecracker(&config_with_seccomp).await?;
@@ -177,7 +187,8 @@ pub async fn spawn_vm_with_config(task_id: &str, config: &VmConfig) -> Result<Vm
         process: Arc::new(Mutex::new(Some(process))),
         spawn_time_ms: spawn_time,
         config: config.clone(),
-        firewall_manager: Some(firewall_manager),
+        #[cfg(unix)]
+        firewall_manager,
     })
 }
 
@@ -408,9 +419,17 @@ mod spawn_config_tests {
 /// * `Ok(false)` - VM is not isolated
 /// * `Err(_)` - Failed to check isolation status
 pub fn verify_network_isolation(handle: &VmHandle) -> Result<bool> {
-    if let Some(ref firewall) = handle.firewall_manager {
-        firewall.verify_isolation()
-    } else {
+    #[cfg(unix)]
+    {
+        if let Some(ref firewall) = handle.firewall_manager {
+            firewall.verify_isolation()
+        } else {
+            Ok(false)
+        }
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = handle;
         Ok(false)
     }
 }

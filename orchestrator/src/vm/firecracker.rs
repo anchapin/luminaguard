@@ -10,6 +10,7 @@ use hyper_util::rt::TokioIo;
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 use std::time::Instant;
+#[cfg(unix)]
 use tokio::net::UnixStream;
 use tokio::process::{Child, Command};
 use tracing::{debug, info};
@@ -199,6 +200,7 @@ pub async fn stop_firecracker(mut process: FirecrackerProcess) -> Result<()> {
 
 // Helper functions for API interaction
 
+#[cfg(unix)]
 async fn send_request<T: Serialize>(
     socket_path: &str,
     method: hyper::Method,
@@ -252,6 +254,17 @@ async fn send_request<T: Serialize>(
         let body_str = String::from_utf8_lossy(&body_bytes);
         Err(anyhow!("Firecracker API error: {} - {}", status, body_str))
     }
+}
+
+#[cfg(not(unix))]
+async fn send_request<T: Serialize>(
+    _socket_path: &str,
+    _method: hyper::Method,
+    _path: &str,
+    _body: Option<&T>,
+) -> Result<()> {
+    // Windows support is limited/mocked for now as Firecracker is Linux-only
+    Err(anyhow!("Firecracker VM spawning is only supported on Unix systems"))
 }
 
 async fn configure_vm(socket_path: &str, config: &VmConfig) -> Result<()> {

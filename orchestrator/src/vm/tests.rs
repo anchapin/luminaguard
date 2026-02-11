@@ -209,6 +209,7 @@ mod tests {
     }
 
     /// Test that firewall manager hashes VM IDs
+    #[cfg(unix)]
     #[test]
     fn test_firewall_hashes_vm_ids() {
         use crate::vm::firewall::FirewallManager;
@@ -397,6 +398,7 @@ mod tests {
     }
 
     /// Property-based test: All firewall chain names must be valid
+    #[cfg(unix)]
     #[test]
     fn test_property_firewall_chains_valid() {
         use crate::vm::firewall::FirewallManager;

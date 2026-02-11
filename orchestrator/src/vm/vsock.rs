@@ -9,8 +9,6 @@
 // - Low latency communication
 // - Secure by design (isolated communication channel)
 
-#![cfg(unix)]
-
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -26,10 +24,16 @@ pub const VSOCK_PROTOCOL_VERSION: u32 = 1;
 pub const MAX_MESSAGE_SIZE: usize = 16 * 1024 * 1024;
 
 /// vsock host listener
+#[cfg(unix)]
 #[derive(Debug)]
 pub struct VsockHostListener {
-    #[cfg(unix)]
     listener: UnixListener,
+    vm_id: String,
+}
+
+#[cfg(not(unix))]
+#[derive(Debug)]
+pub struct VsockHostListener {
     vm_id: String,
 }
 
@@ -137,6 +141,7 @@ impl VsockHostListener {
     /// # Returns
     ///
     /// * `VsockHostListener` - Host-side listener
+    #[cfg(unix)]
     pub async fn new(vm_id: String) -> Result<Self> {
         let socket_dir = "/tmp/ironclaw/vsock";
         fs::create_dir_all(socket_dir)
@@ -152,40 +157,37 @@ impl VsockHostListener {
                 .context("Failed to remove existing socket file")?;
         }
 
-        #[cfg(unix)]
-        {
-            let listener =
-                UnixListener::bind(&socket_path).context("Failed to bind vsock socket")?;
-            tracing::info!("vsock host listener created: {}", socket_path);
-            Ok(Self { listener, vm_id })
-        }
+        let listener = UnixListener::bind(&socket_path).context("Failed to bind vsock socket")?;
 
-        #[cfg(not(unix))]
-        {
-            // On Windows, we can't create Unix sockets, but we can still return a dummy listener
-            // to satisfy the type system. In practice, this code path won't be used for actual VM comms.
-            anyhow::bail!("Unix sockets not supported on non-Unix platforms");
-        }
+        tracing::info!("vsock host listener created: {}", socket_path);
+
+        Ok(Self { listener, vm_id })
+    }
+
+    #[cfg(not(unix))]
+    pub async fn new(vm_id: String) -> Result<Self> {
+        Ok(Self { vm_id })
     }
 
     /// Accept incoming connection from guest
+    #[cfg(unix)]
     pub async fn accept(&self) -> Result<VsockConnection> {
-        #[cfg(unix)]
-        {
-            let (socket, _addr): (UnixStream, _) = self
-                .listener
-                .accept()
-                .await
-                .context("Failed to accept vsock connection")?;
+        let (socket, _addr) = self
+            .listener
+            .accept()
+            .await
+            .context("Failed to accept vsock connection")?;
 
-            tracing::info!("vsock connection accepted");
+        tracing::info!("vsock connection accepted");
 
-            Ok(VsockConnection::new(socket))
-        }
-        #[cfg(not(unix))]
-        {
-            anyhow::bail!("Unix sockets not supported on non-Unix platforms");
-        }
+        Ok(VsockConnection::new(socket))
+    }
+
+    #[cfg(not(unix))]
+    pub async fn accept(&self) -> Result<VsockConnection> {
+        // Windows support is mocked/limited
+        tokio::time::sleep(std::time::Duration::from_secs(3600)).await;
+        Err(anyhow::anyhow!("Vsock not supported on Windows"))
     }
 
     /// Run the message handler loop
@@ -221,10 +223,13 @@ impl VsockHostListener {
 }
 
 /// vsock connection (bidirectional)
+#[cfg(unix)]
 pub struct VsockConnection {
-    #[cfg(unix)]
     socket: UnixStream,
 }
+
+#[cfg(not(unix))]
+pub struct VsockConnection {}
 
 impl VsockConnection {
     /// Create a new vsock connection
@@ -244,50 +249,48 @@ impl VsockConnection {
         H: VsockMessageHandler + 'static,
     {
         #[cfg(unix)]
-        let mut reader = BufReader::new(&mut self.socket);
+        {
+            let mut reader = BufReader::new(&mut self.socket);
 
-        #[cfg(not(unix))]
-        return Ok(()); // No-op on non-Unix
-
-        #[cfg(unix)]
-        loop {
-            match Self::read_message(&mut reader).await {
-                Ok(Some(msg)) => {
-                    let response = match msg {
-                        VsockMessage::Request { id, method, params } => {
-                            match handler.handle_request(&method, params).await {
-                                Ok(result) => VsockMessage::response(id, Some(result), None),
-                                Err(e) => {
-                                    tracing::error!("Request handler error: {}", e);
-                                    VsockMessage::response(id, None, Some(format!("{:?}", e)))
+            loop {
+                match Self::read_message(&mut reader).await {
+                    Ok(Some(msg)) => {
+                        let response = match msg {
+                            VsockMessage::Request { id, method, params } => {
+                                match handler.handle_request(&method, params).await {
+                                    Ok(result) => VsockMessage::response(id, Some(result), None),
+                                    Err(e) => {
+                                        tracing::error!("Request handler error: {}", e);
+                                        VsockMessage::response(id, None, Some(format!("{:?}", e)))
+                                    }
                                 }
                             }
-                        }
-                        VsockMessage::Notification { method, params } => {
-                            if let Err(e) = handler.handle_notification(&method, params).await {
-                                tracing::error!("Notification handler error: {}", e);
+                            VsockMessage::Notification { method, params } => {
+                                if let Err(e) = handler.handle_notification(&method, params).await {
+                                    tracing::error!("Notification handler error: {}", e);
+                                }
+                                continue; // No response for notifications
                             }
-                            continue; // No response for notifications
-                        }
-                        VsockMessage::Response { .. } => {
-                            tracing::warn!("Unexpected response message from guest");
-                            continue;
-                        }
-                    };
+                            VsockMessage::Response { .. } => {
+                                tracing::warn!("Unexpected response message from guest");
+                                continue;
+                            }
+                        };
 
-                    // Drop the reader borrow before writing
-                    drop(reader);
-                    Self::write_message(&mut self.socket, &response).await?;
-                    reader = BufReader::new(&mut self.socket);
-                }
-                Ok(None) => {
-                    // Connection closed
-                    tracing::info!("vsock connection closed");
-                    break;
-                }
-                Err(e) => {
-                    tracing::error!("Failed to read message: {}", e);
-                    break;
+                        // Drop the reader borrow before writing
+                        drop(reader);
+                        Self::write_message(&mut self.socket, &response).await?;
+                        reader = BufReader::new(&mut self.socket);
+                    }
+                    Ok(None) => {
+                        // Connection closed
+                        tracing::info!("vsock connection closed");
+                        break;
+                    }
+                    Err(e) => {
+                        tracing::error!("Failed to read message: {}", e);
+                        break;
+                    }
                 }
             }
         }
@@ -296,6 +299,7 @@ impl VsockConnection {
     }
 
     /// Read a message from the socket
+    #[cfg(unix)]
     async fn read_message<R>(reader: &mut BufReader<R>) -> Result<Option<VsockMessage>>
     where
         R: AsyncReadExt + Unpin,
@@ -324,6 +328,7 @@ impl VsockConnection {
     }
 
     /// Write a message to the socket
+    #[cfg(unix)]
     async fn write_message<W>(writer: &mut W, msg: &VsockMessage) -> Result<()>
     where
         W: AsyncWriteExt + Unpin,
@@ -353,30 +358,32 @@ impl VsockClient {
     }
 
     /// Connect to the host
+    #[cfg(unix)]
     pub async fn connect(&self) -> Result<VsockClientConnection> {
-        #[cfg(unix)]
-        {
-            let socket: UnixStream = UnixStream::connect(&self.socket_path)
-                .await
-                .context("Failed to connect to vsock socket")?;
+        let socket = UnixStream::connect(&self.socket_path)
+            .await
+            .context("Failed to connect to vsock socket")?;
 
-            tracing::info!("Connected to vsock host: {:?}", self.socket_path);
+        tracing::info!("Connected to vsock host: {:?}", self.socket_path);
 
-            Ok(VsockClientConnection::new(socket))
-        }
-        #[cfg(not(unix))]
-        {
-            anyhow::bail!("Unix sockets not supported on non-Unix platforms");
-        }
+        Ok(VsockClientConnection::new(socket))
+    }
+
+    #[cfg(not(unix))]
+    pub async fn connect(&self) -> Result<VsockClientConnection> {
+        Err(anyhow::anyhow!("Vsock not supported on Windows"))
     }
 }
 
 /// vsock client connection (for sending messages from guest to host)
+#[cfg(unix)]
 pub struct VsockClientConnection {
-    #[cfg(unix)]
     socket: UnixStream,
     next_id: u64,
 }
+
+#[cfg(not(unix))]
+pub struct VsockClientConnection {}
 
 impl VsockClientConnection {
     /// Create a new client connection
@@ -387,7 +394,7 @@ impl VsockClientConnection {
 
     #[cfg(not(unix))]
     fn new() -> Self {
-        Self { next_id: 1 }
+        Self {}
     }
 
     /// Send a request and wait for response
@@ -396,13 +403,13 @@ impl VsockClientConnection {
         method: &str,
         params: serde_json::Value,
     ) -> Result<serde_json::Value> {
-        let id = self.next_id.to_string();
-        self.next_id += 1;
-
-        let msg = VsockMessage::request(id.clone(), method.to_string(), params);
-
         #[cfg(unix)]
         {
+            let id = self.next_id.to_string();
+            self.next_id += 1;
+
+            let msg = VsockMessage::request(id.clone(), method.to_string(), params);
+
             VsockConnection::write_message(&mut self.socket, &msg).await?;
 
             // Wait for response
@@ -433,7 +440,7 @@ impl VsockClientConnection {
         }
         #[cfg(not(unix))]
         {
-            anyhow::bail!("Unix sockets not supported on non-Unix platforms");
+            Err(anyhow::anyhow!("Vsock not supported on Windows"))
         }
     }
 
@@ -443,11 +450,16 @@ impl VsockClientConnection {
         method: &str,
         params: serde_json::Value,
     ) -> Result<()> {
-        let msg = VsockMessage::notification(method.to_string(), params);
-
         #[cfg(unix)]
-        VsockConnection::write_message(&mut self.socket, &msg).await?;
-        Ok(())
+        {
+            let msg = VsockMessage::notification(method.to_string(), params);
+            VsockConnection::write_message(&mut self.socket, &msg).await?;
+            Ok(())
+        }
+        #[cfg(not(unix))]
+        {
+            Err(anyhow::anyhow!("Vsock not supported on Windows"))
+        }
     }
 }
 
