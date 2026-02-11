@@ -33,9 +33,12 @@ use crate::vm::seccomp::{SeccompFilter, SeccompLevel};
 #[derive(Debug)]
 pub struct VmHandle {
     pub id: String,
+    #[allow(dead_code)] // Field is unused on Windows but required on Linux
     process: Arc<Mutex<Option<FirecrackerProcess>>>,
     pub spawn_time_ms: f64,
+    #[allow(dead_code)] // Field is unused on Windows but required on Linux
     config: VmConfig,
+    #[allow(dead_code)] // Field is unused on Windows but required on Linux
     firewall_manager: Option<FirewallManager>,
 }
 
