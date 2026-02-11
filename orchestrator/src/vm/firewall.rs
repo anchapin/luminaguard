@@ -214,15 +214,7 @@ impl FirewallManager {
 
         // iptables -I INPUT 1 -i interface -j CHAIN
         let output = Command::new("iptables")
-            .args([
-                "-I",
-                "INPUT",
-                "1",
-                "-i",
-                interface,
-                "-j",
-                &self.chain_name,
-            ])
+            .args(["-I", "INPUT", "1", "-i", interface, "-j", &self.chain_name])
             .output()
             .context("Failed to link chain to INPUT")?;
 
@@ -264,25 +256,11 @@ impl FirewallManager {
         // iptables -D INPUT -i interface -j CHAIN
         // Ignore errors (rule might not exist)
         let _ = Command::new("iptables")
-            .args([
-                "-D",
-                "INPUT",
-                "-i",
-                interface,
-                "-j",
-                &self.chain_name,
-            ])
+            .args(["-D", "INPUT", "-i", interface, "-j", &self.chain_name])
             .output();
 
         let _ = Command::new("iptables")
-            .args([
-                "-D",
-                "FORWARD",
-                "-i",
-                interface,
-                "-j",
-                &self.chain_name,
-            ])
+            .args(["-D", "FORWARD", "-i", interface, "-j", &self.chain_name])
             .output();
 
         Ok(())

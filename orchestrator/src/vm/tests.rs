@@ -8,7 +8,9 @@ mod tests {
     use crate::vm::config::VmConfig;
     use crate::vm::firewall::FirewallManager;
     use crate::vm::seccomp::{SeccompFilter, SeccompLevel};
-    use crate::vm::{destroy_vm, spawn_vm, spawn_vm_with_config, verify_network_isolation, VmHandle};
+    use crate::vm::{
+        destroy_vm, spawn_vm, spawn_vm_with_config, verify_network_isolation, VmHandle,
+    };
     use std::fs::File;
     use std::io::Write;
     use std::sync::Arc;
