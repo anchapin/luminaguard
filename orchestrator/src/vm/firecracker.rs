@@ -2,6 +2,8 @@
 //
 // This module handles the actual Firecracker VM spawning using the HTTP API over Unix sockets.
 
+#![allow(unused_imports)]
+
 use anyhow::{anyhow, Context, Result};
 use bytes::Bytes;
 use http_body_util::{BodyExt, Full};
