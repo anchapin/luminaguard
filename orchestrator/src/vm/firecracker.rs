@@ -57,6 +57,13 @@ struct MachineConfiguration {
 }
 
 #[derive(Serialize)]
+struct Vsock {
+    vsock_id: String,
+    guest_cid: u32,
+    uds_path: String,
+}
+
+#[derive(Serialize)]
 struct Action {
     action_type: String,
 }
@@ -270,7 +277,7 @@ async fn configure_vm(socket_path: &str, config: &VmConfig) -> Result<()> {
         drive_id: "rootfs".to_string(),
         path_on_host: config.rootfs_path.clone(),
         is_root_device: true,
-        is_read_only: false,
+        is_read_only: true, // Set to read-only to prevent corruption
     };
     send_request(
         socket_path,
