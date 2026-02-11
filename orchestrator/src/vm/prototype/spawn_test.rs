@@ -88,7 +88,7 @@ pub async fn test_spawn(assets: &FirecrackerAssets) -> SpawnTestResult {
             let _ = child.kill();
             return SpawnTestResult::Failed {
                 error: format!("Failed to connect to firecracker socket: {}", e),
-            }
+            };
         }
     };
 
@@ -203,7 +203,10 @@ async fn read_response(stream: &mut UnixStream) -> Result<()> {
     use tokio::io::AsyncReadExt;
 
     let mut buffer = vec![0u8; 4096];
-    let n = stream.read(&mut buffer).await.context("Failed to read from socket")?;
+    let n = stream
+        .read(&mut buffer)
+        .await
+        .context("Failed to read from socket")?;
 
     if n == 0 {
         return Ok(()); // Empty response

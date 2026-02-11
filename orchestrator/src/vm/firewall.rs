@@ -14,6 +14,7 @@ use std::process::Command;
 use tracing::{info, warn};
 
 /// Firewall manager for VM network isolation
+#[derive(Debug)]
 pub struct FirewallManager {
     vm_id: String,
     chain_name: String,

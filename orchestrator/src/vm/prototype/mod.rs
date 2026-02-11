@@ -51,9 +51,7 @@ pub enum Recommendation {
 
 /// Check if Firecracker is installed
 pub fn check_firecracker_installed() -> bool {
-    let result = Command::new("firecracker")
-        .arg("--version")
-        .output();
+    let result = Command::new("firecracker").arg("--version").output();
 
     match result {
         Ok(output) => output.status.success(),
@@ -78,13 +76,21 @@ pub async fn run_feasibility_test() -> FeasibilityResult {
     let fc_installed = check_firecracker_installed();
     tracing::info!(
         "  Firecracker binary: {}",
-        if fc_installed { "✅ Found" } else { "❌ Not found" }
+        if fc_installed {
+            "✅ Found"
+        } else {
+            "❌ Not found"
+        }
     );
 
     let kvm_available = check_kvm_available();
     tracing::info!(
         "  KVM module: {}",
-        if kvm_available { "✅ Available" } else { "❌ Not available" }
+        if kvm_available {
+            "✅ Available"
+        } else {
+            "❌ Not available"
+        }
     );
 
     if !fc_installed {
@@ -102,7 +108,9 @@ pub async fn run_feasibility_test() -> FeasibilityResult {
             firecracker_available: true,
             can_spawn: false,
             spawn_time_ms: None,
-            error: Some("KVM not available. Firecracker requires hardware virtualization.".to_string()),
+            error: Some(
+                "KVM not available. Firecracker requires hardware virtualization.".to_string(),
+            ),
             recommendation: Recommendation::Abandon,
         };
     }
@@ -193,7 +201,11 @@ pub fn print_report(result: &FeasibilityResult) {
     );
     println!(
         "  Can Spawn: {}",
-        if result.can_spawn { "✅ Yes" } else { "❌ No" }
+        if result.can_spawn {
+            "✅ Yes"
+        } else {
+            "❌ No"
+        }
     );
     println!();
 
