@@ -43,6 +43,7 @@ mod tests {
     }
 
     /// Test that multiple VMs can be spawned with unique firewall chains
+    #[cfg(target_os = "linux")]
     #[tokio::test]
     async fn test_multiple_vms_isolation() {
         let (kernel_path, rootfs_path) = create_test_resources().unwrap();
@@ -77,6 +78,7 @@ mod tests {
     }
 
     /// Test that firewall rules are verified correctly
+    #[cfg(target_os = "linux")]
     #[tokio::test]
     async fn test_firewall_verification() {
         let (kernel_path, rootfs_path) = create_test_resources().unwrap();
@@ -109,6 +111,7 @@ mod tests {
     }
 
     /// Test that vsock paths are unique per VM
+    #[cfg(target_os = "linux")]
     #[tokio::test]
     async fn test_vsock_paths_are_unique() {
         let (kernel_path, rootfs_path) = create_test_resources().unwrap();
@@ -175,6 +178,7 @@ mod tests {
         assert!(config.memory_mb >= 128);
     }
 
+    #[cfg(target_os = "linux")]
     #[tokio::test]
     async fn test_vm_spawn_and_destroy() {
         // This test requires actual Firecracker installation
@@ -310,6 +314,7 @@ mod tests {
     }
 
     /// Test edge case: VM with very long ID
+    #[cfg(target_os = "linux")]
     #[tokio::test]
     async fn test_vm_with_long_id() {
         let (kernel_path, rootfs_path) = create_test_resources().unwrap();
@@ -341,6 +346,7 @@ mod tests {
     }
 
     /// Test edge case: VM with special characters in ID
+    #[cfg(target_os = "linux")]
     #[tokio::test]
     async fn test_vm_with_special_chars() {
         let (kernel_path, rootfs_path) = create_test_resources().unwrap();
@@ -435,6 +441,7 @@ mod tests {
     }
 
     /// Test: Verify cleanup happens on VM destruction
+    #[cfg(target_os = "linux")]
     #[tokio::test]
     async fn test_vm_cleanup_on_destruction() {
         let (kernel_path, rootfs_path) = create_test_resources().unwrap();
@@ -472,6 +479,7 @@ mod tests {
     }
 
     /// Test: Multiple rapid VM spawns and destroys
+    #[cfg(target_os = "linux")]
     #[tokio::test]
     async fn test_rapid_vm_lifecycle() {
         if !std::path::Path::new("/usr/local/bin/firecracker").exists() {
