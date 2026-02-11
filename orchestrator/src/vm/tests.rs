@@ -5,48 +5,13 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::vm::config::VmConfig;
-    use crate::vm::{destroy_vm, spawn_vm, spawn_vm_with_config, verify_network_isolation};
-    use std::fs::File;
-    use std::io::Write;
-
-    /// Create temporary stub resources for testing
-    /// Tests should fail if code can't handle these correctly
-    fn create_test_resources() -> anyhow::Result<(String, String)> {
-        let temp_dir = std::env::temp_dir();
-        let kernel_path = temp_dir.join("test-vmlinux");
-        let rootfs_path = temp_dir.join("test-rootfs.ext4");
-
-        // Create minimal stub kernel (just needs to exist for spawn_vm path validation)
-        let mut kernel_file = File::create(&kernel_path)?;
-        kernel_file.write_all(b"stub_kernel")?;
-
-        // Create minimal stub rootfs
-        let mut rootfs_file = File::create(&rootfs_path)?;
-        rootfs_file.write_all(b"stub_rootfs")?;
-
-        Ok((
-            kernel_path.to_str().unwrap().to_string(),
-            rootfs_path.to_str().unwrap().to_string(),
-        ))
-    }
-
-    fn check_vm_requirements() -> bool {
-        if !std::path::Path::new("/usr/local/bin/firecracker").exists() {
-            return false;
-        }
-        if !std::path::Path::new("./resources/vmlinux").exists() {
-            return false;
-        }
-        if !std::path::Path::new("./resources/rootfs.ext4").exists() {
-            return false;
-        }
-        true
-    }
+    use crate::vm::{destroy_vm, spawn_vm, verify_network_isolation};
 
     /// Test that VM cannot be created with networking enabled
     #[tokio::test]
     async fn test_vm_rejects_networking_enabled() {
+        use crate::vm::config::VmConfig;
+
         let mut config = VmConfig::new("test-networking".to_string());
         config.enable_networking = true;
 
@@ -66,33 +31,21 @@ mod tests {
         let handle1 = spawn_vm("task-1").await.unwrap();
         let handle2 = spawn_vm("task-2").await.unwrap();
 
-        let config1 = VmConfig {
-            kernel_path: kernel_path.clone(),
-            rootfs_path: rootfs_path.clone(),
-            ..VmConfig::new("task-1".to_string())
-        };
-        let config2 = VmConfig {
-            kernel_path,
-            rootfs_path,
-            ..VmConfig::new("task-2".to_string())
-        };
+        // Verify they have different IDs
+        assert_ne!(handle1.id, handle2.id);
 
-        // These will fail without actual firecracker, but that's expected
-        let result1 = spawn_vm_with_config("task-1", &config1).await;
-        let result2 = spawn_vm_with_config("task-2", &config2).await;
+        // Verify they have different firewall chains
+        let chain1 = handle1.firewall_manager.as_ref().unwrap().chain_name();
+        let chain2 = handle2.firewall_manager.as_ref().unwrap().chain_name();
+        assert_ne!(chain1, chain2);
 
-        // At minimum, resources should validate
-        assert!(result1.is_ok() || result1.is_err());
-        assert!(result2.is_ok() || result2.is_err());
+        // Verify both have vsock paths
+        assert!(handle1.vsock_path().is_some());
+        assert!(handle2.vsock_path().is_some());
 
-        if result1.is_ok() {
-            let handle1 = result1.unwrap();
-            destroy_vm(handle1).await.ok();
-        }
-        if result2.is_ok() {
-            let handle2 = result2.unwrap();
-            destroy_vm(handle2).await.ok();
-        }
+        // Cleanup
+        destroy_vm(handle1).await.unwrap();
+        destroy_vm(handle2).await.unwrap();
     }
 
     /// Test that firewall rules are verified correctly
@@ -106,22 +59,17 @@ mod tests {
         let handle = spawn_vm("firewall-test").await.unwrap();
 
         // Verify isolation (may be false if not running as root)
-        assert!(result.is_ok() || result.is_err());
+        let isolated = verify_network_isolation(&handle);
+        assert!(isolated.is_ok());
 
-        if result.is_ok() {
-            let handle = result.unwrap();
-            let isolated = verify_network_isolation(&handle);
-            assert!(isolated.is_ok());
-
-            // If iptables is available and running as root, isolation should be true
-            if isolated.is_ok() && isolated.unwrap() {
-                tracing::info!("Firewall isolation is active");
-            } else {
-                tracing::info!("Firewall isolation not configured (requires root)");
-            }
-
-            destroy_vm(handle).await.unwrap();
+        // If iptables is available and running as root, isolation should be true
+        if isolated.is_ok() && isolated.unwrap() {
+            tracing::info!("Firewall isolation is active");
+        } else {
+            tracing::info!("Firewall isolation not configured (requires root)");
         }
+
+        destroy_vm(handle).await.unwrap();
     }
 
     /// Test that vsock paths are unique per VM
@@ -135,38 +83,15 @@ mod tests {
         let handle1 = spawn_vm("vsock-unique-1").await.unwrap();
         let handle2 = spawn_vm("vsock-unique-2").await.unwrap();
 
-        let config1 = VmConfig {
-            kernel_path: kernel_path.clone(),
-            rootfs_path: rootfs_path.clone(),
-            ..VmConfig::new("vsock-unique-1".to_string())
-        };
-        let config2 = VmConfig {
-            kernel_path,
-            rootfs_path,
-            ..VmConfig::new("vsock-unique-2".to_string())
-        };
+        let path1 = handle1.vsock_path().unwrap();
+        let path2 = handle2.vsock_path().unwrap();
 
-        let result1 = spawn_vm_with_config("vsock-unique-1", &config1).await;
-        let result2 = spawn_vm_with_config("vsock-unique-2", &config2).await;
+        assert_ne!(path1, path2);
+        assert!(path1.contains("vsock-unique-1"));
+        assert!(path2.contains("vsock-unique-2"));
 
-        // Check that results are either Ok or Err (resources or firecracker missing)
-        assert!(result1.is_ok() || result1.is_err());
-        assert!(result2.is_ok() || result2.is_err());
-
-        if result1.is_ok() && result2.is_ok() {
-            let handle1 = result1.unwrap();
-            let handle2 = result2.unwrap();
-
-            let path1 = handle1.vsock_path().unwrap();
-            let path2 = handle2.vsock_path().unwrap();
-
-            assert_ne!(path1, path2);
-            assert!(path1.contains("vsock-unique-1"));
-            assert!(path2.contains("vsock-unique-2"));
-
-            destroy_vm(handle1).await.ok();
-            destroy_vm(handle2).await.ok();
-        }
+        destroy_vm(handle1).await.unwrap();
+        destroy_vm(handle2).await.unwrap();
     }
 
     /// Test that VM config validation enforces security constraints
@@ -197,38 +122,28 @@ mod tests {
         assert!(config.memory_mb >= 128);
     }
 
-    /// Test that firewall manager properly handles VM IDs via hashing
+    /// Test that firewall manager properly sanitizes VM IDs
     #[test]
     fn test_firewall_sanitizes_vm_ids() {
         use crate::vm::firewall::FirewallManager;
 
         let test_cases = vec![
-            "simple",
-            "with-dash",
-            "with@symbol",
-            "with/slash",
-            "with space",
-            "with.dot",
+            ("simple", "IRONCLAW_simple"),
+            ("with-dash", "IRONCLAW_with_dash"),
+            ("with@symbol", "IRONCLAW_with_symbol"),
+            ("with/slash", "IRONCLAW_with_slash"),
+            ("with space", "IRONCLAW_with_space"),
+            ("with.dot", "IRONCLAW_with_dot"),
         ];
 
-        for vm_id in test_cases {
+        for (vm_id, expected_chain) in test_cases {
             let manager = FirewallManager::new(vm_id.to_string());
-            let chain = manager.chain_name();
-
-            // Check prefix
-            assert!(chain.starts_with("IRONCLAW_"));
-
-            // Check length (9 + 16 = 25)
-            assert_eq!(chain.len(), 25);
-
-            // Check allowed characters (alphanumeric + underscore)
-            assert!(chain.chars().all(|c| c.is_alphanumeric() || c == '_'));
+            assert_eq!(manager.chain_name(), expected_chain);
         }
     }
 
     /// Test that vsock messages enforce size limits
     #[test]
-    #[cfg(unix)]
     fn test_vsock_message_size_limit() {
         use crate::vm::vsock::{VsockMessage, MAX_MESSAGE_SIZE};
         use serde_json::json;
@@ -249,7 +164,6 @@ mod tests {
 
     /// Test that vsock message types are properly serialized
     #[test]
-    #[cfg(unix)]
     fn test_vsock_message_serialization() {
         use crate::vm::vsock::VsockMessage;
         use serde_json::json;
@@ -312,30 +226,17 @@ mod tests {
         let long_id = "a".repeat(20); // 20 chars + "vm-" prefix = 24 chars
         let handle = spawn_vm(&long_id).await.unwrap();
 
-        let long_id = "a".repeat(20);
-        let config = VmConfig {
-            kernel_path,
-            rootfs_path,
-            ..VmConfig::new(long_id.clone())
-        };
+        // Verify ID is handled correctly
+        assert!(handle.id.len() <= 128); // Reasonable limit
 
-        let result = spawn_vm_with_config(&long_id, &config).await;
+        // Verify firewall chain name is valid (may be truncated)
+        let chain = handle.firewall_manager.as_ref().unwrap().chain_name();
+        // Note: Chain name includes "IRONCLAW_" prefix + "vm-" + sanitized ID
+        // With 20 chars, total is 9 + 3 + 20 = 32 chars, which exceeds 28
+        // So we just verify it contains valid characters
+        assert!(chain.chars().all(|c| c.is_alphanumeric() || c == '_'));
 
-        // Resources should exist or firecracker should be installed
-        assert!(result.is_ok() || result.is_err());
-
-        if result.is_ok() {
-            let handle = result.unwrap();
-
-            // Verify ID is handled correctly
-            assert!(handle.id.len() <= 128);
-
-            // Verify firewall chain name is valid (may be truncated)
-            let chain = handle.firewall_manager.as_ref().unwrap().chain_name();
-            assert!(chain.chars().all(|c| c.is_alphanumeric() || c == '_'));
-
-            destroy_vm(handle).await.ok();
-        }
+        destroy_vm(handle).await.unwrap();
     }
 
     /// Test edge case: VM with special characters in ID
@@ -349,34 +250,18 @@ mod tests {
         let special_id = "test-vm-123"; // Use a simpler ID with safe chars
         let handle = spawn_vm(special_id).await.unwrap();
 
-        let special_id = "test-vm-123";
-        let config = VmConfig {
-            kernel_path,
-            rootfs_path,
-            ..VmConfig::new(special_id.to_string())
-        };
+        // Verify firewall chain name is sanitized
+        let chain = handle.firewall_manager.as_ref().unwrap().chain_name();
+        assert!(!chain.contains('@'));
+        assert!(!chain.contains('#'));
+        assert!(!chain.contains('$'));
+        assert!(!chain.contains('%'));
 
-        let result = spawn_vm_with_config(special_id, &config).await;
+        // Verify vsock path exists and is safe
+        let vsock_path = handle.vsock_path().unwrap();
+        assert!(vsock_path.contains("test-vm-123"));
 
-        // Resources should exist or firecracker should be installed
-        assert!(result.is_ok() || result.is_err());
-
-        if result.is_ok() {
-            let handle = result.unwrap();
-
-            // Verify firewall chain name is sanitized
-            let chain = handle.firewall_manager.as_ref().unwrap().chain_name();
-            assert!(!chain.contains('@'));
-            assert!(!chain.contains('#'));
-            assert!(!chain.contains('$'));
-            assert!(!chain.contains('%'));
-
-            // Verify vsock path exists and is safe
-            let vsock_path = handle.vsock_path().unwrap();
-            assert!(vsock_path.contains("test-vm-123"));
-
-            destroy_vm(handle).await.ok();
-        }
+        destroy_vm(handle).await.unwrap();
     }
 
     /// Property-based test: All VM configs must have networking disabled
@@ -447,36 +332,22 @@ mod tests {
 
         let handle = spawn_vm("cleanup-test").await.unwrap();
 
-        let config = VmConfig {
-            kernel_path,
-            rootfs_path,
-            ..VmConfig::new("cleanup-test".to_string())
-        };
+        let chain_name = handle
+            .firewall_manager
+            .as_ref()
+            .unwrap()
+            .chain_name()
+            .to_string();
 
-        let result = spawn_vm_with_config("cleanup-test", &config).await;
+        // Destroy VM (should cleanup firewall)
+        destroy_vm(handle).await.unwrap();
 
-        // Resources should exist or firecracker should be installed
-        assert!(result.is_ok() || result.is_err());
-
-        if result.is_ok() {
-            let handle = result.unwrap();
-            let chain_name = handle
-                .firewall_manager
-                .as_ref()
-                .unwrap()
-                .chain_name()
-                .to_string();
-
-            // Destroy VM (should cleanup firewall)
-            destroy_vm(handle).await.ok();
-
-            // Note: We can't verify the chain is deleted without root,
-            // but the Drop trait ensures cleanup is attempted
-            tracing::info!(
-                "VM destroyed, firewall cleanup attempted for: {}",
-                chain_name
-            );
-        }
+        // Note: We can't verify the chain is deleted without root,
+        // but the Drop trait ensures cleanup is attempted
+        tracing::info!(
+            "VM destroyed, firewall cleanup attempted for: {}",
+            chain_name
+        );
     }
 
     /// Test: Multiple rapid VM spawns and destroys
@@ -488,58 +359,10 @@ mod tests {
         }
 
         for i in 0..10 {
-            let (kernel_path, rootfs_path) = create_test_resources().unwrap();
-
-            let config = VmConfig {
-                kernel_path,
-                rootfs_path,
-                ..VmConfig::new(format!("rapid-{}", i))
-            };
-
-            let result = spawn_vm_with_config(&format!("rapid-{}", i), &config).await;
-
-            // Resources should exist or firecracker should be installed
-            assert!(result.is_ok() || result.is_err());
-
-            if result.is_ok() {
-                let handle = result.unwrap();
-                assert!(handle.vsock_path().is_some());
-                destroy_vm(handle).await.ok();
-            }
+            let handle = spawn_vm(&format!("rapid-{}", i)).await.unwrap();
+            assert!(handle.vsock_path().is_some());
+            destroy_vm(handle).await.unwrap();
         }
         tracing::info!("Rapid VM lifecycle test completed successfully");
-    }
-
-    #[tokio::test]
-    async fn test_vm_spawn_and_destroy() {
-        // This test requires actual Firecracker installation
-        // Skip in CI if not available
-        if !std::path::Path::new("/usr/local/bin/firecracker").exists() {
-            return;
-        }
-
-        // Ensure test assets exist
-        let _ = std::fs::create_dir_all("/tmp/ironclaw-fc-test");
-
-        let result = spawn_vm("test-task").await;
-
-        // If assets don't exist, we expect an error
-        if result.is_err() {
-            println!("Skipping test: Firecracker assets not available");
-            return;
-        }
-
-        let handle = result.unwrap();
-        assert_eq!(handle.id, "test-task");
-        assert!(handle.spawn_time_ms > 0.0);
-
-        destroy_vm(handle).await.unwrap();
-    }
-
-    #[test]
-    fn test_vm_id_format() {
-        let task_id = "task-123";
-        let expected_id = task_id.to_string();
-        assert_eq!(expected_id, "task-123");
     }
 }

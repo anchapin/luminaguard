@@ -25,24 +25,16 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use crate::vm::config::VmConfig;
-#[cfg(target_os = "linux")]
 use crate::vm::firecracker::{start_firecracker, stop_firecracker, FirecrackerProcess};
 use crate::vm::firewall::FirewallManager;
 use crate::vm::seccomp::{SeccompFilter, SeccompLevel};
 
 /// VM handle for managing lifecycle
-#[derive(Debug)]
 pub struct VmHandle {
     pub id: String,
-    #[cfg(target_os = "linux")]
     process: Arc<Mutex<Option<FirecrackerProcess>>>,
-    #[cfg(not(target_os = "linux"))]
-    #[allow(dead_code)] // Field is unused on non-Linux platforms
-    process: Arc<Mutex<Option<()>>>,
     pub spawn_time_ms: f64,
-    #[allow(dead_code)] // Field is unused on Windows but required on Linux
     config: VmConfig,
-    #[allow(dead_code)] // Field is unused on Windows but required on Linux
     firewall_manager: Option<FirewallManager>,
 }
 
@@ -118,7 +110,6 @@ pub async fn spawn_vm(task_id: &str) -> Result<VmHandle> {
 ///     Ok(())
 /// }
 /// ```
-#[cfg(target_os = "linux")]
 pub async fn spawn_vm_with_config(task_id: &str, config: &VmConfig) -> Result<VmHandle> {
     tracing::info!("Spawning VM for task: {}", task_id);
 
@@ -186,78 +177,6 @@ pub async fn spawn_vm_with_config(task_id: &str, config: &VmConfig) -> Result<Vm
     })
 }
 
-/// Stub implementation for non-Linux platforms
-#[cfg(not(target_os = "linux"))]
-pub async fn spawn_vm_with_config(task_id: &str, config: &VmConfig) -> Result<VmHandle> {
-    tracing::info!("Spawning VM for task: {} (stub mode, not Linux)", task_id);
-
-    // Apply default seccomp filter if not specified (security best practice)
-    let config_with_seccomp = if config.seccomp_filter.is_none() {
-        let mut secured_config = config.clone();
-        secured_config.seccomp_filter = Some(SeccompFilter::new(SeccompLevel::Basic));
-        tracing::info!("Auto-enabling seccomp filter (Basic level) for security");
-        secured_config
-    } else {
-        config.clone()
-    };
-
-    // Configure firewall to block all network traffic
-    let firewall_manager = FirewallManager::new(config_with_seccomp.vm_id.clone());
-
-    // Apply firewall rules (may fail if not root)
-    match firewall_manager.configure_isolation() {
-        Ok(_) => {
-            tracing::info!(
-                "Firewall isolation configured for VM: {}",
-                config_with_seccomp.vm_id
-            );
-        }
-        Err(e) => {
-            tracing::warn!(
-                "Failed to configure firewall (running without root?): {}. \
-                VM will still have networking disabled in config, but firewall rules are not applied.",
-                e
-            );
-            // Continue anyway - networking is still disabled in config
-        }
-    }
-
-    // Verify firewall rules are active (if configured)
-    match firewall_manager.verify_isolation() {
-        Ok(true) => {
-            tracing::info!(
-                "Firewall isolation verified for VM: {}",
-                config_with_seccomp.vm_id
-            );
-        }
-        Ok(false) => {
-            tracing::debug!(
-                "Firewall rules not active for VM: {}",
-                config_with_seccomp.vm_id
-            );
-        }
-        Err(e) => {
-            tracing::debug!("Failed to verify firewall rules: {}", e);
-        }
-    }
-
-    // Return stub handle (no actual VM on non-Linux platforms)
-    Ok(VmHandle {
-        id: task_id.to_string(),
-        process: Arc::new(Mutex::new(Some(()))),
-        spawn_time_ms: 0.0,
-        config: config.clone(),
-        firewall_manager: Some(firewall_manager),
-    })
-}
-
-/// Stub implementation for non-Linux platforms
-#[cfg(not(target_os = "linux"))]
-pub async fn destroy_vm(handle: VmHandle) -> Result<()> {
-    tracing::info!("Destroying VM: {} (stub mode, not Linux)", handle.id);
-    Ok(())
-}
-
 /// Destroy a VM (ephemeral cleanup)
 ///
 /// # Arguments
@@ -282,7 +201,6 @@ pub async fn destroy_vm(handle: VmHandle) -> Result<()> {
 ///     Ok(())
 /// }
 /// ```
-#[cfg(target_os = "linux")]
 pub async fn destroy_vm(handle: VmHandle) -> Result<()> {
     tracing::info!("Destroying VM: {}", handle.id);
 
