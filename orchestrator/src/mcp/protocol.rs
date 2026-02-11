@@ -635,4 +635,81 @@ mod tests {
         let err = result.unwrap_err();
         assert_eq!(err.code, -32603);
     }
+
+    #[test]
+    fn test_error_code_boundary_conditions() {
+        // Test error codes at boundaries
+        let parse_err = McpError::parse_error("test");
+        assert_eq!(parse_err.code, -32700);
+
+        let invalid_req = McpError::invalid_request("test");
+        assert_eq!(invalid_req.code, -32600);
+
+        let method_nf = McpError::method_not_found("test");
+        assert_eq!(method_nf.code, -32601);
+
+        let invalid_params = McpError::invalid_params("test");
+        assert_eq!(invalid_params.code, -32602);
+
+        let internal = McpError::internal_error("test");
+        assert_eq!(internal.code, -32603);
+
+        let server = McpError::server_error("test");
+        assert_eq!(server.code, -32000);
+
+        let init = McpError::initialization_error("test");
+        assert_eq!(init.code, -32001);
+    }
+
+    #[test]
+    fn test_request_response_roundtrip() {
+        // Test that a request can be serialized and deserialized back
+        let original = McpRequest::new(
+            42,
+            "tools/test",
+            Some(serde_json::json!({"arg": "value"})),
+        );
+
+        let json = serde_json::to_string(&original).unwrap();
+        let deserialized: McpRequest = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(original.id, deserialized.id);
+        assert_eq!(original.method, deserialized.method);
+        assert_eq!(original.params, deserialized.params);
+    }
+
+    #[test]
+    fn test_response_success_roundtrip() {
+        // Test that a successful response can be serialized and deserialized back
+        let result_value = serde_json::json!({"data": "test"});
+        let original = McpResponse::ok(99, result_value.clone());
+
+        let json = serde_json::to_string(&original).unwrap();
+        let deserialized: McpResponse = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(original.id, deserialized.id);
+        assert_eq!(original.result, deserialized.result);
+        assert_eq!(original.error, deserialized.error);
+    }
+
+    #[test]
+    fn test_response_error_roundtrip() {
+        // Test that an error response can be serialized and deserialized back
+        let err = McpError::method_not_found("test_method");
+        let original = McpResponse::err(101, err.clone());
+
+        let json = serde_json::to_string(&original).unwrap();
+        let deserialized: McpResponse = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(original.id, deserialized.id);
+        assert_eq!(original.error.unwrap().code, deserialized.error.unwrap().code);
+        assert_eq!(original.error.unwrap().message, deserialized.error.unwrap().message);
+    }
+
+    #[test]
+    fn test_jsonrpc_version_constant() {
+        // Verify the JSON-RPC version constant
+        assert_eq!(JSONRPC_VERSION, "2.0");
+        assert_eq!(JSONRPC_VERSION.len(), 3); // "2.0"
+    }
 }

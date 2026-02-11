@@ -263,7 +263,7 @@ mod vm_handle_tests {
     #[test]
     fn test_vm_handle_vsock_path_none() {
         let mut config = VmConfig::default();
-        config.vsock_path = None;  // Explicitly set to None
+        config.vsock_path = None; // Explicitly set to None
         let handle = VmHandle {
             id: "test-vm".to_string(),
             process: std::sync::Arc::new(tokio::sync::Mutex::new(None)),
