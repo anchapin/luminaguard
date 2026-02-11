@@ -7,58 +7,30 @@ on:
     branches: [main, develop]
 
 jobs:
-  # Rust tests
-  test-rust:
-    name: Test Rust (Orchestrator)
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        rust: [stable]
-
+  # Security scan (runs first)
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@4be9e76fd7c4901c61fb841f559994984270fce7
-        with:
-          toolchain: ${{ matrix.rust }}
-
-      - name: Cache cargo registry
-        uses: actions/cache@v5
-        with:
-          path: ~/.cargo/registry
-          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Cache cargo index
-        uses: actions/cache@v5
-        with:
-          path: ~/.cargo/git
-          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Cache cargo build
-        uses: actions/cache@v5
-        with:
-          path: orchestrator/target
-          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Run cargo test
+      - name: Run Rust security audit
         working-directory: orchestrator
-        run: cargo test --verbose
+        run: cargo install cargo-audit && cargo audit || true
 
-      - name: Run cargo clippy
-        working-directory: orchestrator
-        run: cargo clippy -- -D warnings
-
-      - name: Check formatting
-        working-directory: orchestrator
-        run: cargo fmt --all -- --check
+      - name: Check for secrets
+        uses: trufflesecurity/trufflehog@4158734f234bd8770128deae2e2975cfab4b66a6
+        with:
+          path: ./
+          base: ${{ github.event.repository.default_branch }}
+          head: HEAD
 
   # Python tests
   test-python:
     name: Test Python (Agent)
     runs-on: ${{ matrix.os }}
+    needs: [security-scan]
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
@@ -104,10 +76,59 @@ jobs:
           LINES=$(wc -l < loop.py)
           echo "loop.py has $LINES lines"
           if [ $LINES -gt 4000 ]; then
-            echo "❌ ERROR: loop.py exceeds 4,000 line limit"
+            echo "ERROR: loop.py exceeds 4,000 line limit"
             exit 1
           fi
-          echo "✅ loop.py under 4,000 lines"
+          echo "loop.py under 4,000 lines"
+
+  # Rust tests
+  test-rust:
+    name: Test Rust (Orchestrator)
+    runs-on: ${{ matrix.os }}
+    needs: [test-python, security-scan]
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        rust: [stable]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@4be9e76fd7c4901c61fb841f559994984270fce7
+        with:
+          toolchain: ${{ matrix.rust }}
+
+      - name: Cache cargo registry
+        uses: actions/cache@v5
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo index
+        uses: actions/cache@v5
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo build
+        uses: actions/cache@v5
+        with:
+          path: orchestrator/target
+          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Run cargo test
+        working-directory: orchestrator
+        run: cargo test --verbose
+
+      - name: Run cargo clippy
+        working-directory: orchestrator
+        run: cargo clippy -- -D warnings
+
+      - name: Check formatting
+        working-directory: orchestrator
+        run: cargo fmt --all -- --check
 
   # Integration tests (both languages)
   test-integration:
@@ -137,24 +158,4 @@ jobs:
           cd orchestrator && cargo test --quiet
           echo "Running Python tests..."
           cd ../agent && .venv/bin/pytest tests/ -q
-          echo "✅ All tests passed!"
-
-  # Security checks
-  security-scan:
-    name: Security Scan
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
-
-      - name: Run Rust security audit
-        working-directory: orchestrator
-        run: cargo install cargo-audit && cargo audit || true
-
-      - name: Check for secrets
-        uses: trufflesecurity/trufflehog@4158734f234bd8770128deae2e2975cfab4b66a6
-        with:
-          path: ./
-          base: ${{ github.event.repository.default_branch }}
-          head: HEAD
+          echo "All tests passed!"
