@@ -16,7 +16,6 @@ use tokio::process::{Child, Command};
 use tracing::{debug, info};
 
 use crate::vm::config::VmConfig;
-use crate::vm::seccomp::validate_seccomp_rules;
 
 // Type aliases to simplify complex hyper types
 type HttpSendRequest = hyper::client::conn::http1::SendRequest<Full<Bytes>>;
@@ -27,7 +26,6 @@ type HttpConnection = hyper::client::conn::http1::Connection<TokioIo<UnixStream>
 pub struct FirecrackerProcess {
     pub pid: u32,
     pub socket_path: String,
-    pub seccomp_path: String,
     pub child_process: Option<Child>,
     pub spawn_time_ms: f64,
 }
@@ -78,7 +76,7 @@ pub async fn start_firecracker(config: &VmConfig) -> Result<FirecrackerProcess> 
         return Err(anyhow!("Root filesystem not found at: {:?}", rootfs_path));
     }
 
-    // 2. Prepare socket path and seccomp filter
+    // 2. Prepare socket path
     let socket_path = format!("/tmp/firecracker-{}.socket", config.vm_id);
     if Path::new(&socket_path).exists() {
         tokio::fs::remove_file(&socket_path)
@@ -86,23 +84,9 @@ pub async fn start_firecracker(config: &VmConfig) -> Result<FirecrackerProcess> 
             .context("Failed to remove existing socket")?;
     }
 
-    // Prepare seccomp filter
-    let seccomp_filter = config.seccomp_filter.clone().unwrap_or_default();
-    validate_seccomp_rules(&seccomp_filter).context("Invalid seccomp configuration")?;
-
-    let seccomp_json = seccomp_filter
-        .to_firecracker_json()
-        .context("Failed to serialize seccomp filter")?;
-
-    let seccomp_path = format!("/tmp/firecracker-{}.seccomp", config.vm_id);
-    tokio::fs::write(&seccomp_path, seccomp_json)
-        .await
-        .context("Failed to write seccomp filter file")?;
-
     // 3. Spawn Firecracker process
     let mut command = Command::new("firecracker");
     command.arg("--api-sock").arg(&socket_path);
-    command.arg("--seccomp-filter").arg(&seccomp_path);
 
     // Redirect stdout/stderr to null or log file to keep output clean
     command.stdout(std::process::Stdio::null());
@@ -156,7 +140,6 @@ pub async fn start_firecracker(config: &VmConfig) -> Result<FirecrackerProcess> 
     Ok(FirecrackerProcess {
         pid,
         socket_path,
-        seccomp_path,
         child_process: Some(child),
         spawn_time_ms,
     })
@@ -180,11 +163,6 @@ pub async fn stop_firecracker(mut process: FirecrackerProcess) -> Result<()> {
     // Cleanup socket
     if Path::new(&process.socket_path).exists() {
         let _ = tokio::fs::remove_file(&process.socket_path).await;
-    }
-
-    // Cleanup seccomp filter
-    if Path::new(&process.seccomp_path).exists() {
-        let _ = tokio::fs::remove_file(&process.seccomp_path).await;
     }
 
     Ok(())
@@ -368,56 +346,5 @@ mod tests {
             .contains("Root filesystem not found"));
 
         let _ = std::fs::remove_file(kernel_path);
-    }
-
-    #[tokio::test]
-    async fn test_seccomp_filter_creation() {
-        // Create dummy resources
-        let temp_dir = std::env::temp_dir();
-        let kernel_path = temp_dir.join("dummy_kernel_seccomp");
-        let rootfs_path = temp_dir.join("dummy_rootfs_seccomp");
-
-        {
-            use std::fs::File;
-            let _ = File::create(&kernel_path).unwrap();
-            let _ = File::create(&rootfs_path).unwrap();
-        }
-
-        let vm_id = "test-seccomp-vm";
-        let config = VmConfig {
-            vm_id: vm_id.to_string(),
-            kernel_path: kernel_path.to_str().unwrap().to_string(),
-            rootfs_path: rootfs_path.to_str().unwrap().to_string(),
-            ..VmConfig::default()
-        };
-
-        // This is expected to fail because firecracker binary is likely missing or configuration is invalid for dummy kernel
-        let _result = start_firecracker(&config).await;
-
-        // Verify seccomp file exists
-        let seccomp_path = std::path::PathBuf::from(format!("/tmp/firecracker-{}.seccomp", vm_id));
-        assert!(
-            seccomp_path.exists(),
-            "Seccomp filter file should be created"
-        );
-
-        // Verify content is JSON
-        let content = std::fs::read_to_string(&seccomp_path).unwrap();
-        assert!(
-            content.contains("seccomp"),
-            "File content should be JSON with seccomp key"
-        );
-
-        // Cleanup
-        let _ = std::fs::remove_file(&kernel_path);
-        let _ = std::fs::remove_file(&rootfs_path);
-        if seccomp_path.exists() {
-            let _ = std::fs::remove_file(&seccomp_path);
-        }
-        // Also cleanup socket if it exists
-        let socket_path = std::path::PathBuf::from(format!("/tmp/firecracker-{}.socket", vm_id));
-        if socket_path.exists() {
-            let _ = std::fs::remove_file(&socket_path);
-        }
     }
 }
