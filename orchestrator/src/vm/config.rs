@@ -66,6 +66,9 @@ impl VmConfig {
 
     /// Validate configuration
     pub fn validate(&self) -> anyhow::Result<()> {
+        if self.enable_networking {
+            anyhow::bail!("Networking MUST be disabled for security");
+        }
         if self.vcpu_count == 0 {
             anyhow::bail!("vCPU count must be > 0");
         }

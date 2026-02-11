@@ -31,6 +31,20 @@ mod tests {
         ))
     }
 
+    // Helper to check if firecracker is available
+    fn firecracker_available() -> bool {
+        // Check PATH
+        if std::process::Command::new("firecracker").arg("--version").output().is_ok() {
+            return true;
+        }
+        // Check standard locations
+        if std::path::Path::new("/usr/local/bin/firecracker").exists() ||
+           std::path::Path::new("/usr/bin/firecracker").exists() {
+            return true;
+        }
+        false
+    }
+
     /// Test that VM cannot be created with networking enabled
     #[tokio::test]
     async fn test_vm_rejects_networking_enabled() {
@@ -432,6 +446,11 @@ mod tests {
     /// Test: Multiple rapid VM spawns and destroys
     #[tokio::test]
     async fn test_rapid_vm_lifecycle() {
+        if !firecracker_available() {
+            println!("Skipping test: firecracker not available");
+            return;
+        }
+
         for i in 0..10 {
             let (kernel_path, rootfs_path) = create_test_resources().unwrap();
 
