@@ -1,0 +1,69 @@
+# Jules Auto-Fix CI Failures
+#
+# This workflow triggers when CI fails and asks Jules to fix it.
+# It runs on the failed workflow's branch and creates a PR with the fix.
+
+name: Jules - Auto-Fix CI Failures
+
+on:
+  workflow_run:
+    workflows: ["IronClaw CI", "quality-gates"]  # Add your CI workflow names
+    types: [completed]
+
+jobs:
+  fix-failure:
+    # Only run when CI fails
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+
+    steps:
+      - name: Download workflow logs
+        uses: actions/github-script@v7
+        id: get-logs
+        with:
+          script: |
+            const logs = await github.rest.actions.downloadWorkflowRunLogs({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: context.payload.workflow_run.id
+            });
+            // Note: This returns a redirect URL to download logs
+            return logs.url;
+
+      - name: Invoke Jules to fix failure
+        uses: google-labs-code/jules-action@v1.0.0
+        with:
+          prompt: |
+            The CI workflow "${{ github.event.workflow_run.name }}" has failed.
+
+            **Failed Run:** ${{ github.event.workflow_run.html_url }}
+            **Branch:** ${{ github.event.workflow_run.head_branch }}
+            **Commit:** ${{ github.event.workflow_run.head_sha }}
+
+            Please:
+            1. Analyze the failure from the workflow run
+            2. Identify the root cause
+            3. Implement a fix
+
+            **IronClaw Context:**
+            - This is a Rust + Python monorepo
+            - Rust code is in `orchestrator/`
+            - Python code is in `agent/`
+            - Tests run via `make test`
+            - Pre-commit hooks enforce quality (formatting, linting, coverage)
+
+            **Constraints:**
+            - Must pass `make test`
+            - Must respect pre-commit hooks (run `make fmt` before committing)
+            - loop.py must stay under 4,000 lines
+            - Coverage must not decrease (see .coverage-baseline.json)
+
+            **Approval Cliff (Red Actions):**
+            - Editing code, deleting files requires approval
+            - Run tests to verify fixes before creating PR
+          jules_api_key: ${{ secrets.JULES_API_KEY }}
+          starting_branch: ${{ github.event.workflow_run.head_branch }}
+          include_last_commit: true
