@@ -16,7 +16,7 @@ pub mod vm {
         pub spawn_time_ms: f64,
     }
 
-    pub async fn spawn_vm(task_id: &str) -> Result<VmHandle> {
+    pub async fn spawn_vm(_task_id: &str) -> Result<VmHandle> {
         Err(anyhow!("VM spawning is only supported on Linux (Firecracker)"))
     }
 
