@@ -8,8 +8,8 @@
 // - No external network access required
 // - Low latency communication
 // - Secure by design (isolated communication channel)
-
-#![cfg(unix)]
+//
+// Note: This module is only included on Unix platforms (see mod.rs: #[cfg(unix)] pub mod vsock)
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
