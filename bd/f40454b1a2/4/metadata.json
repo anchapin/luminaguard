@@ -3,30 +3,32 @@
   "checkpoint_id": "bdf40454b1a2",
   "session_id": "51bf4b0d-eed3-4afc-ad59-6df6495633da",
   "strategy": "manual-commit",
-  "created_at": "2026-02-11T06:30:33.577451054Z",
-  "branch": "fix-pr59-review-feedback-10326662475900194946",
+  "created_at": "2026-02-11T12:09:23.745292426Z",
+  "branch": "remove-windows-from-ci",
   "checkpoints_count": 1,
   "files_touched": [
-    ".claude/skills/README.md",
     ".claude/skills/pr-swarmit/SKILL.md",
-    ".claude/skills/pr-swarmit/pr-swarmit.sh"
+    ".github/workflows/ci.yml",
+    "CLAUDE.md"
   ],
   "agent": "Claude Code",
-  "transcript_identifier_at_start": "089167da-a14e-4e20-b346-a04fe0094aa2",
+  "transcript_identifier_at_start": "37a43cf9-5927-42f2-ad56-7db8b9f642a0",
+  "checkpoint_transcript_start": 1436,
+  "transcript_lines_at_start": 1436,
   "token_usage": {
-    "input_tokens": 120929,
+    "input_tokens": 110849,
     "cache_creation_tokens": 0,
-    "cache_read_tokens": 751744,
-    "output_tokens": 8266,
-    "api_call_count": 20
+    "cache_read_tokens": 2363776,
+    "output_tokens": 3866,
+    "api_call_count": 26
   },
   "initial_attribution": {
-    "calculated_at": "2026-02-11T06:30:33.267723985Z",
-    "agent_lines": 0,
-    "human_added": 0,
-    "human_modified": 334,
-    "human_removed": 311,
-    "total_committed": 334,
-    "agent_percentage": 0
+    "calculated_at": "2026-02-11T12:09:23.478219512Z",
+    "agent_lines": 312,
+    "human_added": 602,
+    "human_modified": 16,
+    "human_removed": 0,
+    "total_committed": 930,
+    "agent_percentage": 33.5483870967742
   }
 }

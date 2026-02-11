@@ -7,3 +7,17 @@ make a global skill that will create a swarm of sub agents to work together to s
 ---
 
 go ahead and run it
+
+---
+
+<task-notification>
+<task-id>bb7eb5e</task-id>
+<output-file>/tmp/claude-1000/-home-alexc-Projects-ironclaw/tasks/bb7eb5e.output</output-file>
+<status>failed</status>
+<summary>Background command "Watch CI checks run" failed with exit code 1</summary>
+</task-notification>
+Read the output file to retrieve the result: /tmp/claude-1000/-home-alexc-Projects-ironclaw/tasks/bb7eb5e.output
+
+---
+
+remove windows support for now since it likely won't work with some of the packages being used

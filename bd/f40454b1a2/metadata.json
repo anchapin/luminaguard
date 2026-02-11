@@ -2,14 +2,13 @@
   "cli_version": "0.4.2",
   "checkpoint_id": "bdf40454b1a2",
   "strategy": "manual-commit",
-  "branch": "fix-pr59-review-feedback-10326662475900194946",
+  "branch": "remove-windows-from-ci",
   "checkpoints_count": 5,
   "files_touched": [
     ".claude/skills/README.md",
     ".claude/skills/pr-swarmit.md",
     ".claude/skills/pr-swarmit.sh",
     ".claude/skills/pr-swarmit/SKILL.md",
-    ".claude/skills/pr-swarmit/pr-swarmit.sh",
     ".github/workflows/ci.yml",
     "CLAUDE.md",
     "PLATFORMS.md",
@@ -54,10 +53,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 9202406,
+    "input_tokens": 9192326,
     "cache_creation_tokens": 0,
-    "cache_read_tokens": 42762237,
-    "output_tokens": 155863,
-    "api_call_count": 643
+    "cache_read_tokens": 44374269,
+    "output_tokens": 151463,
+    "api_call_count": 649
   }
 }
