@@ -2,8 +2,8 @@
 //
 // Firecracker VM configuration for secure agent execution
 
-use serde::{Deserialize, Serialize};
 use crate::vm::seccomp::SeccompFilter;
+use serde::{Deserialize, Serialize};
 
 /// VM configuration for Firecracker
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -71,6 +71,9 @@ impl VmConfig {
         }
         if self.memory_mb < 128 {
             anyhow::bail!("Memory must be at least 128 MB");
+        }
+        if self.enable_networking {
+            anyhow::bail!("Networking MUST be disabled for security");
         }
         Ok(())
     }

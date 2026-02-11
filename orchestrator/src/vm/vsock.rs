@@ -9,48 +9,38 @@
 // - Low latency communication
 // - Secure by design (isolated communication channel)
 
+#![cfg(unix)]
+
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use tokio::fs;
-use tokio::io::{AsyncReadExt, AsyncWriteExt, BufReader};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{UnixListener, UnixStream};
 
 /// vsock communication protocol version
 pub const VSOCK_PROTOCOL_VERSION: u32 = 1;
 
-/// Maximum message size (16MB to prevent DoS)
-pub const MAX_MESSAGE_SIZE: usize = 16 * 1024 * 1024;
+/// Maximum message size (1MB)
+pub const MAX_MESSAGE_SIZE: usize = 1024 * 1024;
 
-/// vsock host listener
-#[derive(Debug)]
-pub struct VsockHostListener {
-    listener: UnixListener,
-    vm_id: String,
-}
-
-/// vsock client (guest side)
-#[derive(Debug)]
-pub struct VsockClient {
-    socket_path: PathBuf,
-}
-
-/// vsock message types
+/// Message types for vsock protocol
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
 pub enum VsockMessage {
-    /// Request from guest to host
+    /// Request from client to server
     Request {
         id: String,
         method: String,
         params: serde_json::Value,
     },
-    /// Response from host to guest
+    /// Response from server to client
     Response {
         id: String,
         result: Option<serde_json::Value>,
         error: Option<String>,
     },
-    /// Notification (no response expected)
+    /// Notification (one-way message)
     Notification {
         method: String,
         params: serde_json::Value,
@@ -58,17 +48,17 @@ pub enum VsockMessage {
 }
 
 impl VsockMessage {
-    /// Create a new request
+    /// Create a new request message
     pub fn request(id: String, method: String, params: serde_json::Value) -> Self {
         Self::Request { id, method, params }
     }
 
-    /// Create a new response
+    /// Create a new response message
     pub fn response(id: String, result: Option<serde_json::Value>, error: Option<String>) -> Self {
         Self::Response { id, result, error }
     }
 
-    /// Create a new notification
+    /// Create a new notification message
     pub fn notification(method: String, params: serde_json::Value) -> Self {
         Self::Notification { method, params }
     }
@@ -80,435 +70,248 @@ impl VsockMessage {
 
     /// Deserialize message from JSON
     pub fn from_json(data: &[u8]) -> Result<Self> {
-        // Enforce size limit to prevent DoS
         if data.len() > MAX_MESSAGE_SIZE {
-            anyhow::bail!("Message size exceeds maximum allowed size");
+            anyhow::bail!("Message size exceeds limit");
         }
-
         serde_json::from_slice(data).context("Failed to deserialize vsock message")
     }
 }
 
-/// Message handler trait for host-side processing
-#[async_trait::async_trait]
-pub trait VsockMessageHandler: Send + Sync {
-    /// Handle a request from the guest
-    async fn handle_request(
-        &self,
-        method: &str,
-        params: serde_json::Value,
-    ) -> Result<serde_json::Value>;
-
-    /// Handle a notification from the guest
-    async fn handle_notification(&self, method: &str, params: serde_json::Value) -> Result<()>;
-}
-
-/// Default handler that rejects all operations
-#[allow(dead_code)]
-struct DefaultHandler;
-
-#[async_trait::async_trait]
-impl VsockMessageHandler for DefaultHandler {
-    async fn handle_request(
-        &self,
-        method: &str,
-        _params: serde_json::Value,
-    ) -> Result<serde_json::Value> {
-        anyhow::bail!("Method '{}' not implemented", method);
-    }
-
-    async fn handle_notification(&self, method: &str, _params: serde_json::Value) -> Result<()> {
-        tracing::warn!("Received unhandled notification: {}", method);
-        Ok(())
-    }
+/// Host-side vsock listener
+pub struct VsockHostListener {
+    socket_path: PathBuf,
+    listener: UnixListener,
 }
 
 impl VsockHostListener {
-    /// Create a new vsock host listener
-    ///
-    /// # Arguments
-    ///
-    /// * `vm_id` - Unique identifier for the VM
-    ///
-    /// # Returns
-    ///
-    /// * `VsockHostListener` - Host-side listener
-    pub async fn new(vm_id: String) -> Result<Self> {
-        let socket_dir = "/tmp/ironclaw/vsock";
-        fs::create_dir_all(socket_dir)
-            .await
-            .context("Failed to create vsock directory")?;
+    /// Create a new host listener bound to a Unix socket
+    pub async fn bind(socket_path: &str) -> Result<Self> {
+        let path = PathBuf::from(socket_path);
 
-        let socket_path = format!("{}/{}.sock", socket_dir, vm_id);
+        // Ensure parent directory exists
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent)
+                .await
+                .context("Failed to create socket directory")?;
+        }
 
-        // Delete socket file if it exists (from previous run)
-        if fs::metadata(&socket_path).await.is_ok() {
-            fs::remove_file(&socket_path)
+        // Remove existing socket file if it exists
+        if path.exists() {
+            fs::remove_file(&path)
                 .await
                 .context("Failed to remove existing socket file")?;
         }
 
-        let listener = UnixListener::bind(&socket_path).context("Failed to bind vsock socket")?;
+        let listener = UnixListener::bind(&path).context("Failed to bind Unix socket")?;
 
-        tracing::info!("vsock host listener created: {}", socket_path);
-
-        Ok(Self { listener, vm_id })
+        Ok(Self {
+            socket_path: path,
+            listener,
+        })
     }
 
-    /// Accept incoming connection from guest
+    /// Accept a new connection
     pub async fn accept(&self) -> Result<VsockConnection> {
         let (socket, _addr) = self
             .listener
             .accept()
             .await
-            .context("Failed to accept vsock connection")?;
-
-        tracing::info!("vsock connection accepted");
-
+            .context("Failed to accept connection")?;
         Ok(VsockConnection::new(socket))
     }
 
-    /// Run the message handler loop
-    ///
-    /// This method runs indefinitely, handling messages from the guest.
-    /// It should be run in a separate task.
-    pub async fn run_handler<H>(self, handler: H) -> Result<()>
-    where
-        H: VsockMessageHandler + Clone + 'static,
-    {
-        loop {
-            match self.accept().await {
-                Ok(conn) => {
-                    let handler_clone = handler.clone();
-                    tokio::spawn(async move {
-                        if let Err(e) = conn.handle_messages(handler_clone).await {
-                            tracing::error!("Message handler error: {}", e);
-                        }
-                    });
-                }
-                Err(e) => {
-                    tracing::error!("Failed to accept connection: {}", e);
-                    // Continue accepting new connections
-                }
-            }
-        }
-    }
-
-    /// Get the socket path (for passing to guest)
-    pub fn socket_path(&self) -> String {
-        format!("/tmp/ironclaw/vsock/{}.sock", self.vm_id)
+    /// Get socket path
+    pub fn path(&self) -> &PathBuf {
+        &self.socket_path
     }
 }
 
-/// vsock connection (bidirectional)
-pub struct VsockConnection {
-    socket: UnixStream,
-}
-
-impl VsockConnection {
-    /// Create a new vsock connection
-    fn new(socket: UnixStream) -> Self {
-        Self { socket }
-    }
-
-    /// Handle incoming messages
-    async fn handle_messages<H>(mut self, handler: H) -> Result<()>
-    where
-        H: VsockMessageHandler + 'static,
-    {
-        let mut reader = BufReader::new(&mut self.socket);
-
-        loop {
-            match Self::read_message(&mut reader).await {
-                Ok(Some(msg)) => {
-                    let response = match msg {
-                        VsockMessage::Request { id, method, params } => {
-                            match handler.handle_request(&method, params).await {
-                                Ok(result) => VsockMessage::response(id, Some(result), None),
-                                Err(e) => {
-                                    tracing::error!("Request handler error: {}", e);
-                                    VsockMessage::response(id, None, Some(format!("{:?}", e)))
-                                }
-                            }
-                        }
-                        VsockMessage::Notification { method, params } => {
-                            if let Err(e) = handler.handle_notification(&method, params).await {
-                                tracing::error!("Notification handler error: {}", e);
-                            }
-                            continue; // No response for notifications
-                        }
-                        VsockMessage::Response { .. } => {
-                            tracing::warn!("Unexpected response message from guest");
-                            continue;
-                        }
-                    };
-
-                    // Drop the reader borrow before writing
-                    drop(reader);
-                    Self::write_message(&mut self.socket, &response).await?;
-                    reader = BufReader::new(&mut self.socket);
-                }
-                Ok(None) => {
-                    // Connection closed
-                    tracing::info!("vsock connection closed");
-                    break;
-                }
-                Err(e) => {
-                    tracing::error!("Failed to read message: {}", e);
-                    break;
-                }
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Read a message from the socket
-    async fn read_message<R>(reader: &mut BufReader<R>) -> Result<Option<VsockMessage>>
-    where
-        R: AsyncReadExt + Unpin,
-    {
-        // Read message length (4 bytes, big-endian)
-        let mut len_bytes = [0u8; 4];
-        let n = reader.read_exact(&mut len_bytes).await;
-        if n.is_err() {
-            return Ok(None); // Connection closed
-        }
-
-        let msg_len = u32::from_be_bytes(len_bytes) as usize;
-
-        // Enforce size limit
-        if msg_len > MAX_MESSAGE_SIZE {
-            anyhow::bail!("Message size exceeds maximum: {} bytes", msg_len);
-        }
-
-        // Read message body
-        let mut buffer = vec![0u8; msg_len];
-        reader.read_exact(&mut buffer).await?;
-
-        // Deserialize message
-        let msg = VsockMessage::from_json(&buffer)?;
-        Ok(Some(msg))
-    }
-
-    /// Write a message to the socket
-    async fn write_message<W>(writer: &mut W, msg: &VsockMessage) -> Result<()>
-    where
-        W: AsyncWriteExt + Unpin,
-    {
-        let data = msg.to_json()?;
-        let len = data.len() as u32;
-
-        // Write length prefix (4 bytes, big-endian)
-        writer.write_all(&len.to_be_bytes()).await?;
-
-        // Write message body
-        writer.write_all(&data).await?;
-        writer.flush().await?;
-
-        Ok(())
-    }
+/// Client-side vsock connector
+pub struct VsockClient {
+    socket_path: String,
 }
 
 impl VsockClient {
-    /// Create a new vsock client (guest side)
-    ///
-    /// # Arguments
-    ///
-    /// * `socket_path` - Path to the vsock socket
-    pub fn new(socket_path: PathBuf) -> Self {
+    /// Create a new vsock client
+    pub fn new(socket_path: String) -> Self {
         Self { socket_path }
     }
 
-    /// Connect to the host
-    pub async fn connect(&self) -> Result<VsockClientConnection> {
+    /// Connect to the host socket
+    pub async fn connect(&self) -> Result<VsockConnection> {
         let socket = UnixStream::connect(&self.socket_path)
             .await
-            .context("Failed to connect to vsock socket")?;
-
-        tracing::info!("Connected to vsock host: {:?}", self.socket_path);
-
-        Ok(VsockClientConnection::new(socket))
+            .context("Failed to connect to Unix socket")?;
+        Ok(VsockConnection::new(socket))
     }
 }
 
-/// vsock client connection (for sending messages from guest to host)
-pub struct VsockClientConnection {
-    socket: UnixStream,
-    next_id: u64,
+/// Active vsock connection
+pub struct VsockConnection {
+    stream: UnixStream,
 }
 
-impl VsockClientConnection {
-    /// Create a new client connection
-    fn new(socket: UnixStream) -> Self {
-        Self { socket, next_id: 1 }
+impl VsockConnection {
+    /// Create a new connection wrapper
+    pub fn new(stream: UnixStream) -> Self {
+        Self { stream }
     }
 
-    /// Send a request and wait for response
-    pub async fn send_request(
-        &mut self,
-        method: &str,
-        params: serde_json::Value,
-    ) -> Result<serde_json::Value> {
-        let id = self.next_id.to_string();
-        self.next_id += 1;
-
-        let msg = VsockMessage::request(id.clone(), method.to_string(), params);
-
-        VsockConnection::write_message(&mut self.socket, &msg).await?;
-
-        // Wait for response
-        let mut reader = BufReader::new(&mut self.socket);
-        loop {
-            match VsockConnection::read_message(&mut reader).await? {
-                Some(VsockMessage::Response {
-                    id: resp_id,
-                    result,
-                    error,
-                }) => {
-                    if resp_id == id {
-                        if let Some(err) = error {
-                            anyhow::bail!("Request failed: {}", err);
-                        }
-                        return result.context("Response missing result");
-                    }
-                    // Ignore responses to other requests
-                }
-                Some(_) => {
-                    // Ignore other message types
-                }
-                None => {
-                    anyhow::bail!("Connection closed while waiting for response");
-                }
-            }
-        }
-    }
-
-    /// Send a notification (no response expected)
-    pub async fn send_notification(
-        &mut self,
-        method: &str,
-        params: serde_json::Value,
-    ) -> Result<()> {
-        let msg = VsockMessage::notification(method.to_string(), params);
-
-        VsockConnection::write_message(&mut self.socket, &msg).await?;
+    /// Send a message
+    pub async fn send(&mut self, message: &VsockMessage) -> Result<()> {
+        let data = message.to_json()?;
+        // Write length prefix (u32, big endian)
+        let len = data.len() as u32;
+        self.stream
+            .write_u32(len)
+            .await
+            .context("Failed to write message length")?;
+        // Write data
+        self.stream
+            .write_all(&data)
+            .await
+            .context("Failed to write message data")?;
+        self.stream
+            .flush()
+            .await
+            .context("Failed to flush stream")?;
         Ok(())
+    }
+
+    /// Receive a message
+    pub async fn receive(&mut self) -> Result<VsockMessage> {
+        // Read length prefix
+        let len = self
+            .stream
+            .read_u32()
+            .await
+            .context("Failed to read message length")?;
+
+        if len as usize > MAX_MESSAGE_SIZE {
+            anyhow::bail!("Message size {} exceeds limit", len);
+        }
+
+        // Read data
+        let mut buffer = vec![0u8; len as usize];
+        self.stream
+            .read_exact(&mut buffer)
+            .await
+            .context("Failed to read message data")?;
+
+        VsockMessage::from_json(&buffer)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::json;
-
-    #[test]
-    fn test_vsock_message_serialization() {
-        let msg = VsockMessage::request(
-            "test-id".to_string(),
-            "test_method".to_string(),
-            json!({"key": "value"}),
-        );
-
-        let json = msg.to_json().unwrap();
-        let decoded = VsockMessage::from_json(&json).unwrap();
-
-        match decoded {
-            VsockMessage::Request { id, method, params } => {
-                assert_eq!(id, "test-id");
-                assert_eq!(method, "test_method");
-                assert_eq!(params, json!({"key": "value"}));
-            }
-            _ => panic!("Expected Request message"),
-        }
-    }
+    use tempfile::tempdir;
 
     #[test]
     fn test_vsock_message_size_limit() {
-        // Create a message that exceeds the size limit
-        let huge_data = vec![0u8; MAX_MESSAGE_SIZE + 1];
-        let json = serde_json::to_vec(&huge_data).unwrap();
+        use serde_json::json;
 
-        let result = VsockMessage::from_json(&json);
-        assert!(result.is_err());
+        // Test 1: Normal-sized message works
+        let msg = VsockMessage::request(
+            "test-id".to_string(),
+            "test_method".to_string(),
+            json!({"data": "test"}),
+        );
+        assert!(msg.to_json().is_ok());
+
+        // Test 2: Oversized message fails deserialization
+        let huge_data = vec![0u8; MAX_MESSAGE_SIZE + 1];
+        let json_bytes = serde_json::to_vec(&huge_data).unwrap();
+        // Here we're testing from_json which checks the size
+        assert!(VsockMessage::from_json(&json_bytes).is_err());
     }
 
-    #[tokio::test]
-    async fn test_vsock_host_listener_creation() {
-        let listener = VsockHostListener::new("test-vm".to_string()).await.unwrap();
-        assert!(listener.socket_path().contains("test-vm"));
-
-        // Clean up
-        fs::remove_file(listener.socket_path()).await.ok();
+    #[test]
+    fn test_vsock_message_serialization() {
+        let msg = VsockMessage::request("1".to_string(), "test".to_string(), serde_json::json!({}));
+        let json = msg.to_json().unwrap();
+        let decoded = VsockMessage::from_json(&json).unwrap();
+        match decoded {
+            VsockMessage::Request { id, method, .. } => {
+                assert_eq!(id, "1");
+                assert_eq!(method, "test");
+            }
+            _ => panic!("Wrong message type"),
+        }
     }
 
     #[test]
     fn test_vsock_message_response_creation() {
         let msg = VsockMessage::response(
-            "test-id".to_string(),
-            Some(json!({"result": "success"})),
+            "1".to_string(),
+            Some(serde_json::json!({"status": "ok"})),
             None,
         );
-
-        let json = msg.to_json().unwrap();
-        let decoded = VsockMessage::from_json(&json).unwrap();
-
-        match decoded {
-            VsockMessage::Response { id, result, error } => {
-                assert_eq!(id, "test-id");
-                assert_eq!(result, Some(json!({"result": "success"})));
-                assert!(error.is_none());
-            }
-            _ => panic!("Expected Response message"),
+        if let VsockMessage::Response { id, result, error } = msg {
+            assert_eq!(id, "1");
+            assert!(result.is_some());
+            assert!(error.is_none());
+        } else {
+            panic!("Wrong message type");
         }
     }
 
     #[test]
     fn test_vsock_message_notification_creation() {
-        let msg = VsockMessage::notification("test_event".to_string(), json!({"data": 123}));
-
-        let json = msg.to_json().unwrap();
-        let decoded = VsockMessage::from_json(&json).unwrap();
-
-        match decoded {
-            VsockMessage::Notification { method, params } => {
-                assert_eq!(method, "test_event");
-                assert_eq!(params, json!({"data": 123}));
-            }
-            _ => panic!("Expected Notification message"),
+        let msg = VsockMessage::notification("update".to_string(), serde_json::json!({}));
+        if let VsockMessage::Notification { method, .. } = msg {
+            assert_eq!(method, "update");
+        } else {
+            panic!("Wrong message type");
         }
     }
 
-    // Property-based test: round-trip serialization
-    #[test]
-    fn test_vsock_message_round_trip() {
-        let original = VsockMessage::request(
-            "prop-test-id".to_string(),
-            "prop_method".to_string(),
-            json!({"x": 42, "y": "test"}),
-        );
+    #[tokio::test]
+    async fn test_vsock_host_listener_creation() {
+        let dir = tempdir().unwrap();
+        let socket_path = dir.path().join("test.sock");
+        let path_str = socket_path.to_str().unwrap();
 
-        let json = original.to_json().unwrap();
-        let decoded = VsockMessage::from_json(&json).unwrap();
+        let listener = VsockHostListener::bind(path_str).await.unwrap();
+        assert!(socket_path.exists());
+        assert_eq!(listener.path(), &socket_path);
+    }
 
-        match (original, decoded) {
-            (
-                VsockMessage::Request {
-                    id: id1,
-                    method: m1,
-                    params: p1,
-                },
-                VsockMessage::Request {
-                    id: id2,
-                    method: m2,
-                    params: p2,
-                },
-            ) => {
-                assert_eq!(id1, id2);
-                assert_eq!(m1, m2);
-                assert_eq!(p1, p2);
+    #[tokio::test]
+    async fn test_vsock_message_round_trip() {
+        let dir = tempdir().unwrap();
+        let socket_path = dir.path().join("roundtrip.sock");
+        let path_str = socket_path.to_str().unwrap().to_string();
+
+        // Server task
+        let path_clone = path_str.clone();
+        let server_handle = tokio::spawn(async move {
+            let listener = VsockHostListener::bind(&path_clone).await.unwrap();
+            let mut conn = listener.accept().await.unwrap();
+            let msg = conn.receive().await.unwrap();
+            if let VsockMessage::Request { id, .. } = msg {
+                let response = VsockMessage::response(id, Some(serde_json::json!("pong")), None);
+                conn.send(&response).await.unwrap();
             }
-            _ => panic!("Message type mismatch"),
+        });
+
+        // Give server time to bind
+        tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
+
+        // Client task
+        let client = VsockClient::new(path_str);
+        let mut conn = client.connect().await.unwrap();
+        let req = VsockMessage::request("1".to_string(), "ping".to_string(), serde_json::json!({}));
+        conn.send(&req).await.unwrap();
+        let resp = conn.receive().await.unwrap();
+
+        match resp {
+            VsockMessage::Response { result, .. } => {
+                assert_eq!(result.unwrap(), serde_json::json!("pong"));
+            }
+            _ => panic!("Expected response"),
         }
+
+        server_handle.await.unwrap();
     }
 }

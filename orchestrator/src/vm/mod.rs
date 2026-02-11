@@ -14,10 +14,11 @@ pub mod seccomp;
 pub mod vsock;
 
 // Prototype module for feasibility testing
-#[cfg(feature = "vm-prototype")]
-pub mod prototype;
+// TODO: Add vm-prototype feature to Cargo.toml when prototype module is ready
+// #[cfg(feature = "vm-prototype")]
+// pub mod prototype;
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod tests;
 
 use anyhow::Result;
@@ -27,6 +28,7 @@ use tokio::sync::Mutex;
 use crate::vm::config::VmConfig;
 use crate::vm::firecracker::{start_firecracker, stop_firecracker, FirecrackerProcess};
 use crate::vm::firewall::FirewallManager;
+#[cfg(unix)]
 use crate::vm::seccomp::{SeccompFilter, SeccompLevel};
 
 /// VM handle for managing lifecycle
@@ -113,59 +115,87 @@ pub async fn spawn_vm(task_id: &str) -> Result<VmHandle> {
 pub async fn spawn_vm_with_config(task_id: &str, config: &VmConfig) -> Result<VmHandle> {
     tracing::info!("Spawning VM for task: {}", task_id);
 
-    // Apply default seccomp filter if not specified (security best practice)
-    let config_with_seccomp = if config.seccomp_filter.is_none() {
-        let mut secured_config = config.clone();
-        secured_config.seccomp_filter = Some(SeccompFilter::new(SeccompLevel::Basic));
-        tracing::info!("Auto-enabling seccomp filter (Basic level) for security");
-        secured_config
-    } else {
-        config.clone()
-    };
+    #[cfg(unix)]
+    {
+        // Apply default seccomp filter if not specified (security best practice)
+        let config_with_seccomp = if config.seccomp_filter.is_none() {
+            let mut secured_config = config.clone();
+            secured_config.seccomp_filter = Some(SeccompFilter::new(SeccompLevel::Basic));
+            tracing::info!("Auto-enabling seccomp filter (Basic level) for security");
+            secured_config
+        } else {
+            config.clone()
+        };
 
-    // Configure firewall to block all network traffic
-    let firewall_manager = FirewallManager::new(config_with_seccomp.vm_id.clone());
+        // Configure firewall to block all network traffic
+        let firewall_manager = FirewallManager::new(config_with_seccomp.vm_id.clone());
 
-    // Apply firewall rules (may fail if not root)
-    match firewall_manager.configure_isolation() {
-        Ok(_) => {
-            tracing::info!("Firewall isolation configured for VM: {}", config_with_seccomp.vm_id);
+        // Apply firewall rules (may fail if not root)
+        match firewall_manager.configure_isolation() {
+            Ok(_) => {
+                tracing::info!(
+                    "Firewall isolation configured for VM: {}",
+                    config_with_seccomp.vm_id
+                );
+            }
+            Err(e) => {
+                tracing::warn!(
+                    "Failed to configure firewall (running without root?): {}. \
+                    VM will still have networking disabled in config, but firewall rules are not applied.",
+                    e
+                );
+                // Continue anyway - networking is still disabled in config
+            }
         }
-        Err(e) => {
-            tracing::warn!(
-                "Failed to configure firewall (running without root?): {}. \
-                VM will still have networking disabled in config, but firewall rules are not applied.",
-                e
-            );
-            // Continue anyway - networking is still disabled in config
+
+        // Verify firewall rules are active (if configured)
+        match firewall_manager.verify_isolation() {
+            Ok(true) => {
+                tracing::info!(
+                    "Firewall isolation verified for VM: {}",
+                    config_with_seccomp.vm_id
+                );
+            }
+            Ok(false) => {
+                tracing::debug!(
+                    "Firewall rules not active for VM: {}",
+                    config_with_seccomp.vm_id
+                );
+            }
+            Err(e) => {
+                tracing::debug!("Failed to verify firewall rules: {}", e);
+            }
         }
+
+        // Start Firecracker VM
+        let process = start_firecracker(&config_with_seccomp).await?;
+
+        let spawn_time = process.spawn_time_ms;
+
+        Ok(VmHandle {
+            id: task_id.to_string(),
+            process: Arc::new(Mutex::new(Some(process))),
+            spawn_time_ms: spawn_time,
+            config: config.clone(),
+            firewall_manager: Some(firewall_manager),
+        })
     }
 
-    // Verify firewall rules are active (if configured)
-    match firewall_manager.verify_isolation() {
-        Ok(true) => {
-            tracing::info!("Firewall isolation verified for VM: {}", config_with_seccomp.vm_id);
-        }
-        Ok(false) => {
-            tracing::debug!("Firewall rules not active for VM: {}", config_with_seccomp.vm_id);
-        }
-        Err(e) => {
-            tracing::debug!("Failed to verify firewall rules: {}", e);
-        }
+    #[cfg(not(unix))]
+    {
+        // On non-Unix, start_firecracker returns an error, but let's be explicit
+        // or just call it since we provided a dummy impl
+        let process = start_firecracker(config).await?;
+        let spawn_time = process.spawn_time_ms;
+
+        Ok(VmHandle {
+            id: task_id.to_string(),
+            process: Arc::new(Mutex::new(Some(process))),
+            spawn_time_ms: spawn_time,
+            config: config.clone(),
+            firewall_manager: None,
+        })
     }
-
-    // Start Firecracker VM
-    let process = start_firecracker(&config_with_seccomp).await?;
-
-    let spawn_time = process.spawn_time_ms;
-
-    Ok(VmHandle {
-        id: task_id.to_string(),
-        process: Arc::new(Mutex::new(Some(process))),
-        spawn_time_ms: spawn_time,
-        config: config.clone(),
-        firewall_manager: Some(firewall_manager),
-    })
 }
 
 /// Destroy a VM (ephemeral cleanup)
@@ -205,44 +235,6 @@ pub async fn destroy_vm(handle: VmHandle) -> Result<()> {
     }
 
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn test_vm_spawn_and_destroy() {
-        // This test requires actual Firecracker installation
-        // Skip in CI if not available
-        if !std::path::Path::new("/usr/local/bin/firecracker").exists() {
-            return;
-        }
-
-        // Ensure test assets exist
-        let _ = std::fs::create_dir_all("/tmp/ironclaw-fc-test");
-
-        let result = spawn_vm("test-task").await;
-
-        // If assets don't exist, we expect an error
-        if result.is_err() {
-            println!("Skipping test: Firecracker assets not available");
-            return;
-        }
-
-        let handle = result.unwrap();
-        assert_eq!(handle.id, "test-task");
-        assert!(handle.spawn_time_ms > 0.0);
-
-        destroy_vm(handle).await.unwrap();
-    }
-
-    #[test]
-    fn test_vm_id_format() {
-        let task_id = "task-123";
-        let expected_id = task_id.to_string();
-        assert_eq!(expected_id, "task-123");
-    }
 }
 
 /// Verify that a VM is properly network-isolated
