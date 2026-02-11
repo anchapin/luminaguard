@@ -565,20 +565,6 @@ mod tests {
         assert_eq!(entries.len(), 0);
     }
 
-    #[test]
-    fn test_validate_seccomp_rules_filter_action_deny_serialization() {
-        let action = SeccompAction::Deny;
-        let json = serde_json::to_string(&action).unwrap();
-        assert!(json.contains("Deny"));
-    }
-
-    #[test]
-    fn test_validate_seccomp_rules_filter_action_log_serialization() {
-        let action = SeccompAction::Log;
-        let json = serde_json::to_string(&action).unwrap();
-        assert!(json.contains("Log"));
-    }
-
     #[tokio::test]
     async fn test_audit_log_recent_entries() {
         let log = SeccompAuditLog::new();

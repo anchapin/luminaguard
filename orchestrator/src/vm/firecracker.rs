@@ -57,6 +57,7 @@ struct MachineConfiguration {
 }
 
 #[derive(Serialize)]
+#[allow(dead_code)]
 struct Vsock {
     vsock_id: String,
     guest_cid: u32,
@@ -301,6 +302,18 @@ async fn configure_vm(socket_path: &str, config: &VmConfig) -> Result<()> {
     )
     .await
     .context("Failed to configure machine")?;
+
+    // 4. Set Vsock (if configured)
+    if let Some(vsock_path) = &config.vsock_path {
+        let vsock = Vsock {
+            vsock_id: "root".to_string(),
+            guest_cid: 3,
+            uds_path: vsock_path.clone(),
+        };
+        send_request(socket_path, hyper::Method::PUT, "/vsock", Some(&vsock))
+            .await
+            .context("Failed to configure vsock")?;
+    }
 
     Ok(())
 }
