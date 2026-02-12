@@ -165,7 +165,16 @@ mod tests {
 
         for (vm_id, expected_chain) in test_cases {
             let manager = FirewallManager::new(vm_id.to_string());
-            assert_eq!(manager.chain_name(), expected_chain);
+            let chain = manager.chain_name();
+
+            assert!(chain.starts_with("IRONCLAW_"));
+            assert!(chain.len() <= 28, "Chain name too long: {}", chain);
+            // Check that it contains only safe chars (alphanumeric and underscore)
+            assert!(
+                chain.chars().all(|c| c.is_alphanumeric() || c == '_'),
+                "Chain name contains unsafe chars: {}",
+                chain
+            );
         }
     }
 

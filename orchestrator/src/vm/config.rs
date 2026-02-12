@@ -2,7 +2,10 @@
 //
 // Firecracker VM configuration for secure agent execution
 
+use serde::Deserialize;
+use serde::Serialize;
 use crate::vm::seccomp::SeccompFilter;
+use uuid::Uuid;
 
 /// VM configuration for Firecracker
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -57,8 +60,8 @@ impl VmConfig {
             ..Default::default()
         };
 
-        // Generate vsock path
-        config.vsock_path = Some(format!("/tmp/ironclaw/vsock/{}.sock", config.vm_id));
+        // Generate vsock path using UUID to ensure uniqueness and prevent path traversal
+        config.vsock_path = Some(format!("/tmp/ironclaw/vsock/{}.sock", Uuid::new_v4()));
 
         config
     }
@@ -119,6 +122,15 @@ mod tests {
         let mut config = VmConfig::default();
         config.vcpu_count = 0;
         assert!(config.validate().is_err());
+    }
+
+    #[test]
+    fn test_config_validation_fails_networking() {
+        let mut config = VmConfig::default();
+        config.enable_networking = true;
+        let result = config.validate();
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Networking MUST be disabled"));
     }
 
     #[test]
