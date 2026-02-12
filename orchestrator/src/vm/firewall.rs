@@ -48,6 +48,19 @@ impl FirewallManager {
         Self { vm_id, chain_name }
     }
 
+    /// FNV-1a hash implementation
+    fn fnv1a_hash(text: &str) -> u32 {
+        let mut hash: u32 = 0x811c9dc5;
+        let prime: u32 = 0x01000193;
+
+        for byte in text.bytes() {
+            hash ^= byte as u32;
+            hash = hash.wrapping_mul(prime);
+        }
+
+        hash
+    }
+
     /// Configure firewall rules to isolate the VM
     ///
     /// This creates a new iptables chain and configures rules to:

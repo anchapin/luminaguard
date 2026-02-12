@@ -24,6 +24,7 @@ use tracing::{debug, info};
 use crate::vm::config::VmConfig;
 
 /// Firecracker VM process manager
+#[derive(Debug)]
 pub struct FirecrackerProcess {
     pub pid: u32,
     pub socket_path: String,
@@ -146,8 +147,10 @@ pub async fn start_firecracker(config: &VmConfig) -> Result<FirecrackerProcess> 
     info!("VM {} started in {:.2}ms", config.vm_id, spawn_time_ms);
 
     Ok(FirecrackerProcess {
-        pid: 0,
-        socket_path: "/tmp/firecracker.sock".to_string(),
+        pid,
+        socket_path,
+        child_process: Some(child),
+        spawn_time_ms,
     })
 }
 

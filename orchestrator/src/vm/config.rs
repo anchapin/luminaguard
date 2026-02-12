@@ -2,8 +2,8 @@
 //
 // Firecracker VM configuration for secure agent execution
 
-use serde::{Deserialize, Serialize};
 use crate::vm::seccomp::SeccompFilter;
+use serde::{Deserialize, Serialize};
 
 /// VM configuration for Firecracker
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -7,8 +7,10 @@
 // - Ephemeral: VM destroyed after task completion
 // - Security: No host execution, full isolation
 
-pub mod firecracker;
 pub mod config;
+pub mod firecracker;
+#[cfg(unix)]
+pub mod firewall;
 pub mod seccomp;
 
 // Prototype module for feasibility testing
@@ -16,15 +18,13 @@ pub mod seccomp;
 // #[cfg(feature = "vm-prototype")]
 // pub mod prototype;
 
-#[cfg(all(test, unix))]
-mod tests;
-
 use anyhow::Result;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use crate::vm::config::VmConfig;
 use crate::vm::firecracker::{start_firecracker, stop_firecracker, FirecrackerProcess};
+#[cfg(unix)]
 use crate::vm::firewall::FirewallManager;
 #[cfg(unix)]
 use crate::vm::seccomp::{SeccompFilter, SeccompLevel};
@@ -32,8 +32,11 @@ use crate::vm::seccomp::{SeccompFilter, SeccompLevel};
 /// VM handle for managing lifecycle
 pub struct VmHandle {
     pub id: String,
-    process: Arc<Mutex<Option<FirecrackerProcess>>>,
+    pub process: Arc<Mutex<Option<FirecrackerProcess>>>,
     pub spawn_time_ms: f64,
+    pub config: VmConfig,
+    #[cfg(unix)]
+    pub firewall_manager: Option<FirewallManager>,
 }
 
 /// Spawn a new JIT Micro-VM
