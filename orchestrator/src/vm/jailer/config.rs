@@ -222,7 +222,9 @@ mod tests {
 
     #[test]
     fn test_config_validation_valid_id() {
-        let config = JailerConfig::new("valid-vm-id-123".to_string());
+        let mut config = JailerConfig::new("valid-vm-id-123".to_string());
+        // Point to a file that exists for validation
+        config.exec_file = PathBuf::from("Cargo.toml");
         assert!(config.validate().is_ok());
     }
 
