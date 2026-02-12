@@ -9,7 +9,9 @@
 
 pub mod config;
 pub mod firecracker;
+pub mod jailer;
 pub mod firewall;
+pub mod rootfs;
 pub mod seccomp;
 pub mod vsock;
 
@@ -20,12 +22,13 @@ pub mod prototype;
 #[cfg(test)]
 mod tests;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use crate::vm::config::VmConfig;
 use crate::vm::firecracker::{start_firecracker, stop_firecracker, FirecrackerProcess};
+use crate::vm::jailer::{JailerConfig, JailerProcess, start_jailed_firecracker, stop_jailed_firecracker, verify_jailer_installed};
 use crate::vm::firewall::FirewallManager;
 use crate::vm::seccomp::{SeccompFilter, SeccompLevel};
 
@@ -271,4 +274,168 @@ pub fn verify_network_isolation(handle: &VmHandle) -> Result<bool> {
     } else {
         Ok(false)
     }
+}
+
+/// Spawn a JIT Micro-VM with Jailer sandboxing (Enhanced Security)
+///
+/// This function creates a Firecracker VM that runs inside a Jailer sandbox,
+/// providing enhanced security through:
+/// - chroot filesystem isolation
+/// - cgroup resource limits
+/// - Namespace isolation (mount, PID, network)
+/// - UID/GID privilege separation
+///
+/// # Arguments
+///
+/// * `task_id` - Unique identifier for task
+/// * `vm_config` - VM configuration
+/// * `jailer_config` - Jailer sandbox configuration
+///
+/// # Returns
+///
+/// * `VmHandle` - Handle for managing VM
+///
+/// # Security
+///
+/// Jailer provides defense-in-depth:
+/// 1. Process runs in chroot jail
+/// 2. Resource limits via cgroups
+/// 3. Isolated namespaces
+/// 4. Dropped privileges (non-root if configured)
+///
+/// # Performance
+///
+/// Spawn time: ~150ms (slightly higher than non-jailed due to jailer setup)
+///
+/// # Example
+///
+/// ```no_run
+/// use ironclaw_orchestrator::vm::{spawn_vm_jailed, config::VmConfig};
+/// use ironclaw_orchestrator::vm::jailer::JailerConfig;
+///
+/// #[tokio::main]
+/// async fn main() -> anyhow::Result<()> {
+///     let vm_config = VmConfig::new("my-task".to_string());
+///     let jailer_config = JailerConfig::new("my-task".to_string())
+///         .with_user(1000, 1000); // Run as non-root user
+///
+///     let handle = spawn_vm_jailed("my-task", &vm_config, &jailer_config).await?;
+///     println!("Jailed VM {} spawned", handle.id);
+///     Ok(())
+/// }
+/// ```
+pub async fn spawn_vm_jailed(
+    task_id: &str,
+    vm_config: &VmConfig,
+    jailer_config: &JailerConfig,
+) -> Result<VmHandle> {
+    tracing::info!("Spawning JAILED VM for task: {}", task_id);
+
+    // Verify jailer is installed
+    verify_jailer_installed().context("Jailer not installed. Please install Firecracker.")?;
+
+    // Apply default seccomp filter if not specified
+    let vm_config_with_seccomp = if vm_config.seccomp_filter.is_none() {
+        let mut secured_config = vm_config.clone();
+        secured_config.seccomp_filter = Some(SeccompFilter::new(SeccompLevel::Basic));
+        tracing::info!("Auto-enabling seccomp filter (Basic level) for security");
+        secured_config
+    } else {
+        vm_config.clone()
+    };
+
+    // Configure firewall (still applies to host network stack)
+    let firewall_manager = FirewallManager::new(vm_config_with_seccomp.vm_id.clone());
+
+    // Apply firewall rules (may fail if not root)
+    match firewall_manager.configure_isolation() {
+        Ok(_) => {
+            tracing::info!(
+                "Firewall isolation configured for JAILED VM: {}",
+                vm_config_with_seccomp.vm_id
+            );
+        }
+        Err(e) => {
+            tracing::warn!(
+                "Failed to configure firewall (running without root?): {}. \
+                VM will still have networking disabled in config, but firewall rules are not applied.",
+                e
+            );
+        }
+    }
+
+    // Start Firecracker via Jailer
+    let jailer_process = start_jailed_firecracker(&vm_config_with_seccomp, jailer_config).await?;
+
+    let spawn_time = jailer_process.spawn_time_ms;
+
+    Ok(VmHandle {
+        id: task_id.to_string(),
+        process: Arc::new(Mutex::new(Some(FirecrackerProcess {
+            pid: jailer_process.pid,
+            socket_path: jailer_process.socket_path.clone(),
+            child_process: jailer_process.child_process,
+            spawn_time_ms: jailer_process.spawn_time_ms,
+        }))),
+        spawn_time_ms: spawn_time,
+        config: vm_config.clone(),
+        firewall_manager: Some(firewall_manager),
+    })
+}
+
+/// Destroy a JAILED VM (ephemeral cleanup with jailer cleanup)
+///
+/// # Arguments
+///
+/// * `handle` - VM handle to destroy
+/// * `jailer_config` - Jailer configuration for cleanup
+///
+/// # Important
+///
+/// This MUST be called after task completion to ensure
+/// no malware can persist. It will also attempt to cleanup
+/// jailer chroot directory.
+///
+/// # Example
+///
+/// ```no_run
+/// use ironclaw_orchestrator::vm::{spawn_vm_jailed, destroy_vm_jailed};
+/// use ironclaw_orchestrator::vm::jailer::JailerConfig;
+///
+/// #[tokio::main]
+/// async fn main() -> anyhow::Result<()> {
+///     let vm_config = VmConfig::new("my-task".to_string());
+///     let jailer_config = JailerConfig::new("my-task".to_string());
+///
+///     let handle = spawn_vm_jailed("my-task", &vm_config, &jailer_config).await?;
+///     // ... use VM ...
+///     destroy_vm_jailed(handle, &jailer_config).await?;
+///     Ok(())
+/// }
+/// ```
+pub async fn destroy_vm_jailed(
+    handle: VmHandle,
+    jailer_config: &JailerConfig,
+) -> Result<()> {
+    tracing::info!("Destroying JAILED VM: {}", handle.id);
+
+    // Take process out of Arc<Mutex>
+    let process = handle.process.lock().await.take();
+
+    if let Some(proc) = process {
+        // Create a jailer process wrapper for cleanup
+        let jailer_process = JailerProcess {
+            pid: proc.pid,
+            socket_path: proc.socket_path,
+            child_process: proc.child_process,
+            spawn_time_ms: proc.spawn_time_ms,
+            chroot_dir: jailer_config.chroot_dir(),
+        };
+
+        stop_jailed_firecracker(jailer_process).await?;
+    } else {
+        tracing::warn!("JAILED VM {} already destroyed", handle.id);
+    }
+
+    Ok(())
 }
