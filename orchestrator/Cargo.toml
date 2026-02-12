@@ -55,6 +55,9 @@ proptest = "1.4"
 # Testing utilities
 criterion = "0.8"
 
+# Temporary file management for tests
+tempfile = "3.10"
+
 [lib]
 name = "ironclaw_orchestrator"
 path = "src/lib.rs"
@@ -75,6 +78,10 @@ strip = true
 
 [[bench]]
 name = "mcp_startup"
+harness = false
+
+[[bench]]
+name = "snapshot_pool"
 harness = false
 
 [features]

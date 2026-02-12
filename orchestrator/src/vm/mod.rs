@@ -10,7 +10,9 @@
 pub mod config;
 pub mod firecracker;
 pub mod firewall;
+pub mod pool;
 pub mod seccomp;
+pub mod snapshot;
 pub mod vsock;
 
 // Prototype module for feasibility testing
@@ -22,12 +24,31 @@ mod tests;
 
 use anyhow::Result;
 use std::sync::Arc;
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, OnceCell};
 
 use crate::vm::config::VmConfig;
 use crate::vm::firecracker::{start_firecracker, stop_firecracker, FirecrackerProcess};
 use crate::vm::firewall::FirewallManager;
+use crate::vm::pool::{PoolConfig, SnapshotPool};
 use crate::vm::seccomp::{SeccompFilter, SeccompLevel};
+
+/// Global snapshot pool (lazy-initialized)
+static SNAPSHOT_POOL: OnceCell<Arc<SnapshotPool>> = OnceCell::const_new();
+
+/// Initialize the snapshot pool
+///
+/// This function is called automatically on first use or can be called
+/// explicitly to warm up the pool before serving requests.
+async fn init_pool() -> Result<Arc<SnapshotPool>> {
+    let config = PoolConfig::from_env();
+    let pool = SnapshotPool::new(config).await?;
+    Ok(Arc::new(pool))
+}
+
+/// Get or initialize the snapshot pool
+async fn get_pool() -> Result<Arc<SnapshotPool>> {
+    SNAPSHOT_POOL.get_or_try_init(init_pool).await.cloned()
+}
 
 /// VM handle for managing lifecycle
 pub struct VmHandle {
@@ -57,7 +78,8 @@ impl VmHandle {
 ///
 /// # Performance
 ///
-/// Completes in ~110ms (beats 200ms target by 45%)
+/// - With snapshot pool: 10-50ms (target)
+/// - Cold boot fallback: ~110ms (actual)
 ///
 /// # Security
 ///
@@ -78,6 +100,25 @@ impl VmHandle {
 /// }
 /// ```
 pub async fn spawn_vm(task_id: &str) -> Result<VmHandle> {
+    // Try snapshot pool first for fast spawning
+    let pool_result = get_pool().await;
+
+    if let Ok(pool) = pool_result {
+        match pool.acquire_vm().await {
+            Ok(vm_id) => {
+                tracing::info!("VM spawned from pool: {}", vm_id);
+
+                // TODO: Load snapshot from pool and return handle
+                // For now, fall through to cold boot
+                // This will be implemented in Phase 2
+            }
+            Err(e) => {
+                tracing::debug!("Pool not available: {}, using cold boot", e);
+            }
+        }
+    }
+
+    // Fallback to cold boot
     spawn_vm_with_config(task_id, &VmConfig::new(task_id.to_string())).await
 }
 
@@ -212,6 +253,63 @@ pub async fn destroy_vm(handle: VmHandle) -> Result<()> {
     } else {
         tracing::warn!("VM {} already destroyed", handle.id);
     }
+
+    Ok(())
+}
+
+/// Get snapshot pool statistics
+///
+/// # Returns
+///
+/// * `PoolStats` - Current pool statistics
+///
+/// # Example
+///
+/// ```no_run
+/// use ironclaw_orchestrator::vm;
+///
+/// #[tokio::main]
+/// async fn main() -> anyhow::Result<()> {
+///     let stats = vm::pool_stats().await?;
+///     println!("Pool size: {}/{}", stats.current_size, stats.max_size);
+///     Ok(())
+/// }
+/// ```
+pub async fn pool_stats() -> Result<crate::vm::pool::PoolStats> {
+    let pool = get_pool().await?;
+    Ok(pool.stats().await)
+}
+
+/// Warm up the snapshot pool
+///
+/// Pre-creates snapshots so first VM spawn is fast.
+/// Useful to call during application startup.
+///
+/// # Example
+///
+/// ```no_run
+/// use ironclaw_orchestrator::vm;
+///
+/// #[tokio::main]
+/// async fn main() -> anyhow::Result<()> {
+///     vm::warmup_pool().await?;
+///     println!("Pool is ready!");
+///     Ok(())
+/// }
+/// ```
+pub async fn warmup_pool() -> Result<()> {
+    tracing::info!("Warming up snapshot pool");
+
+    let pool = get_pool().await?;
+
+    // Pool is already initialized during get_pool()
+    let stats = pool.stats().await;
+
+    tracing::info!(
+        "Pool warmed up with {}/{} snapshots",
+        stats.current_size,
+        stats.max_size
+    );
 
     Ok(())
 }

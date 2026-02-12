@@ -16,10 +16,11 @@ mod tests {
         config.enable_networking = true;
 
         let result = config.validate();
-        // TODO: Re-enable this check once config validation includes networking check
-        // assert!(result.is_err());
-        // assert!(result.unwrap_err().to_string().contains("MUST be disabled"));
-        assert!(result.is_ok());
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Networking MUST be disabled"));
     }
 
     /// Test that multiple VMs can be spawned with unique firewall chains
@@ -98,9 +99,12 @@ mod tests {
         // Test 1: Networking must be disabled
         let mut config = VmConfig::new("security-test-1".to_string());
         config.enable_networking = true;
-        // TODO: Re-enable this check once config validation includes networking check
-        // assert!(config.validate().is_err());
-        assert!(config.validate().is_ok());
+        assert!(config.validate().is_err());
+        assert!(config
+            .validate()
+            .unwrap_err()
+            .to_string()
+            .contains("Networking MUST be disabled"));
 
         // Test 2: vCPU count must be > 0
         let mut config = VmConfig::new("security-test-2".to_string());
