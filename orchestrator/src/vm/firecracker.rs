@@ -10,8 +10,6 @@ use serde::Serialize;
 use std::path::Path;
 #[cfg(not(unix))]
 use std::process::Child;
-#[cfg(unix)]
-use tokio::process::Child;
 use tracing::{debug, info};
 
 #[cfg(unix)]
