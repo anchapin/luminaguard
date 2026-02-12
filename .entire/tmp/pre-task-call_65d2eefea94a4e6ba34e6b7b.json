@@ -1,0 +1,17 @@
+{
+  "tool_use_id": "call_65d2eefea94a4e6ba34e6b7b",
+  "timestamp": "2026-02-11T22:23:04Z",
+  "untracked_files": [
+    ".claude/settings.local.json",
+    "check-ready-prs.sh",
+    "docs/PR_MERGE_PLAN.md",
+    "pr_74_rollup.json",
+    "pr_86_rollup.json",
+    "scripts/auto-merge-prs.README.md",
+    "scripts/auto-merge-prs.sh",
+    "scripts/start-auto-merge.sh",
+    "empty_rollup.json",
+    "pr_66_rollup.json",
+    "pr_86.json"
+  ]
+}
