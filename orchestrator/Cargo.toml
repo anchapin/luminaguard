@@ -8,18 +8,6 @@ license = "MIT"
 repository = "https://github.com/your-username/ironclaw"
 readme = "../README.md"
 
-[features]
-default = []
-vm-prototype = []
-
-[lib]
-name = "ironclaw_orchestrator"
-path = "src/lib.rs"
-
-[[bin]]
-name = "ironclaw"
-path = "src/main.rs"
-
 [dependencies]
 # Async runtime
 tokio = { version = "1.40", features = ["full"] }
@@ -48,10 +36,17 @@ reqwest = { version = "0.12", features = ["json"] }
 # Random number generation (for retry jitter)
 rand = "0.8"
 
-# TUI (Phase 2)
-ratatui = "0.26"
-crossterm = "0.27"
-similar = "2.5"
+# Firecracker HTTP client
+hyper = { version = "1.0", features = ["full"] }
+hyper-util = { version = "0.1", features = ["full"] }
+http-body-util = "0.1"
+bytes = "1.0"
+
+# Time handling
+chrono = { version = "0.4", features = ["serde"] }
+
+# UUID generation
+uuid = { version = "1.0", features = ["v4"] }
 
 [dev-dependencies]
 # Property-based testing
@@ -59,7 +54,14 @@ proptest = "1.4"
 
 # Testing utilities
 criterion = "0.8"
-tempfile = "3.10"
+
+[lib]
+name = "ironclaw_orchestrator"
+path = "src/lib.rs"
+
+[[bin]]
+name = "ironclaw"
+path = "src/main.rs"
 
 [profile.dev]
 opt-level = 0
@@ -73,8 +75,4 @@ strip = true
 
 [[bench]]
 name = "mcp_startup"
-harness = false
-
-[[bench]]
-name = "mcp_transport"
 harness = false
