@@ -4,6 +4,8 @@
 // from executing dangerous operations. Blocks 99% of syscalls, allowing
 // only essential ones for basic VM operation.
 
+#![cfg(target_os = "linux")]
+
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};

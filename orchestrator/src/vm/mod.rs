@@ -9,7 +9,9 @@
 
 pub mod config;
 pub mod firecracker;
+#[cfg(target_os = "linux")]
 pub mod firewall;
+#[cfg(target_os = "linux")]
 pub mod seccomp;
 
 // Prototype module for feasibility testing
@@ -22,7 +24,9 @@ use tokio::sync::Mutex;
 
 use crate::vm::config::VmConfig;
 use crate::vm::firecracker::{start_firecracker, stop_firecracker, FirecrackerProcess};
+#[cfg(target_os = "linux")]
 use crate::vm::firewall::FirewallManager;
+#[cfg(target_os = "linux")]
 use crate::vm::seccomp::{SeccompFilter, SeccompLevel};
 
 /// VM handle for managing lifecycle
@@ -103,7 +107,7 @@ pub async fn spawn_vm(task_id: &str) -> Result<VmHandle> {
 pub async fn spawn_vm_with_config(task_id: &str, config: &VmConfig) -> Result<VmHandle> {
     tracing::info!("Spawning VM for task: {}", task_id);
 
-    // Apply default seccomp filter if not specified (security best practice)
+    #[cfg(target_os = "linux")]
     let config_with_seccomp = if config.seccomp_filter.is_none() {
         let mut secured_config = config.clone();
         secured_config.seccomp_filter = Some(SeccompFilter::new(SeccompLevel::Basic));
@@ -113,7 +117,11 @@ pub async fn spawn_vm_with_config(task_id: &str, config: &VmConfig) -> Result<Vm
         config.clone()
     };
 
+    #[cfg(not(target_os = "linux"))]
+    let config_with_seccomp = config.clone();
+
     // Configure firewall
+    #[cfg(target_os = "linux")]
     let firewall_manager = FirewallManager::new(task_id.to_string());
     #[cfg(target_os = "linux")]
     {
@@ -126,12 +134,23 @@ pub async fn spawn_vm_with_config(task_id: &str, config: &VmConfig) -> Result<Vm
 
     let spawn_time = process.spawn_time_ms;
 
-    Ok(VmHandle {
+    #[cfg(target_os = "linux")]
+    let vm_handle = VmHandle {
         id: task_id.to_string(),
         process: Arc::new(Mutex::new(Some(process))),
         firewall_manager: Some(firewall_manager),
         spawn_time_ms: spawn_time,
-    })
+    };
+
+    #[cfg(not(target_os = "linux"))]
+    let vm_handle = VmHandle {
+        id: task_id.to_string(),
+        process: Arc::new(Mutex::new(Some(process))),
+        firewall_manager: None,
+        spawn_time_ms: spawn_time,
+    };
+
+    Ok(vm_handle)
 }
 
 /// Destroy a VM (ephemeral cleanup)
