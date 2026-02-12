@@ -53,6 +53,24 @@ IronClaw is a native Model Context Protocol (MCP) client:
 - No proprietary "AgentSkills" or custom plugin systems
 - Leverages the growing enterprise MCP ecosystem
 
+### Platform Support
+
+**Linux (Primary)**: Full production support
+- Firecracker Micro-VMs (Linux KVM)
+- seccomp syscall filtering
+- iptables firewall management
+- All features supported
+
+**macOS (Development)**: Limited support
+- Orchestrator and agent work
+- VM spawning is stubbed/not functional
+- Use for development and testing only
+
+**Windows**: Not supported
+- CI removed from test matrix
+- Firecracker, seccomp, and iptables are Linux-specific
+- Code includes `#[cfg(unix)]` guards but Windows is not a target platform
+
 ## Key Security Feature: The "Approval Cliff"
 
 High-stakes actions require explicit human approval:

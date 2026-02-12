@@ -17,10 +17,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
 ]
 
-dependencies = [
-    "anthropic>=0.18.0",
-    "openai>=1.12.0",
-]
+dependencies = []
 
 [project.optional-dependencies]
 dev = [

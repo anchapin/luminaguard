@@ -1,4 +1,4 @@
-use ironclaw_orchestrator::vm::firewall::FirewallManager;
+use crate::vm::firewall::FirewallManager;
 
 #[test]
 fn test_firewall_collision() {
