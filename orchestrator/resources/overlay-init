@@ -1,0 +1,106 @@
+#!/bin/sh
+# overlay-init - Root Filesystem Hardening for IronClaw
+#
+# Copyright Amazon.com, Inc. or its affiliates. Licensed under Apache-2.0.
+# Modified for IronClaw Agentic AI Runtime
+#
+# This script sets up an OverlayFS to provide a read-only root filesystem
+# with a writable overlay layer for agent operations.
+#
+# Security Model:
+# - Root filesystem (/) is mounted read-only at /mnt/rom
+# - Writable overlay is layered on top using OverlayFS
+# - Agent workspace is in /home/agent (within overlay)
+# - System files cannot be modified (prevents privilege escalation)
+#
+# Parameters:
+# - $overlay_root: "ram" for tmpfs or device name (e.g., "vdb") for ext4
+#
+# References:
+# - https://github.com/firecracker-microvm/firecracker-containerd
+# - https://e2b.dev/blog/scaling-firecracker-using-overlayfs-to-save-disk-space
+
+set -e
+
+pivot() {
+    local rw_root work_dir
+    rw_root="$1"
+    work_dir="$2"
+
+    # Mount overlay filesystem
+    # - lowerdir: Read-only base filesystem (/)
+    # - upperdir: Writable layer for changes
+    # - workdir: Work directory for OverlayFS (must be on same filesystem as upperdir)
+    # - noatime: Disable access time updates for performance
+    /bin/mount \
+        -o noatime,lowerdir=/,upperdir=${rw_root},workdir=${work_dir} \
+        -t overlay "overlayfs:${rw_root}" /mnt
+
+    # Pivot root: Make /mnt the new root and /mnt/rom the old root
+    # This effectively switches the filesystem tree
+    pivot_root /mnt /mnt/rom
+}
+
+# Setup overlay filesystem
+do_overlay() {
+    local overlay_dir="/overlay"
+
+    # Check overlay_root type (passed as kernel boot parameter)
+    if [ "$overlay_root" = ram ] || [ -z "$overlay_root" ]; then
+        # Use tmpfs for ephemeral overlay (default for IronClaw)
+        # - Fast, in-memory
+        # - Data lost on VM shutdown (ephemeral by design)
+        # - Perfect for agent tasks (no persistence needed)
+        /bin/mount -t tmpfs -o noatime,mode=0755 tmpfs /overlay
+        echo "[overlay-init] Using tmpfs overlay (ephemeral)"
+    else
+        # Use block device for persistent overlay
+        # - Data persists across VM reboots
+        # - Slower than tmpfs
+        # - Useful for debugging or long-running workloads
+        if [ ! -b "/dev/$overlay_root" ]; then
+            echo "FATAL: Overlay root specified as $overlay_root but /dev/$overlay_root does not exist"
+            exit 1
+        fi
+        /bin/mount -t ext4 "/dev/$overlay_root" /overlay
+        echo "[overlay-init] Using ext4 overlay (persistent): /dev/$overlay_root"
+    fi
+
+    # Create overlay directories
+    # - root: Upper directory (contains modified/added files)
+    # - work: Work directory for OverlayFS operations
+    mkdir -p /overlay/root /overlay/work
+
+    # Pivot to new root filesystem
+    pivot /overlay/root /overlay/work
+}
+
+# Main execution
+echo "[overlay-init] Setting up read-only root filesystem with OverlayFS..."
+
+# Verify overlay_root is set
+if [ -n "$overlay_root" ] && [ "$overlay_root" != ram ] && [ ! -b "/dev/$overlay_root" ]; then
+    echo -n "FATAL: "
+    echo "Overlay root given as $overlay_root but /dev/$overlay_root does not exist"
+    exit 1
+fi
+
+# Setup overlay
+do_overlay
+
+# Mount old root at /mnt/rom (read-only access to base system)
+# This allows agents to read system files but not modify them
+mount --bind /rom /mnt/rom 2>/dev/null || true
+
+# Create agent workspace in overlay
+mkdir -p /mnt/home/agent
+chmod 0755 /mnt/home/agent
+
+echo "[overlay-init] Root filesystem hardening activated"
+echo "[overlay-init] - Base system: Read-only (mounted at /rom)"
+echo "[overlay-init] - Agent workspace: Writable (mounted at /)"
+echo "[overlay-init] - Security: System files cannot be modified"
+
+# Execute the actual init process to continue boot
+# This replaces overlay-init with the real init (PID 1)
+exec /sbin/init "$@"

@@ -399,7 +399,7 @@ pub async fn spawn_vm_jailed(
 /// # Example
 ///
 /// ```no_run
-/// use ironclaw_orchestrator::vm::{spawn_vm_jailed, destroy_vm_jailed};
+/// use ironclaw_orchestrator::vm::{spawn_vm_jailed, destroy_vm_jailed, config::VmConfig};
 /// use ironclaw_orchestrator::vm::jailer::JailerConfig;
 ///
 /// #[tokio::main]
