@@ -145,7 +145,7 @@ class McpClient:
             raise McpError("All command arguments must be strings")
 
         # Check for shell metacharacters that could enable injection
-        shell_metachars = [';', '&', '|', '$', '`', '(', ')', '<', '>', '\n', '\r']
+        shell_metachars = [";", "&", "|", "$", "`", "(", ")", "<", ">", "\n", "\r"]
         for arg in command:
             if any(char in arg for char in shell_metachars):
                 raise McpError(
@@ -157,26 +157,28 @@ class McpClient:
         # This is not a security boundary (the subprocess runs locally as the user),
         # but prevents accidental mistakes and documents expected commands.
         safe_commands = {
-            'npx',           # Node.js package runner
-            'python', 'python3',  # Python interpreters
-            'node',          # Node.js runtime
-            'cargo',         # Rust toolchain (for testing)
-            'echo',          # Testing (benign)
-            'true',          # Testing (benign)
-            'cat',           # File operations (for trusted input)
+            "npx",  # Node.js package runner
+            "python",
+            "python3",  # Python interpreters
+            "node",  # Node.js runtime
+            "cargo",  # Rust toolchain (for testing)
+            "echo",  # Testing (benign)
+            "true",  # Testing (benign)
+            "cat",  # File operations (for trusted input)
         }
 
         base_cmd = command[0]
         # Allow paths (e.g., ./node_modules/.bin/npx) by checking base name
-        base_name = base_cmd.split('/')[-1].split('\\')[-1]
+        base_name = base_cmd.split("/")[-1].split("\\")[-1]
 
         if base_name not in safe_commands:
             # Log warning but don't fail - user may have custom setup
             import sys
+
             print(
                 f"Warning: Command '{base_name}' not in known-safe list. "
                 f"Ensure this command is trusted and does not accept untrusted input.",
-                file=sys.stderr
+                file=sys.stderr,
             )
 
         return command
