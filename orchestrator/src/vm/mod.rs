@@ -92,8 +92,47 @@ pub async fn spawn_vm_with_config(task_id: &str, config: &VmConfig) -> Result<Vm
             config.clone()
         };
 
-        // Configure firewall to block all network traffic
-        let firewall_manager = FirewallManager::new(config_with_seccomp.vm_id.clone());
+    let spawn_time = process.spawn_time_ms;
+
+    // Configure firewall to block all network traffic
+    let firewall_manager = FirewallManager::new(config_with_seccomp.vm_id.clone());
+
+    // Apply firewall rules (may fail if not root)
+    match firewall_manager.configure_isolation() {
+        Ok(_) => {
+            tracing::info!(
+                "Firewall isolation configured for VM: {}",
+                config_with_seccomp.vm_id
+            );
+        }
+        Err(e) => {
+            tracing::warn!(
+                "Failed to configure firewall (running without root?): {}. \
+                VM will still have networking disabled in config, but firewall rules are not applied.",
+                e
+            );
+            // Continue anyway - networking is still disabled in config
+        }
+    }
+
+    // Verify firewall rules are active (if configured)
+    match firewall_manager.verify_isolation() {
+        Ok(true) => {
+            tracing::info!(
+                "Firewall isolation verified for VM: {}",
+                config_with_seccomp.vm_id
+            );
+        }
+        Ok(false) => {
+            tracing::debug!(
+                "Firewall rules not active for VM: {}",
+                config_with_seccomp.vm_id
+            );
+        }
+        Err(e) => {
+            tracing::debug!("Failed to verify firewall rules: {}", e);
+        }
+    }
 
         // Apply firewall rules (may fail if not root)
         match firewall_manager.configure_isolation() {
