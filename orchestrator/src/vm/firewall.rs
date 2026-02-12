@@ -29,15 +29,31 @@ impl FirewallManager {
     pub fn new(vm_id: String) -> Self {
         // Create a unique chain name for this VM
         // Sanitize vm_id to only contain alphanumeric characters
-        // and truncate to ensure chain name <= 28 chars (kernel limit)
-        // IRONCLAW_ is 9 chars, so we have 19 chars for the ID
+        // IRONCLAW_ is 9 chars, leaving 19 chars for the ID portion
         let sanitized_id: String = vm_id
             .chars()
             .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
-            .take(19)
             .collect();
 
-        let chain_name = format!("IRONCLAW_{}", sanitized_id);
+        // If sanitized ID fits within 19 chars, use it directly for readability
+        // Otherwise, use a hash to ensure uniqueness
+        let chain_name = if sanitized_id.len() <= 19 {
+            format!("IRONCLAW_{}", sanitized_id)
+        } else {
+            // For long IDs, use a hash-based approach to avoid collisions
+            use std::collections::hash_map::DefaultHasher;
+            use std::hash::{Hash, Hasher};
+
+            let mut hasher = DefaultHasher::new();
+            vm_id.hash(&mut hasher);
+            let hash = hasher.finish();
+
+            // Use first up to 16 chars of hash (hex representation)
+            // This ensures uniqueness while staying within limits
+            let hash_str = format!("{:x}", hash);
+            let hash_truncated = hash_str.chars().take(16).collect::<String>();
+            format!("IRONCLAW_{}", hash_truncated)
+        };
 
         Self { vm_id, chain_name, interface: None }
     }
