@@ -125,17 +125,32 @@ fn test_firewall_sanitizes_vm_ids() {
     use crate::vm::firewall::FirewallManager;
 
     let test_cases = vec![
-        ("simple", "IRONCLAW_simple"),
-        ("with-dash", "IRONCLAW_with_dash"),
-        ("with@symbol", "IRONCLAW_with_symbol"),
-        ("with/slash", "IRONCLAW_with_slash"),
-        ("with space", "IRONCLAW_with_space"),
-        ("with.dot", "IRONCLAW_with_dot"),
+        ("simple", "IRONCLAW_simple_"),
+        ("with-dash", "IRONCLAW_with_dash_"),
+        ("with@symbol", "IRONCLAW_with_symbo_"), // Truncated to 10 chars
+        ("with/slash", "IRONCLAW_with_slash_"),
+        ("with space", "IRONCLAW_with_space_"),
+        ("with.dot", "IRONCLAW_with_dot_"),
     ];
 
-    for (vm_id, expected_chain) in test_cases {
+    for (vm_id, expected_prefix) in test_cases {
         let manager = FirewallManager::new(vm_id.to_string());
-        assert_eq!(manager.chain_name(), expected_chain);
+        let chain = manager.chain_name();
+
+        // Verify prefix matches (sanitization)
+        assert!(
+            chain.starts_with(expected_prefix),
+            "Chain {} should start with {}",
+            chain,
+            expected_prefix
+        );
+
+        // Verify format (contains hash) and length
+        assert!(chain.len() <= 28, "Chain name too long");
+        assert_ne!(
+            chain, expected_prefix,
+            "Chain name should contain hash suffix"
+        );
     }
 }
 
@@ -226,19 +241,19 @@ async fn test_vm_with_long_id() {
 
     // Verify firewall chain name is valid (may be truncated)
     let chain = handle.firewall_manager.as_ref().unwrap().chain_name();
-    // Note: Chain name includes "IRONCLAW_" prefix + truncated sanitized ID
-    // ID is truncated to 19 chars, so max length is 9 + 19 = 28 chars
+    // Note: Chain name includes "IRONCLAW_" prefix + truncated sanitized ID + hash
+    // ID is truncated to 10 chars + hash
     assert!(chain.len() <= 28, "Chain name too long: {}", chain);
     assert!(chain.starts_with("IRONCLAW_"));
     assert!(chain.chars().all(|c| c.is_ascii_alphanumeric() || c == '_'));
 
     // Verify correct truncation
     // "a" * 20 -> sanitized to "a" * 20 (assuming ascii)
-    // truncated to 19 chars
-    // prefix "IRONCLAW_" + 19 "a"s
-    let expected_suffix = "a".repeat(19);
-    assert!(chain.ends_with(&expected_suffix));
-    assert!(!chain.contains(&"a".repeat(20)));
+    // truncated to 10 chars + hash suffix
+    // prefix "IRONCLAW_" + 10 "a"s + "_" + 8 hex chars
+    let expected_prefix = format!("IRONCLAW_{}_", "a".repeat(10));
+    assert!(chain.starts_with(&expected_prefix));
+    assert_eq!(chain.len(), 28);
 
     destroy_vm(handle).await.unwrap();
 }

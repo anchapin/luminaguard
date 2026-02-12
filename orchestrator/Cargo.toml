@@ -8,9 +8,6 @@ license = "MIT"
 repository = "https://github.com/your-username/ironclaw"
 readme = "../README.md"
 
-[features]
-vm-prototype = []
-
 [dependencies]
 # Async runtime
 tokio = { version = "1.40", features = ["full"] }
