@@ -10,6 +10,8 @@
 // - Rules are automatically cleaned up on VM destruction
 
 use anyhow::{Context, Result};
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
 use std::process::Command;
 use tracing::{info, warn};
 
@@ -27,17 +29,15 @@ impl FirewallManager {
     ///
     /// * `vm_id` - Unique identifier for the VM
     pub fn new(vm_id: String) -> Self {
-        // Create a unique chain name for this VM
-        // Sanitize vm_id to only contain alphanumeric characters
-        // and truncate to ensure chain name <= 28 chars (kernel limit)
-        // IRONCLAW_ is 9 chars, so we have 19 chars for the ID
-        let sanitized_id: String = vm_id
-            .chars()
-            .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
-            .take(19)
-            .collect();
+        // Create a unique chain name for this VM using a hash to prevent collisions
+        // e.g. "vm-1" and "vm_1" would collide with simple sanitization
+        let mut hasher = DefaultHasher::new();
+        vm_id.hash(&mut hasher);
+        let hash = hasher.finish();
 
-        let chain_name = format!("IRONCLAW_{}", sanitized_id);
+        // Use first 16 chars of hex hash to stay within iptables limit (28 chars)
+        // IRONCLAW_ (9) + 16 chars = 25 chars
+        let chain_name = format!("IRONCLAW_{:016x}", hash);
 
         Self { vm_id, chain_name, interface: None }
     }
@@ -350,18 +350,22 @@ mod tests {
     fn test_firewall_manager_creation() {
         let manager = FirewallManager::new("test-vm".to_string());
         assert_eq!(manager.vm_id(), "test-vm");
-        assert!(manager.chain_name().contains("IRONCLAW"));
-        assert!(manager.chain_name().contains("test_vm"));
+        assert!(manager.chain_name().starts_with("IRONCLAW_"));
+        // Hash is hex, so alphanumeric
+        assert!(manager.chain_name().chars().all(|c| c.is_alphanumeric() || c == '_'));
     }
 
     #[test]
-    fn test_firewall_manager_sanitization() {
-        // Test that special characters are sanitized
-        let manager = FirewallManager::new("test-vm@123#456".to_string());
-        assert_eq!(manager.vm_id(), "test-vm@123#456");
-        assert!(manager.chain_name().contains("test_vm_123_456"));
-        assert!(!manager.chain_name().contains('@'));
-        assert!(!manager.chain_name().contains('#'));
+    fn test_firewall_manager_collision_prevention() {
+        // Test that similar IDs don't collide
+        let m1 = FirewallManager::new("vm-1".to_string());
+        let m2 = FirewallManager::new("vm_1".to_string());
+
+        assert_ne!(m1.chain_name(), m2.chain_name(), "Chain names should be unique even if IDs are similar");
+
+        // Both should be valid
+        assert!(m1.chain_name().len() <= 28);
+        assert!(m2.chain_name().len() <= 28);
     }
 
     #[test]

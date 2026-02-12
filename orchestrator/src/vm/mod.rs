@@ -208,8 +208,6 @@ pub async fn spawn_vm_with_config(task_id: &str, config: &VmConfig) -> Result<Vm
             config.clone()
         };
 
-    let spawn_time = process.spawn_time_ms;
-
     // Configure firewall to block all network traffic
     let firewall_manager = FirewallManager::new(config_with_seccomp.vm_id.clone());
 

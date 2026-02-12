@@ -68,7 +68,6 @@ proptest = "1.4"
 
 # Testing utilities
 criterion = "0.8"
-tempfile = "3.10"
 assert_cmd = "2.0"
 predicates = "3.0"
 

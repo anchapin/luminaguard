@@ -149,23 +149,35 @@ mod tests {
         assert!(config.memory_mb >= 128);
     }
 
-    /// Test that firewall manager properly sanitizes VM IDs
+    /// Test that firewall manager generates valid and unique chain names
     #[test]
-    fn test_firewall_sanitizes_vm_ids() {
+    fn test_firewall_chain_name_uniqueness() {
         use crate::vm::firewall::FirewallManager;
 
-        let test_cases = vec![
-            ("simple", "IRONCLAW_simple"),
-            ("with-dash", "IRONCLAW_with_dash"),
-            ("with@symbol", "IRONCLAW_with_symbol"),
-            ("with/slash", "IRONCLAW_with_slash"),
-            ("with space", "IRONCLAW_with_space"),
-            ("with.dot", "IRONCLAW_with_dot"),
+        let test_ids = vec![
+            "simple",
+            "with-dash",
+            "with@symbol",
+            "with/slash",
+            "with space",
+            "with.dot",
+            "vm-1", // Potential collision
+            "vm_1", // Potential collision
         ];
 
-        for (vm_id, expected_chain) in test_cases {
+        let mut chains = std::collections::HashSet::new();
+
+        for vm_id in test_ids {
             let manager = FirewallManager::new(vm_id.to_string());
-            assert_eq!(manager.chain_name(), expected_chain);
+            let chain = manager.chain_name();
+
+            // Verify format
+            assert!(chain.starts_with("IRONCLAW_"));
+            assert!(chain.len() <= 28);
+            assert!(chain.chars().all(|c| c.is_alphanumeric() || c == '_'));
+
+            // Verify uniqueness
+            assert!(chains.insert(chain.to_string()), "Duplicate chain name for ID: {}", vm_id);
         }
     }
 
