@@ -9,6 +9,8 @@
 // - Firewall rules persist across VM lifecycle
 // - Rules are automatically cleaned up on VM destruction
 
+#![cfg(target_os = "linux")]
+
 use anyhow::{Context, Result};
 use std::process::Command;
 use tracing::{info, warn};

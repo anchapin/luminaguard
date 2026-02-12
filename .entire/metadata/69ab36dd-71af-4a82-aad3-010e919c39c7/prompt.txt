@@ -1,8 +1,0 @@
-There is another new error in the script, investigate the root cause of the following error and fix it: alexc@nobara-pc ~/P/ironclaw (review-pr-65-10984353828085793109)> tail -f /tmp/ironclaw-auto-merge.log
-═══════════════════════════════════════════════════
-           IronClaw Auto-Merge Script
-═══════════════════════════════════════════════════════
-
-/home/alexc/Projects/ironclaw/scripts/auto-merge-prs.sh: line 28: syntax error near unexpected token `('
- #66 ? Review PR #60 (Fixes)
-Elapsed: 5m:0s | Waiting: 25m:0s
