@@ -9,7 +9,16 @@ repository = "https://github.com/your-username/ironclaw"
 readme = "../README.md"
 
 [features]
+default = []
 vm-prototype = []
+
+[lib]
+name = "ironclaw_orchestrator"
+path = "src/lib.rs"
+
+[[bin]]
+name = "ironclaw"
+path = "src/main.rs"
 
 [dependencies]
 # Async runtime
@@ -59,18 +68,7 @@ proptest = "1.4"
 
 # Testing utilities
 criterion = "0.8"
-
-[features]
-default = []
-vm-prototype = []
-
-[lib]
-name = "ironclaw_orchestrator"
-path = "src/lib.rs"
-
-[[bin]]
-name = "ironclaw"
-path = "src/main.rs"
+tempfile = "3.10"
 
 [profile.dev]
 opt-level = 0
@@ -85,7 +83,3 @@ strip = true
 [[bench]]
 name = "mcp_startup"
 harness = false
-
-[features]
-default = []
-vm-prototype = []
