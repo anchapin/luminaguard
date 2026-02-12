@@ -2,7 +2,7 @@
 //
 // This module handles the actual Firecracker VM spawning.
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{anyhow, Context, Result};
 use crate::vm::config::VmConfig;
 use serde::Serialize;
 use std::path::Path;
@@ -26,13 +26,6 @@ use hyper_util::rt::TokioIo;
 use tokio::net::UnixStream;
 use std::process::Stdio;
 use std::time::Instant;
-use std::pin::Pin;
-use std::future::Future;
-use std::task::{Context as TaskContext, Poll};
-use hyper::Uri;
-use hyper_util::client::legacy::Client;
-use hyper_util::rt::TokioExecutor;
-use tower_service::Service;
 
 /// Firecracker VM process manager
 pub struct FirecrackerProcess {
@@ -55,29 +48,6 @@ impl Drop for FirecrackerProcess {
             // tokio::process::Child::start_kill() is non-blocking.
             let _ = child.start_kill();
         }
-    }
-}
-
-#[derive(Clone)]
-struct UnixConnector {
-    path: String,
-}
-
-impl Service<Uri> for UnixConnector {
-    type Response = hyper_util::rt::TokioIo<UnixStream>;
-    type Error = std::io::Error;
-    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
-
-    fn poll_ready(&mut self, _cx: &mut TaskContext<'_>) -> Poll<Result<(), Self::Error>> {
-        Poll::Ready(Ok(()))
-    }
-
-    fn call(&mut self, _req: Uri) -> Self::Future {
-        let path = self.path.clone();
-        Box::pin(async move {
-            let stream = UnixStream::connect(path).await?;
-            Ok(hyper_util::rt::TokioIo::new(stream))
-        })
     }
 }
 
@@ -224,7 +194,7 @@ struct Drive {
 #[derive(Serialize)]
 struct MachineConfiguration {
     vcpu_count: u8,
-    mem_size_mib: u64,
+    mem_size_mib: u32,
 }
 
 #[derive(Serialize)]
