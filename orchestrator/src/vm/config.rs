@@ -2,9 +2,8 @@
 //
 // Firecracker VM configuration for secure agent execution
 
-#[cfg(target_os = "linux")]
-use crate::vm::seccomp::SeccompFilter;
 use serde::{Deserialize, Serialize};
+use crate::vm::seccomp::SeccompFilter;
 
 /// VM configuration for Firecracker
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -27,13 +26,8 @@ pub struct VmConfig {
     /// Enable networking (default: false for security)
     pub enable_networking: bool,
 
-    /// vsock socket path (automatically generated)
-    #[serde(skip)]
-    pub vsock_path: Option<String>,
-
     /// Seccomp filter configuration
     #[serde(default)]
-    #[cfg(target_os = "linux")]
     pub seccomp_filter: Option<SeccompFilter>,
 }
 
@@ -43,11 +37,9 @@ impl Default for VmConfig {
             vm_id: "default".to_string(),
             vcpu_count: 1,
             memory_mb: 512,
-            kernel_path: "./resources/vmlinux".to_string(),
-            rootfs_path: "./resources/rootfs.ext4".to_string(),
+            kernel_path: "/path/to/vmlinux.bin".to_string(),
+            rootfs_path: "/path/to/rootfs.ext4".to_string(),
             enable_networking: false,
-            vsock_path: None,
-            #[cfg(target_os = "linux")]
             seccomp_filter: None,
         }
     }
@@ -56,15 +48,10 @@ impl Default for VmConfig {
 impl VmConfig {
     /// Create a new VM config with defaults
     pub fn new(vm_id: String) -> Self {
-        let mut config = Self {
+        Self {
             vm_id,
             ..Default::default()
-        };
-
-        // Generate vsock path
-        config.vsock_path = Some(format!("/tmp/ironclaw/vsock/{}.sock", config.vm_id));
-
-        config
+        }
     }
 
     /// Validate configuration
@@ -74,9 +61,6 @@ impl VmConfig {
         }
         if self.memory_mb < 128 {
             anyhow::bail!("Memory must be at least 128 MB");
-        }
-        if self.enable_networking {
-            anyhow::bail!("Networking MUST be disabled for security");
         }
         Ok(())
     }

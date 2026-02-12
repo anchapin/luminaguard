@@ -149,7 +149,6 @@ def run_loop(
         >>> state = run_loop("Read /tmp/test.txt", ["read_file"], client)
         >>> client.shutdown()
     """
-    print(f"\n🚀 Starting task: \033[1m{task}\033[0m")
     state = AgentState(
         messages=[{"role": "user", "content": task}], tools=tools, context={}
     )
@@ -159,15 +158,12 @@ def run_loop(
 
     while iteration < max_iterations:
         # Think about next action
-        print(f"\n🧠 Thinking... (Iteration {iteration + 1}/{max_iterations})")
         action = think(state)
 
         if action is None:
             # Task complete
-            print("\n✅ Task complete!")
             break
 
-        print(f"🛠️  Executing tool: \033[36m{action.name}\033[0m")
         # Execute tool (if MCP client provided)
         if mcp_client is not None:
             result = execute_tool(action, mcp_client)
