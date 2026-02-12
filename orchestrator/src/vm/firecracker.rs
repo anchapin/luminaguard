@@ -3,9 +3,14 @@
 // This module will handle the actual Firecracker VM spawning.
 
 use crate::vm::config::VmConfig;
-use anyhow::{anyhow, Context, Result};
+use anyhow::Result;
+#[cfg(unix)]
+use anyhow::{anyhow, Context};
+#[cfg(unix)]
 use serde::Serialize;
+#[cfg(unix)]
 use std::path::Path;
+#[cfg(unix)]
 use tracing::{debug, info, warn};
 
 #[cfg(unix)]
