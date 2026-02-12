@@ -6,7 +6,17 @@ Tests for Approval Cliff functionality
 import pytest
 import sys
 import os
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from loop import (
+    ToolCall,
+    ActionKind,
+    present_diff_card,
+    determine_action_kind,
+    GREEN_KEYWORDS,
+    RED_KEYWORDS,
+)
 
 
 class TestApprovalCliffUI:
