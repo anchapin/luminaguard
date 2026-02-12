@@ -105,6 +105,7 @@ pub async fn spawn_vm_with_config(task_id: &str, config: &VmConfig) -> Result<Vm
         process: Arc::new(Mutex::new(Some(process))),
         firewall_manager: Some(firewall_manager),
         spawn_time_ms: spawn_time,
+        config: config_with_seccomp,
     };
 
     #[cfg(not(target_os = "linux"))]
@@ -113,6 +114,7 @@ pub async fn spawn_vm_with_config(task_id: &str, config: &VmConfig) -> Result<Vm
         process: Arc::new(Mutex::new(Some(process))),
         firewall_manager: None,
         spawn_time_ms: spawn_time,
+        config: config_with_seccomp,
     };
 
     Ok(vm_handle)
@@ -185,8 +187,6 @@ mod tests {
         assert_eq!(expected_id, "task-123");
     }
 }
-<<<<<<< HEAD
-=======
 
 /// Unit tests for VmHandle
 #[cfg(all(test, unix))]
@@ -339,4 +339,3 @@ pub fn verify_network_isolation(handle: &VmHandle) -> Result<bool> {
 pub fn verify_network_isolation(_handle: &VmHandle) -> Result<bool> {
     Ok(false)
 }
->>>>>>> 1a7c698 (fix: Repair broken PR state (compilation, hashing, read-only))
