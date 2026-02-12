@@ -1,10 +1,9 @@
 // Firecracker Integration
 //
-// This module will handle the actual Firecracker VM spawning.
-// Placeholder for Phase 2 implementation.
+// This module handles the actual Firecracker VM spawning.
 
-use crate::vm::config::VmConfig;
 use anyhow::{anyhow, Context, Result};
+use crate::vm::config::VmConfig;
 use serde::Serialize;
 use std::path::Path;
 #[cfg(not(unix))]
@@ -25,38 +24,31 @@ use hyper::{Request, StatusCode};
 use hyper_util::rt::TokioIo;
 #[cfg(unix)]
 use tokio::net::UnixStream;
+use std::process::Stdio;
+use std::time::Instant;
 
 /// Firecracker VM process manager
 pub struct FirecrackerProcess {
     pub pid: u32,
     pub socket_path: String,
-    pub seccomp_path: String,
-    pub child_process: Option<Child>,
+    pub child: Option<Child>,
     pub spawn_time_ms: f64,
 }
 
-// Firecracker API structs
+impl Drop for FirecrackerProcess {
+    fn drop(&mut self) {
+        // Cleanup socket file
+        if Path::new(&self.socket_path).exists() {
+            let _ = std::fs::remove_file(&self.socket_path);
+        }
 
-#[derive(Serialize)]
-struct BootSource {
-    kernel_image_path: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    boot_args: Option<String>,
-}
-
-#[derive(Serialize)]
-struct Drive {
-    drive_id: String,
-    path_on_host: String,
-    is_root_device: bool,
-    is_read_only: bool,
-}
-
-#[derive(Serialize)]
-struct MachineConfiguration {
-    vcpu_count: u8,
-    mem_size_mib: u32,
-    // ht_enabled: bool, // Optional, defaults to false
+        // Ensure process is killed
+        if let Some(mut child) = self.child.take() {
+            // We can't await in Drop, but we can start kill.
+            // tokio::process::Child::start_kill() is non-blocking.
+            let _ = child.start_kill();
+        }
+    }
 }
 
 #[derive(Serialize)]
@@ -66,13 +58,7 @@ struct Vsock {
     uds_path: String,
 }
 
-#[derive(Serialize)]
-struct Action {
-    action_type: String,
-}
-
 /// Start a Firecracker VM process
-#[cfg(unix)]
 pub async fn start_firecracker(config: &VmConfig) -> Result<FirecrackerProcess> {
     info!("Starting Firecracker VM: {}", config.vm_id);
 
@@ -102,7 +88,7 @@ pub async fn start_firecracker(config: &VmConfig) -> Result<FirecrackerProcess> 
         // Firecracker requires filter if flag is passed.
     }
 
-    let start_time = std::time::Instant::now();
+    let start_time = Instant::now();
 
     // Spawn process
     let mut cmd = tokio::process::Command::new("firecracker");
@@ -113,9 +99,9 @@ pub async fn start_firecracker(config: &VmConfig) -> Result<FirecrackerProcess> 
     }
 
     // Redirect stdout/stderr to null to avoid noise
-    cmd.stdout(std::process::Stdio::null());
-    cmd.stderr(std::process::Stdio::null());
-    cmd.stdin(std::process::Stdio::null());
+    cmd.stdout(Stdio::null());
+    cmd.stderr(Stdio::null());
+    cmd.stdin(Stdio::null());
 
     let mut child = cmd.spawn().context("Failed to spawn firecracker")?;
 
@@ -154,38 +140,67 @@ pub async fn start_firecracker(config: &VmConfig) -> Result<FirecrackerProcess> 
     Ok(FirecrackerProcess {
         pid: child.id().unwrap_or(0),
         socket_path,
-        seccomp_path,
-        child_process: Some(child),
+        child: Some(child),
         spawn_time_ms,
     })
 }
 
 /// Stop a Firecracker VM process
-#[cfg(unix)]
 pub async fn stop_firecracker(mut process: FirecrackerProcess) -> Result<()> {
-    info!("Stopping Firecracker VM (PID: {})", process.pid);
+    tracing::info!("Stopping Firecracker VM (PID: {})", process.pid);
 
-    if let Some(mut child) = process.child_process.take() {
+    if let Some(mut child) = process.child.take() {
         // Send SIGTERM
         let _ = child.kill().await;
         // Wait for it to exit
         let _ = child.wait().await;
     }
 
-    // Cleanup socket
     if Path::new(&process.socket_path).exists() {
-        let _ = tokio::fs::remove_file(&process.socket_path).await;
+        let _ = std::fs::remove_file(&process.socket_path);
     }
 
     // Cleanup seccomp filter
-    if Path::new(&process.seccomp_path).exists() {
-        let _ = tokio::fs::remove_file(&process.seccomp_path).await;
+    let seccomp_path = format!("/tmp/firecracker_{}_seccomp.json",
+        process.socket_path
+            .rsplit('_')
+            .nth(1)
+            .unwrap_or(&process.socket_path)
+            .trim_start_matches("/tmp/firecracker_")
+    );
+    if Path::new(&seccomp_path).exists() {
+        let _ = tokio::fs::remove_file(&seccomp_path).await;
     }
 
     Ok(())
 }
 
 // Helper functions for API interaction
+
+#[derive(Serialize)]
+struct BootSource {
+    kernel_image_path: String,
+    boot_args: Option<String>,
+}
+
+#[derive(Serialize)]
+struct Drive {
+    drive_id: String,
+    path_on_host: String,
+    is_root_device: bool,
+    is_read_only: bool,
+}
+
+#[derive(Serialize)]
+struct MachineConfiguration {
+    vcpu_count: u8,
+    mem_size_mib: u32,
+}
+
+#[derive(Serialize)]
+struct Action {
+    action_type: String,
+}
 
 #[cfg(unix)]
 async fn send_request<T: Serialize>(
