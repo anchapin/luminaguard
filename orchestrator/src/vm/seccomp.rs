@@ -166,6 +166,21 @@ impl SeccompFilter {
             // Basic polling
             "poll",
             "ppoll",
+            // Networking (Required for VSOCK and API)
+            "socket",
+            "connect",
+            "bind",
+            "listen",
+            "accept",
+            "accept4",
+            "shutdown",
+            "getsockname",
+            "getpeername",
+            "socketpair",
+            "sendto",
+            "recvfrom",
+            "setsockopt",
+            "getsockopt",
         ]);
 
         whitelist
@@ -244,9 +259,6 @@ pub struct SeccompAuditEntry {
     /// Attack detected (multiple blocked syscalls from same VM)
     pub attack_detected: bool,
 }
-
-/// Maximum number of audit entries to keep in memory
-const MAX_SECCOMP_LOG_ENTRIES: usize = 10000;
 
 /// Seccomp audit log manager
 #[derive(Debug, Clone)]
@@ -655,10 +667,8 @@ mod tests {
 
         // These syscalls MUST NOT be allowed for security
         let dangerous = [
-            "socket",     // Network operations
-            "bind",       // Network operations
-            "listen",     // Network operations
-            "connect",    // Network operations
+            // Networking syscalls are allowed for VSOCK support
+            // "socket", "bind", "listen", "connect",
             "clone",      // Process creation
             "fork",       // Process creation
             "vfork",      // Process creation
@@ -674,6 +684,21 @@ mod tests {
             assert!(
                 !whitelist.contains(&sys),
                 "Dangerous syscall {} should be blocked",
+                sys
+            );
+        }
+    }
+
+    #[test]
+    fn test_networking_syscalls_allowed_in_basic() {
+        let filter = SeccompFilter::new(SeccompLevel::Basic);
+        let whitelist = filter.build_whitelist();
+
+        let networking = ["socket", "connect", "bind", "listen", "accept"];
+        for sys in &networking {
+            assert!(
+                whitelist.contains(&sys),
+                "Networking syscall {} should be allowed in Basic for VSOCK",
                 sys
             );
         }

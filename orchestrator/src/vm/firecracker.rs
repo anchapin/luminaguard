@@ -10,11 +10,17 @@ use hyper_util::rt::TokioIo;
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 use std::time::Instant;
+#[cfg(unix)]
 use tokio::net::UnixStream;
 use tokio::process::{Child, Command};
 use tracing::{debug, info};
 
 use crate::vm::config::VmConfig;
+
+#[cfg(unix)]
+type HttpSendRequest = hyper::client::conn::http1::SendRequest<Full<Bytes>>;
+#[cfg(unix)]
+type HttpConnection = hyper::client::conn::http1::Connection<TokioIo<UnixStream>, Full<Bytes>>;
 
 /// Firecracker VM process manager
 #[derive(Debug)]
@@ -51,6 +57,13 @@ struct MachineConfiguration {
 }
 
 #[derive(Serialize)]
+struct Vsock {
+    vsock_id: String,
+    guest_cid: u32,
+    uds_path: String,
+}
+
+#[derive(Serialize)]
 struct Action {
     action_type: String,
 }
@@ -79,9 +92,35 @@ pub async fn start_firecracker(config: &VmConfig) -> Result<FirecrackerProcess> 
             .context("Failed to remove existing socket")?;
     }
 
+    // Prepare seccomp filter
+    let seccomp_path = format!("/tmp/ironclaw/seccomp-{}.json", config.vm_id);
+    tokio::fs::create_dir_all("/tmp/ironclaw")
+        .await
+        .context("Failed to create temporary directory")?;
+
+    if let Some(filter) = &config.seccomp_filter {
+        let json = filter
+            .to_firecracker_json()
+            .context("Failed to serialize seccomp filter")?;
+        tokio::fs::write(&seccomp_path, json)
+            .await
+            .context("Failed to write seccomp filter")?;
+    } else {
+        // Create default basic filter
+        let filter =
+            crate::vm::seccomp::SeccompFilter::new(crate::vm::seccomp::SeccompLevel::Basic);
+        let json = filter
+            .to_firecracker_json()
+            .context("Failed to serialize default seccomp filter")?;
+        tokio::fs::write(&seccomp_path, json)
+            .await
+            .context("Failed to write default seccomp filter")?;
+    }
+
     // 3. Spawn Firecracker process
     let mut command = Command::new("firecracker");
     command.arg("--api-sock").arg(&socket_path);
+    command.arg("--seccomp-filter").arg(&seccomp_path);
 
     // Redirect stdout/stderr to null or log file to keep output clean
     command.stdout(std::process::Stdio::null());
@@ -135,6 +174,7 @@ pub async fn start_firecracker(config: &VmConfig) -> Result<FirecrackerProcess> 
     Ok(FirecrackerProcess {
         pid,
         socket_path,
+        seccomp_path,
         child_process: Some(child),
         spawn_time_ms,
     })
@@ -204,7 +244,7 @@ async fn send_request<T: Serialize>(
         Full::new(Bytes::from(""))
     };
 
-    let req = Request::builder()
+    let req: Request<Full<Bytes>> = Request::builder()
         .method(method)
         .uri(format!("http://localhost{}", path)) // Host header is required but ignored for unix socket
         .header("Content-Type", "application/json")
@@ -221,7 +261,11 @@ async fn send_request<T: Serialize>(
         Ok(())
     } else {
         let status = res.status();
-        let body_bytes: Bytes = res.collect().await?.to_bytes();
+        let collected = res
+            .collect()
+            .await
+            .context("Failed to read response body")?;
+        let body_bytes: Bytes = collected.to_bytes();
         let body_str = String::from_utf8_lossy(&body_bytes);
         Err(anyhow!("Firecracker API error: {} - {}", status, body_str))
     }
@@ -248,7 +292,7 @@ async fn configure_vm(socket_path: &str, config: &VmConfig) -> Result<()> {
         drive_id: "rootfs".to_string(),
         path_on_host: config.rootfs_path.clone(),
         is_root_device: true,
-        is_read_only: false,
+        is_read_only: true, // SECURITY: Must be read-only to prevent persistence
     };
     send_request(
         socket_path,
@@ -272,6 +316,29 @@ async fn configure_vm(socket_path: &str, config: &VmConfig) -> Result<()> {
     )
     .await
     .context("Failed to configure machine")?;
+
+    // 4. Set Vsock
+    if let Some(vsock_path) = &config.vsock_path {
+        // Ensure vsock directory exists
+        if let Some(parent) = Path::new(vsock_path).parent() {
+            tokio::fs::create_dir_all(parent)
+                .await
+                .context("Failed to create vsock directory")?;
+        }
+        // Ensure vsock socket doesn't exist (Firecracker will create it)
+        if Path::new(vsock_path).exists() {
+            let _ = tokio::fs::remove_file(vsock_path).await;
+        }
+
+        let vsock = Vsock {
+            vsock_id: "vsock0".to_string(),
+            guest_cid: 3,
+            uds_path: vsock_path.clone(),
+        };
+        send_request(socket_path, hyper::Method::PUT, "/vsock", Some(&vsock))
+            .await
+            .context("Failed to configure vsock")?;
+    }
 
     Ok(())
 }

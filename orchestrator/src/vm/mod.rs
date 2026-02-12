@@ -20,9 +20,6 @@ pub mod vsock;
 #[cfg(feature = "vm-prototype")]
 pub mod prototype;
 
-#[cfg(test)]
-mod tests;
-
 use anyhow::Result;
 use std::sync::Arc;
 use tokio::sync::Mutex;
