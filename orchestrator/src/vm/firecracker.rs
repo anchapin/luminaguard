@@ -19,6 +19,7 @@ use tracing::{debug, info, warn};
 use crate::vm::config::VmConfig;
 
 /// Represents a running Firecracker process
+#[derive(Debug)]
 pub struct FirecrackerProcess {
     child_process: Option<Child>,
     vm_id: String,
