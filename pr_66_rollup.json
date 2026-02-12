@@ -1,1 +1,0 @@
-{"statusCheckRollup":[{"__typename":"CheckRun","completedAt":"2026-02-11T17:02:46Z","conclusion":"SKIPPED","detailsUrl":"https://sourcery.ai","name":"Sourcery review","startedAt":"2026-02-11T17:02:46Z","status":"COMPLETED","workflowName":""}]}
