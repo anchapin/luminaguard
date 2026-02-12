@@ -217,8 +217,7 @@ class TestMcpClientLifecycle:
         mock_popen.side_effect = FileNotFoundError("cargo not found")
 
         client = McpClient("test", ["echo", "test"])
-        # Updated regex to match the new error message
-        with pytest.raises(McpError, match="Command not found"):
+        with pytest.raises(McpError, match="Failed to spawn orchestrator"):
             client.spawn()
 
     @patch("subprocess.Popen")
@@ -453,8 +452,7 @@ class TestMcpClientSendRequest:
 
         # Parse the written JSON
         written_data = mock_process.stdin.write.call_args[0][0]
-        # In text mode (default for Popen here), data is str, so no decode() needed
-        request = json.loads(written_data)
+        request = json.loads(written_data.decode())
 
         assert request["jsonrpc"] == "2.0"
         assert request["method"] == "test/method"
