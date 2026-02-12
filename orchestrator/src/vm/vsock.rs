@@ -9,8 +9,6 @@
 // - Low latency communication
 // - Secure by design (isolated communication channel)
 
-#![cfg(target_os = "linux")]
-
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;

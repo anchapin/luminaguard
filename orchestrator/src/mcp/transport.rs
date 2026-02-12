@@ -257,7 +257,6 @@ mod tests {
     use crate::mcp::protocol::McpError;
 
     // Helper to create a test request
-    #[allow(dead_code)] // Only used in Unix tests
     fn create_test_request(id: u64, method: &str) -> McpRequest {
         McpRequest::new(id, method, None)
     }

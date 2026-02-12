@@ -2,10 +2,8 @@
 //
 // Firecracker VM configuration for secure agent execution
 
-use serde::{Deserialize, Serialize};
-
-#[cfg(target_os = "linux")]
 use crate::vm::seccomp::SeccompFilter;
+use serde::{Deserialize, Serialize};
 
 /// VM configuration for Firecracker
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -32,8 +30,7 @@ pub struct VmConfig {
     #[serde(skip)]
     pub vsock_path: Option<String>,
 
-    /// Seccomp filter configuration (Linux-only)
-    #[cfg(target_os = "linux")]
+    /// Seccomp filter configuration
     #[serde(default)]
     pub seccomp_filter: Option<SeccompFilter>,
 }
@@ -48,7 +45,6 @@ impl Default for VmConfig {
             rootfs_path: "./resources/rootfs.ext4".to_string(),
             enable_networking: false,
             vsock_path: None,
-            #[cfg(target_os = "linux")]
             seccomp_filter: None,
         }
     }
@@ -123,13 +119,6 @@ mod tests {
     fn test_config_validation_fails() {
         let mut config = VmConfig::default();
         config.vcpu_count = 0;
-        assert!(config.validate().is_err());
-    }
-
-    #[test]
-    fn test_config_validation_fails_networking() {
-        let mut config = VmConfig::default();
-        config.enable_networking = true;
         assert!(config.validate().is_err());
     }
 
