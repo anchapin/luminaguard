@@ -109,7 +109,9 @@ pub async fn spawn_vm_with_config(task_id: &str, config: &VmConfig) -> Result<Vm
     };
 
     // Start Firecracker VM
-    let process = start_firecracker(&config_with_seccomp).await?;
+    // In Phase 2, we will serialize the config to JSON
+    // For now, we pass a dummy string to match the signature
+    let process = start_firecracker("{}").await?;
 
     let spawn_time = process.spawn_time_ms;
 

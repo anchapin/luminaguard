@@ -36,6 +36,18 @@ reqwest = { version = "0.12", features = ["json"] }
 # Random number generation (for retry jitter)
 rand = "0.8"
 
+# VM & IPC
+hyper = { version = "1.0", features = ["full"] }
+hyper-util = { version = "0.1", features = ["full"] }
+http-body-util = "0.1"
+bytes = "1.0"
+chrono = { version = "0.4", features = ["serde"] }
+
+# TUI (Phase 2)
+ratatui = "0.26"
+crossterm = "0.27"
+similar = "2.5"
+
 [dev-dependencies]
 # Property-based testing
 proptest = "1.4"

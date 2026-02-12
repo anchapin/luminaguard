@@ -9,6 +9,7 @@ use anyhow::Result;
 pub struct FirecrackerProcess {
     pub pid: u32,
     pub socket_path: String,
+    pub spawn_time_ms: f64,
 }
 
 /// Start a Firecracker VM process
@@ -27,6 +28,7 @@ pub async fn start_firecracker(_config: &str) -> Result<FirecrackerProcess> {
     Ok(FirecrackerProcess {
         pid: 0,
         socket_path: "/tmp/firecracker.sock".to_string(),
+        spawn_time_ms: 0.0,
     })
 }
 
