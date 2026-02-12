@@ -72,9 +72,6 @@ pub struct StdioTransport {
 
     /// Whether the transport is still connected
     connected: bool,
-
-    /// Reusable buffer for reading lines
-    line_buffer: String,
 }
 
 impl StdioTransport {
@@ -119,7 +116,6 @@ impl StdioTransport {
             stdout: BufReader::new(stdout),
             command: format!("{} {}", command, args.join(" ")),
             connected: true,
-            line_buffer: String::with_capacity(4096),
         })
     }
 

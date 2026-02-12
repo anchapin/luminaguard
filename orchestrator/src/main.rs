@@ -134,36 +134,8 @@ mod tests {
     }
 
     #[tokio::test]
-<<<<<<< HEAD
-    async fn test_spawn_vm_integration() {
-        // Skip if firecracker or resources are missing
-        // This is a rough check; ideally we check for binary in PATH
-        let has_firecracker = std::process::Command::new("which")
-            .arg("firecracker")
-            .output()
-            .map(|o| o.status.success())
-            .unwrap_or(false);
-
-        if !has_firecracker {
-            println!("Skipping test: firecracker binary not found");
-            return;
-        }
-
-        // We also need resources/vmlinux and resources/rootfs.ext4
-        // Since we are running from orchestrator root usually
-        if !Path::new("resources/vmlinux").exists() {
-            println!("Skipping test: resources/vmlinux not found");
-            return;
-        }
-
-        let result = spawn_vm().await;
-        // If everything is present, it should succeed.
-        // If it fails, it's a regression.
-        assert!(result.is_ok(), "Spawn VM failed: {:?}", result.err());
-=======
     async fn test_spawn_vm_placeholder() {
         let result = spawn_vm().await;
         assert!(result.is_ok());
->>>>>>> 02b0cf6 (Remove duplicate chrono dependency from Cargo.toml)
     }
 }

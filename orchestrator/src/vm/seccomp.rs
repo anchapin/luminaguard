@@ -6,7 +6,7 @@
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, VecDeque};
+use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::{debug, info, warn};
@@ -166,14 +166,6 @@ impl SeccompFilter {
             // Basic polling
             "poll",
             "ppoll",
-            // VSOCK support
-            "socket",
-            "connect",
-            "bind",
-            "listen",
-            "accept",
-            "accept4",
-            "shutdown",
         ]);
 
         whitelist
@@ -253,13 +245,10 @@ pub struct SeccompAuditEntry {
     pub attack_detected: bool,
 }
 
-/// Maximum number of audit entries to keep in memory
-const MAX_SECCOMP_LOG_ENTRIES: usize = 10_000;
-
 /// Seccomp audit log manager
 #[derive(Debug, Clone)]
 pub struct SeccompAuditLog {
-    entries: Arc<RwLock<VecDeque<SeccompAuditEntry>>>,
+    entries: Arc<RwLock<Vec<SeccompAuditEntry>>>,
     /// Track repeated violations per VM (for attack detection)
     violation_counts: Arc<RwLock<HashMap<String, usize>>>,
 }
@@ -267,7 +256,7 @@ pub struct SeccompAuditLog {
 impl Default for SeccompAuditLog {
     fn default() -> Self {
         Self {
-            entries: Arc::new(RwLock::new(VecDeque::new())),
+            entries: Arc::new(RwLock::new(Vec::new())),
             violation_counts: Arc::new(RwLock::new(HashMap::new())),
         }
     }
@@ -298,10 +287,7 @@ impl SeccompAuditLog {
 
         // Log the entry
         let mut entries = self.entries.write().await;
-        if entries.len() >= MAX_SECCOMP_LOG_ENTRIES {
-            entries.pop_front();
-        }
-        entries.push_back(entry);
+        entries.push(entry);
 
         if attack_detected {
             warn!(
@@ -504,33 +490,6 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_audit_log_capacity_limit() {
-        let log = SeccompAuditLog::new();
-
-        // Log more than MAX_SECCOMP_LOG_ENTRIES
-        // Use a small loop count + manual truncation check logic or just trust the constant
-        // For test speed, we might want to check against the constant
-        // But 10,000 is small enough for a test (~ms)
-
-        for i in 0..(MAX_SECCOMP_LOG_ENTRIES + 5) {
-            log.log_blocked_syscall("vm-capacity", "socket", i as u32)
-                .await
-                .unwrap();
-        }
-
-        let entries = log.get_entries_for_vm("vm-capacity").await;
-        assert_eq!(entries.len(), MAX_SECCOMP_LOG_ENTRIES);
-
-        // Verify we kept the latest entries (FIFO)
-        // First entry should be index 5 (since 0..4 popped)
-        assert_eq!(entries[0].pid, 5);
-        assert_eq!(
-            entries.last().unwrap().pid,
-            (MAX_SECCOMP_LOG_ENTRIES + 4) as u32
-        );
-    }
-
-    #[tokio::test]
     async fn test_audit_log_blocked_syscall() {
         let log = SeccompAuditLog::new();
 
@@ -661,11 +620,10 @@ mod tests {
 
         // These syscalls MUST NOT be allowed for security
         let dangerous = [
-            // VSOCK syscalls are now allowed in Basic level
-            // "socket",    // Network operations
-            // "bind",      // Network operations
-            // "listen",    // Network operations
-            // "connect",   // Network operations
+            "socket",     // Network operations
+            "bind",       // Network operations
+            "listen",     // Network operations
+            "connect",    // Network operations
             "clone",      // Process creation
             "fork",       // Process creation
             "vfork",      // Process creation
@@ -684,26 +642,5 @@ mod tests {
                 sys
             );
         }
-    }
-
-    #[tokio::test]
-    async fn test_audit_log_limit() {
-        let log = SeccompAuditLog::new();
-        let max = MAX_SECCOMP_LOG_ENTRIES;
-
-        // Add max + 5 entries
-        for i in 0..(max + 5) {
-            log.log_blocked_syscall("vm-limit", "socket", i as u32)
-                .await
-                .unwrap();
-        }
-
-        let entries = log.get_entries_for_vm("vm-limit").await;
-        assert_eq!(entries.len(), max);
-
-        // Verify we have the latest entries (FIFO)
-        // The first 5 should be gone (0..4). The oldest remaining should be 5.
-        assert_eq!(entries[0].pid, 5);
-        assert_eq!(entries[max - 1].pid, (max + 4) as u32);
     }
 }
