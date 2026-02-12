@@ -9,6 +9,8 @@
 // - Firewall rules persist across VM lifecycle
 // - Rules are automatically cleaned up on VM destruction
 
+#![cfg(target_os = "linux")]
+
 use anyhow::{Context, Result};
 use std::process::Command;
 use tracing::{info, warn};
@@ -28,9 +30,12 @@ impl FirewallManager {
     pub fn new(vm_id: String) -> Self {
         // Create a unique chain name for this VM
         // Sanitize vm_id to only contain alphanumeric characters
+        // and truncate to ensure chain name <= 28 chars (kernel limit)
+        // IRONCLAW_ is 9 chars, so we have 19 chars for the ID
         let sanitized_id: String = vm_id
             .chars()
-            .map(|c| if c.is_alphanumeric() { c } else { '_' })
+            .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
+            .take(19)
             .collect();
 
         let chain_name = format!("IRONCLAW_{}", sanitized_id);
@@ -74,6 +79,9 @@ impl FirewallManager {
         // Add rules to drop all traffic
         self.add_drop_rules()?;
 
+        // Link chain to system chains
+        self.link_chain()?;
+
         info!(
             "Firewall isolation configured for VM: {} (chain: {})",
             self.vm_id, self.chain_name
@@ -87,6 +95,9 @@ impl FirewallManager {
     /// This should be called when the VM is destroyed.
     pub fn cleanup(&self) -> Result<()> {
         info!("Cleaning up firewall rules for VM: {}", self.vm_id);
+
+        // Unlink chain from system chains
+        let _ = self.unlink_chain();
 
         // Flush and delete the chain
         self.flush_chain()?;
@@ -130,6 +141,68 @@ impl FirewallManager {
         let has_drop_rules = rules.contains("DROP");
 
         Ok(has_drop_rules)
+    }
+
+    /// Link chain to system chains (FORWARD)
+    fn link_chain(&self) -> Result<()> {
+        info!("Linking chain {} to FORWARD", self.chain_name);
+
+        // Use physdev match to limit scope to bridged traffic (VMs)
+        // This prevents blocking host traffic while ensuring VM isolation
+        let output = Command::new("iptables")
+            .args([
+                "-I",
+                "FORWARD",
+                "-m",
+                "physdev",
+                "--physdev-is-bridged",
+                "-j",
+                &self.chain_name,
+            ])
+            .output()
+            .context("Failed to link chain to FORWARD")?;
+
+        if !output.status.success() {
+            // Fallback: if physdev fails (e.g., kernel module missing),
+            // try generic link but warn about scope
+            warn!("Failed to link with physdev match, falling back to generic link");
+            let output = Command::new("iptables")
+                .args(["-I", "FORWARD", "-j", &self.chain_name])
+                .output()
+                .context("Failed to link chain to FORWARD (fallback)")?;
+
+            if !output.status.success() {
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                anyhow::bail!("Failed to link chain: {}", stderr);
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Unlink chain from system chains
+    fn unlink_chain(&self) -> Result<()> {
+        info!("Unlinking chain {} from FORWARD", self.chain_name);
+
+        // Try to delete physdev rule first
+        let _ = Command::new("iptables")
+            .args([
+                "-D",
+                "FORWARD",
+                "-m",
+                "physdev",
+                "--physdev-is-bridged",
+                "-j",
+                &self.chain_name,
+            ])
+            .output();
+
+        // Try to delete generic rule (in case fallback was used)
+        let _ = Command::new("iptables")
+            .args(["-D", "FORWARD", "-j", &self.chain_name])
+            .output();
+
+        Ok(())
     }
 
     /// Create a new iptables chain

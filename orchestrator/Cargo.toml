@@ -8,6 +8,10 @@ license = "MIT"
 repository = "https://github.com/your-username/ironclaw"
 readme = "../README.md"
 
+[features]
+default = []
+vm-prototype = []
+
 [dependencies]
 # Async runtime
 tokio = { version = "1.40", features = ["full"] }
@@ -36,17 +40,21 @@ reqwest = { version = "0.12", features = ["json"] }
 # Random number generation (for retry jitter)
 rand = "0.8"
 
-# Firecracker HTTP client
+# UUID generation
+uuid = { version = "1.0", features = ["v4"] }
+
+# Temporary directories (for rootfs builder)
+tempfile = "3.10"
+
+# Date and Time
+chrono = { version = "0.4", features = ["serde"] }
+
+# HTTP/Network (for Firecracker)
 hyper = { version = "1.0", features = ["full"] }
 hyper-util = { version = "0.1", features = ["full"] }
 http-body-util = "0.1"
-bytes = "1.0"
-
-# Time handling
-chrono = { version = "0.4", features = ["serde"] }
-
-# UUID generation
-uuid = { version = "1.0", features = ["v4"] }
+bytes = "1.5"
+tower-service = "0.3"
 
 [dev-dependencies]
 # Property-based testing
@@ -54,6 +62,8 @@ proptest = "1.4"
 
 # Testing utilities
 criterion = "0.8"
+assert_cmd = "2.0"
+predicates = "3.0"
 
 [lib]
 name = "ironclaw_orchestrator"
