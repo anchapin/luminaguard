@@ -1,10 +1,17 @@
 // Firecracker Integration
 //
+<<<<<<< HEAD
 // This module will handle the actual Firecracker VM spawning.
 // Placeholder for Phase 2 implementation.
 
 use crate::vm::config::VmConfig;
 use anyhow::{anyhow, Context, Result};
+=======
+// This module handles the actual Firecracker VM spawning.
+
+use anyhow::{anyhow, Context, Result};
+use crate::vm::config::VmConfig;
+>>>>>>> origin/main
 use serde::Serialize;
 use std::path::Path;
 #[cfg(not(unix))]
@@ -25,22 +32,174 @@ use hyper::{Request, StatusCode};
 use hyper_util::rt::TokioIo;
 #[cfg(unix)]
 use tokio::net::UnixStream;
+<<<<<<< HEAD
+=======
+use std::process::Stdio;
+use std::time::Instant;
+>>>>>>> origin/main
 
 /// Firecracker VM process manager
 pub struct FirecrackerProcess {
     pub pid: u32,
     pub socket_path: String,
+<<<<<<< HEAD
     pub seccomp_path: String,
     pub child_process: Option<Child>,
     pub spawn_time_ms: f64,
 }
 
 // Firecracker API structs
+=======
+    pub child: Option<Child>,
+    pub spawn_time_ms: f64,
+}
+
+impl Drop for FirecrackerProcess {
+    fn drop(&mut self) {
+        // Cleanup socket file
+        if Path::new(&self.socket_path).exists() {
+            let _ = std::fs::remove_file(&self.socket_path);
+        }
+
+        // Ensure process is killed
+        if let Some(mut child) = self.child.take() {
+            // We can't await in Drop, but we can start kill.
+            // tokio::process::Child::start_kill() is non-blocking.
+            let _ = child.start_kill();
+        }
+    }
+}
+
+#[derive(Serialize)]
+#[cfg(unix)]
+struct Vsock {
+    guest_cid: u32,
+    uds_path: String,
+}
+
+/// Start a Firecracker VM process
+pub async fn start_firecracker(config: &VmConfig) -> Result<FirecrackerProcess> {
+    info!("Starting Firecracker VM: {}", config.vm_id);
+
+    // Validate resources
+    if !Path::new(&config.kernel_path).exists() {
+        // Just warning for now to allow tests to run without resources
+        debug!("Kernel image not found at {}", config.kernel_path);
+    }
+
+    // Paths
+    let socket_path = format!("/tmp/firecracker_{}.sock", config.vm_id);
+    let seccomp_path = format!("/tmp/firecracker_{}_seccomp.json", config.vm_id);
+
+    // Cleanup stale socket
+    if Path::new(&socket_path).exists() {
+        let _ = tokio::fs::remove_file(&socket_path).await;
+    }
+
+    // Write seccomp filter
+    if let Some(filter) = &config.seccomp_filter {
+        let json = filter.to_firecracker_json()?;
+        tokio::fs::write(&seccomp_path, json)
+            .await
+            .context("Failed to write seccomp filter")?;
+    } else {
+        // Create empty filter or handle absence?
+        // Firecracker requires filter if flag is passed.
+    }
+
+    let start_time = Instant::now();
+
+    // Spawn process
+    let mut cmd = tokio::process::Command::new("firecracker");
+    cmd.args(["--api-sock", &socket_path]);
+
+    if config.seccomp_filter.is_some() {
+        cmd.args(["--seccomp-filter", &seccomp_path]);
+    }
+
+    // Redirect stdout/stderr to null to avoid noise
+    cmd.stdout(Stdio::null());
+    cmd.stderr(Stdio::null());
+    cmd.stdin(Stdio::null());
+
+    let mut child = cmd.spawn().context("Failed to spawn firecracker")?;
+
+    // Wait for socket to be ready
+    let mut retries = 50; // 500ms timeout
+    let mut socket_ready = false;
+    while retries > 0 {
+        if Path::new(&socket_path).exists() {
+            socket_ready = true;
+            break;
+        }
+        tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+        retries -= 1;
+    }
+
+    if !socket_ready {
+        let _ = child.kill().await;
+        anyhow::bail!("Firecracker socket failed to appear");
+    }
+
+    // Configure VM
+    if let Err(e) = configure_vm(&socket_path, config).await {
+        let _ = child.kill().await;
+        return Err(e.context("Failed to configure VM"));
+    }
+
+    // Start Instance
+    if let Err(e) = start_instance(&socket_path).await {
+        let _ = child.kill().await;
+        return Err(e.context("Failed to start instance"));
+    }
+
+    let spawn_time_ms = start_time.elapsed().as_secs_f64() * 1000.0;
+    info!("VM {} started in {:.2}ms", config.vm_id, spawn_time_ms);
+
+    Ok(FirecrackerProcess {
+        pid: child.id().unwrap_or(0),
+        socket_path,
+        child: Some(child),
+        spawn_time_ms,
+    })
+}
+
+/// Stop a Firecracker VM process
+pub async fn stop_firecracker(mut process: FirecrackerProcess) -> Result<()> {
+    tracing::info!("Stopping Firecracker VM (PID: {})", process.pid);
+
+    if let Some(mut child) = process.child.take() {
+        // Send SIGTERM
+        let _ = child.kill().await;
+        // Wait for it to exit
+        let _ = child.wait().await;
+    }
+
+    if Path::new(&process.socket_path).exists() {
+        let _ = std::fs::remove_file(&process.socket_path);
+    }
+
+    // Cleanup seccomp filter
+    let seccomp_path = format!("/tmp/firecracker_{}_seccomp.json",
+        process.socket_path
+            .rsplit('_')
+            .nth(1)
+            .unwrap_or(&process.socket_path)
+            .trim_start_matches("/tmp/firecracker_")
+    );
+    if Path::new(&seccomp_path).exists() {
+        let _ = tokio::fs::remove_file(&seccomp_path).await;
+    }
+
+    Ok(())
+}
+
+// Helper functions for API interaction
+>>>>>>> origin/main
 
 #[derive(Serialize)]
 struct BootSource {
     kernel_image_path: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
     boot_args: Option<String>,
 }
 
@@ -60,6 +219,7 @@ struct MachineConfiguration {
 }
 
 #[derive(Serialize)]
+<<<<<<< HEAD
 #[cfg(unix)]
 struct Vsock {
     guest_cid: u32,
@@ -187,6 +347,12 @@ pub async fn stop_firecracker(mut process: FirecrackerProcess) -> Result<()> {
 
 // Helper functions for API interaction
 
+=======
+struct Action {
+    action_type: String,
+}
+
+>>>>>>> origin/main
 #[cfg(unix)]
 async fn send_request<T: Serialize>(
     socket_path: &str,

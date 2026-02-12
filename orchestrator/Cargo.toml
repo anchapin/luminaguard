@@ -9,8 +9,7 @@ repository = "https://github.com/your-username/ironclaw"
 readme = "../README.md"
 
 [features]
-default = []
-vm-prototype = []
+default = ["vm-prototype"]
 
 [dependencies]
 # Async runtime
@@ -31,57 +30,21 @@ thiserror = "2.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 
-# Async traits (for test mocks)
-async-trait = "0.1"
-
-# HTTP client (for HTTP transport - Phase 2)
+# HTTP client (for MCP transport - Phase 2)
 reqwest = { version = "0.12", features = ["json"] }
+hyper = { version = "1.0", features = ["full"] }
+hyper-util = { version = "0.1", features = ["client", "http1", "client-legacy"] }
+http-body-util = { version = "0.1", features = ["full"] }
+bytes = "1.0"
 
 # Random number generation (for retry jitter)
 rand = "0.8"
 
-# Firecracker HTTP client
-hyper = { version = "1.0", features = ["full"] }
-hyper-util = { version = "0.1", features = ["full"] }
-http-body-util = "0.1"
-bytes = "1.0"
+# UUID generation
+uuid = { version = "1.0", features = ["v4"] }
 
 # Time handling
 chrono = { version = "0.4", features = ["serde"] }
 
-# UUID generation
-uuid = { version = "1.0", features = ["v4"] }
-
-# Temporary directories (for rootfs builder)
-tempfile = "3.10"
-
-[dev-dependencies]
-# Property-based testing
-proptest = "1.4"
-
-# Testing utilities
-criterion = "0.8"
-assert_cmd = "2.0"
-predicates = "3.0"
-
-[lib]
-name = "ironclaw_orchestrator"
-path = "src/lib.rs"
-
-[[bin]]
-name = "ironclaw"
-path = "src/main.rs"
-
-[profile.dev]
-opt-level = 0
-debug = true
-
-[profile.release]
-opt-level = 3
-lto = true
-codegen-units = 1
-strip = true
-
-[[bench]]
-name = "mcp_startup"
-harness = false
+# Agent execution (PR #40, #136)
+chrono = { version = "0.4", features = ["serde"] }
