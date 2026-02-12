@@ -12,8 +12,12 @@ pub mod config;
 pub mod seccomp;
 
 // Prototype module for feasibility testing
-#[cfg(feature = "vm-prototype")]
-pub mod prototype;
+// TODO: Add vm-prototype feature to Cargo.toml when prototype module is ready
+// #[cfg(feature = "vm-prototype")]
+// pub mod prototype;
+
+#[cfg(all(test, unix))]
+mod tests;
 
 use anyhow::Result;
 use std::sync::Arc;
@@ -21,12 +25,13 @@ use tokio::sync::Mutex;
 
 use crate::vm::config::VmConfig;
 use crate::vm::firecracker::{start_firecracker, stop_firecracker, FirecrackerProcess};
+use crate::vm::firewall::FirewallManager;
+#[cfg(unix)]
 use crate::vm::seccomp::{SeccompFilter, SeccompLevel};
 
 /// VM handle for managing lifecycle
 pub struct VmHandle {
     pub id: String,
-    #[allow(dead_code)] // Field is unused on Windows but required on Linux
     process: Arc<Mutex<Option<FirecrackerProcess>>>,
     pub spawn_time_ms: f64,
 }
@@ -99,26 +104,73 @@ pub async fn spawn_vm(task_id: &str) -> Result<VmHandle> {
 pub async fn spawn_vm_with_config(task_id: &str, config: &VmConfig) -> Result<VmHandle> {
     tracing::info!("Spawning VM for task: {}", task_id);
 
-    // Apply default seccomp filter if not specified (security best practice)
-    let config_with_seccomp = if config.seccomp_filter.is_none() {
-        let mut secured_config = config.clone();
-        secured_config.seccomp_filter = Some(SeccompFilter::new(SeccompLevel::Basic));
-        tracing::info!("Auto-enabling seccomp filter (Basic level) for security");
-        secured_config
-    } else {
-        config.clone()
-    };
+    #[cfg(unix)]
+    {
+        // Apply default seccomp filter if not specified (security best practice)
+        let config_with_seccomp = if config.seccomp_filter.is_none() {
+            let mut secured_config = config.clone();
+            secured_config.seccomp_filter = Some(SeccompFilter::new(SeccompLevel::Basic));
+            tracing::info!("Auto-enabling seccomp filter (Basic level) for security");
+            secured_config
+        } else {
+            config.clone()
+        };
 
-    // Start Firecracker VM
-    let process = start_firecracker(&config_with_seccomp).await?;
+        // Configure firewall to block all network traffic
+        let firewall_manager = FirewallManager::new(config_with_seccomp.vm_id.clone());
 
-    let spawn_time = process.spawn_time_ms;
+        // Apply firewall rules (may fail if not root)
+        match firewall_manager.configure_isolation() {
+            Ok(_) => {
+                tracing::info!(
+                    "Firewall isolation configured for VM: {}",
+                    config_with_seccomp.vm_id
+                );
+            }
+            Err(e) => {
+                tracing::debug!("Failed to configure firewall isolation: {}", e);
+            }
+        }
 
-    Ok(VmHandle {
-        id: task_id.to_string(),
-        process: Arc::new(Mutex::new(Some(process))),
-        spawn_time_ms: spawn_time,
-    })
+        // Verify firewall rules are active (if configured)
+        match firewall_manager.verify_isolation() {
+            Ok(true) => {
+                tracing::info!(
+                    "Firewall isolation verified for VM: {}",
+                    config_with_seccomp.vm_id
+                );
+            }
+            Ok(false) => {
+                tracing::debug!(
+                    "Firewall rules not active for VM: {}",
+                    config_with_seccomp.vm_id
+                );
+            }
+            Err(e) => {
+                tracing::debug!("Failed to verify firewall rules: {}", e);
+            }
+        }
+
+        // Start Firecracker VM
+        let process = start_firecracker(&config_with_seccomp).await?;
+
+        let spawn_time = process.spawn_time_ms;
+
+        Ok(VmHandle {
+            id: task_id.to_string(),
+            process: Arc::new(Mutex::new(Some(process))),
+            spawn_time_ms: spawn_time,
+            config: config.clone(),
+            firewall_manager: Some(firewall_manager),
+        })
+    }
+
+    #[cfg(not(unix))]
+    {
+        return Err(anyhow::anyhow!(
+            "VM spawning is not supported on this platform"
+        ));
+    }
 }
 
 /// Destroy a VM (ephemeral cleanup)
