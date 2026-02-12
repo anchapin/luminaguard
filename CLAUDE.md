@@ -30,11 +30,15 @@ The codebase follows a split architecture:
 
 ### Key Directories
 
-- `orchestrator/src/` - Rust source code (main.rs, vm/, mcp/, approval/)
+- `orchestrator/src/` - Rust source code
+  - `main.rs` - Entry point, CLI interface
+  - `vm/` - Micro-VM modules (firecracker, jailer, pool, snapshot, seccomp, firewall, vsock, config, rootfs)
+  - `mcp/` - MCP protocol client (transport, protocol, client, retry, http_transport)
+  - `approval/` - User approval UI for high-stakes actions
 - `agent/` - Python agent code (loop.py, tests/, .venv/)
-- `docs/` - Project documentation
-- `scripts/` - Development tooling (coverage-ratchet check, etc.)
-- `.github/workflows/` - CI/CD pipelines (quality gates, coverage ratchet)
+- `docs/` - Project documentation (architecture/, testing/, snapshot-pool-guide.md)
+- `scripts/` - Development tooling (coverage-ratchet check, git-workflow, branch-protection)
+- `.github/workflows/` - CI/CD pipelines (quality gates, coverage ratchet, Jules AI integration)
 - `.quint/` - FPF (Formal Proof Framework) reasoning context and decisions
 
 ### Just-in-Time (JIT) Micro-VMs
@@ -52,6 +56,8 @@ IronClaw is a native Model Context Protocol (MCP) client:
 - Connects to any standard MCP Server (Google Drive, Slack, GitHub, Postgres, etc.)
 - No proprietary "AgentSkills" or custom plugin systems
 - Leverages the growing enterprise MCP ecosystem
+- **Transport Layers**: stdio (implemented), HTTP (Phase 2)
+- **Protocol**: JSON-RPC 2.0 with exponential backoff retry logic
 
 ## Key Security Feature: The "Approval Cliff"
 
@@ -84,11 +90,24 @@ make install           # Install all dependencies (Rust, Python venv, pre-commit
 make test              # Run all tests (Rust + Python) + check invariants
 make test-rust         # Run Rust tests only (cargo test)
 make test-python       # Run Python tests only (pytest)
+
+# Run specific Rust tests
+cd orchestrator && cargo test --lib vm::      # Test VM module only
+cd orchestrator && cargo test --lib mcp::     # Test MCP module only
+
+# Run specific Python tests
+cd agent && .venv/bin/python -m pytest tests/test_specific.py -v
+
+# Property-based tests
+cd orchestrator && cargo test -- --nocapture  # Rust with output
+cd agent && .venv/bin/python -m pytest tests/ -v -k "test_"  # Python with filter
 ```
 
-**Python testing**: Tests are in `agent/tests/`, configured with Hypothesis for property-based testing. Run specific tests with `cd agent && .venv/bin/python -m pytest tests/test_specific.py -v`
+**Python testing**: Tests are in `agent/tests/`, configured with Hypothesis for property-based testing.
 
 **Rust testing**: Tests are co-located in `orchestrator/src/` with `#[cfg(test)]` modules. Uses Proptest for property-based testing.
+
+**VM Module Testing**: The VM module (`orchestrator/src/vm/`) includes integration tests that require Firecracker to be installed. These tests are automatically skipped if Firecracker is not available.
 
 ### Current Test Coverage
 
@@ -150,6 +169,116 @@ client.shutdown()
 - And many more: https://github.com/modelcontextprotocol/servers
 
 **Security Note:** All commands are validated for shell injection prevention. Only known-safe commands (npx, python, node, cargo) are allowed by default.
+
+**Rust MCP Client (Orchestrator):**
+```rust
+use ironclaw_orchestrator::mcp::McpClient;
+
+// Create client (stdio transport)
+let mut client = McpClient::connect_stdio(
+    "filesystem",
+    &["npx", "-y", "@modelcontextprotocol/server-filesystem", "/tmp"]
+).await?;
+
+// Initialize
+client.initialize().await?;
+
+// List tools
+let tools = client.list_tools().await?;
+
+// Call tool
+let result = client.call_tool("read_file", json!({"path": "test.txt"})).await?;
+
+// Shutdown
+client.shutdown().await?;
+```
+
+### VM Module Architecture
+
+The Rust VM module (`orchestrator/src/vm/`) provides comprehensive Micro-VM management:
+
+**Core Modules:**
+- `firecracker.rs` - Firecracker process lifecycle (start/stop via HTTP API)
+- `jailer/` - Enhanced security sandboxing (chroot, cgroups, namespaces, privilege drop)
+- `pool.rs` - Snapshot pooling for fast VM spawn (10-50ms target)
+- `snapshot.rs` - VM snapshot creation/loading (Phase 2: Firecracker API integration)
+- `seccomp.rs` - Syscall filtering (99% of syscalls blocked at Basic level)
+- `firewall.rs` - Network isolation via iptables rules
+- `vsock.rs` - Virtio-vsock communication between host and guest
+- `config.rs` - VM configuration (kernel, rootfs, memory, CPU)
+- `rootfs/` - Root filesystem management and hardening
+
+**Security Layers (Defense in Depth):**
+1. **Rust Memory Safety** - No buffer overflows, use-after-free
+2. **Micro-VM Isolation** - KVM-based virtualization, separate kernel context
+3. **Jailer Sandbox** - chroot, cgroups, namespaces, UID/GID separation
+4. **Seccomp Filters** - Syscall whitelisting (Basic/Advanced/Strict levels)
+5. **Firewall Rules** - Network isolation (iptables)
+6. **Approval Cliff** - Human-in-the-loop for destructive actions
+
+**VM Spawn API:**
+```rust
+use ironclaw_orchestrator::vm;
+
+// Basic spawn (auto-enables seccomp Basic filter)
+let handle = vm::spawn_vm("my-task").await?;
+println!("VM {} spawned in {:.2}ms", handle.id, handle.spawn_time_ms);
+
+// Custom config with seccomp
+use ironclaw_orchestrator::vm::{config::VmConfig, seccomp::{SeccompFilter, SeccompLevel}};
+
+let config = VmConfig::new("my-task".to_string());
+let config_with_seccomp = VmConfig {
+    seccomp_filter: Some(SeccompFilter::new(SeccompLevel::Basic)),
+    ..config
+};
+let handle = vm::spawn_vm_with_config("my-task", &config_with_seccomp).await?;
+
+// Jailed spawn (enhanced security)
+use ironclaw_orchestrator::vm::jailer::JailerConfig;
+
+let jailer_config = JailerConfig::new("my-task".to_string())
+    .with_user(1000, 1000); // Run as non-root user
+let handle = vm::spawn_vm_jailed("my-task", &config, &jailer_config).await?;
+
+// Destroy VM (required for security)
+vm::destroy_vm(handle).await?;
+```
+
+**Snapshot Pool API:**
+```rust
+use ironclaw_orchestrator::vm;
+
+// Warm up pool on startup (pre-creates 5 snapshots)
+vm::warmup_pool().await?;
+
+// Get pool statistics
+let stats = vm::pool_stats().await?;
+println!("Pool size: {}/{}", stats.current_size, stats.max_size);
+
+// Spawn VM automatically uses pool (10-50ms target)
+let handle = vm::spawn_vm("task").await?; // Uses pool if available
+```
+
+**Environment Variables (VM Configuration):**
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `IRONCLAW_POOL_SIZE` | `5` | Number of snapshots to maintain (1-20) |
+| `IRONCLAW_SNAPSHOT_REFRESH_SECS` | `3600` | Refresh interval in seconds (min: 60) |
+| `IRONCLAW_SNAPSHOT_PATH` | `/var/lib/ironclaw/snapshots` | Snapshot storage location |
+
+**VM Module Status:**
+- ✅ Basic Firecracker integration (~110ms spawn time)
+- ✅ Jailer sandboxing (chroot, cgroups, namespaces)
+- ✅ Seccomp filters (Basic level auto-enabled)
+- ✅ Firewall isolation (iptables rules)
+- ✅ Snapshot pooling (prototype, Phase 2: Firecracker API integration)
+- ⏳ HTTP transport for MCP (Phase 2)
+
+**Documentation:**
+- `docs/snapshot-pool-guide.md` - Complete snapshot pool documentation
+- `docs/architecture/architecture.md` - System architecture details
+- `docs/testing/testing.md` - Testing strategy and coverage
 
 ### Code Quality
 ```bash
@@ -479,3 +608,20 @@ IronClaw aims to position between:
 - `orchestrator/Cargo.toml` - Rust dependencies and build config
 - `.pre-commit-config.yaml` - Pre-commit hooks (formatting, linting, quality gates)
 - `.coverage-baseline.json` - Coverage ratchet baseline (enforced via CI)
+
+## FPF (Formal Proof Framework) Integration
+
+IronClaw uses the Quint FPF system for rigorous architecture decision-making. Available skills:
+
+- `q0-init` - Initialize FPF context (bounded context, vocabulary, invariants)
+- `q1-hypothesize` - Generate hypotheses via abduction
+- `q2-verify` - Verify logic via deduction (L0 → L1)
+- `q3-validate` - Validate via induction (L1 → L2)
+- `q4-audit` - Audit evidence (trust calculus)
+- `q5-decide` - Finalize decision (DRR)
+- `q-status` - Show current FPF phase and context
+- `q-actualize` - Reconcile FPF state with repository changes
+
+**Decision Records:** Architecture decisions are stored in `.quint/decisions/` with formal reasoning trace.
+
+**Documentation:** See `docs/jules-github-integration-guide.md` for Jules AI agent integration.
