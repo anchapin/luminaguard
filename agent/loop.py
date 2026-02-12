@@ -41,6 +41,51 @@ class ActionKind(Enum):
     RED = "red"  # Requires approval: destructive, external
 
 
+# Keywords for automatic action classification
+GREEN_KEYWORDS = [
+    "read",
+    "list",
+    "search",
+    "check",
+    "get",
+    "show",
+    "view",
+    "display",
+    "find",
+    "locate",
+    "query",
+    "fetch",
+    "inspect",
+    "examine",
+    "monitor",
+    "status",
+    "info",
+    "help",
+]
+
+RED_KEYWORDS = [
+    "delete",
+    "remove",
+    "write",
+    "edit",
+    "modify",
+    "create",
+    "update",
+    "change",
+    "send",
+    "post",
+    "transfer",
+    "execute",
+    "run",
+    "deploy",
+    "install",
+    "uninstall",
+    "commit",
+    "push",
+    "publish",
+]
+
+
 @dataclass
 class ToolCall:
     """A tool call request"""
@@ -48,6 +93,76 @@ class ToolCall:
     name: str
     arguments: Dict[str, Any]
     action_kind: ActionKind
+
+
+def determine_action_kind(message: str) -> ActionKind:
+    """
+    Determine if an action is GREEN (autonomous) or RED (requires approval).
+
+    This function uses keyword matching to classify actions based on safety.
+    Unknown actions default to RED for safety (fail-secure).
+
+    Args:
+        message: The action description or tool name
+
+    Returns:
+        ActionKind.GREEN if the action is safe, ActionKind.RED otherwise
+
+    Examples:
+        >>> determine_action_kind("read_file")
+        <ActionKind.GREEN: 'green'>
+        >>> determine_action_kind("delete_file")
+        <ActionKind.RED: 'red'>
+    """
+    message_lower = message.lower()
+
+    # Check for red keywords first (more restrictive)
+    for keyword in RED_KEYWORDS:
+        if keyword in message_lower:
+            return ActionKind.RED
+
+    # Check for green keywords
+    for keyword in GREEN_KEYWORDS:
+        if keyword in message_lower:
+            return ActionKind.GREEN
+
+    # Default: RED (safe by default)
+    return ActionKind.RED
+
+
+def present_diff_card(action: ToolCall) -> bool:
+    """
+    Present the Diff Card UI for an action requiring approval.
+
+    This is the Python-side implementation of the Approval Cliff UI.
+    Green actions auto-approve, Red actions require user approval.
+
+    Args:
+        action: The ToolCall to present
+
+    Returns:
+        True if approved, False otherwise
+
+    Note:
+        In Phase 1, this is a simplified version.
+        Phase 2 will integrate with the Rust Orchestrator's TUI/GUI.
+
+    Examples:
+        >>> green_action = ToolCall("read_file", {"path": "test.txt"}, ActionKind.GREEN)
+        >>> present_diff_card(green_action)
+        True
+
+        >>> red_action = ToolCall("delete_file", {"path": "test.txt"}, ActionKind.RED)
+        >>> # Would prompt user in real implementation
+    """
+    if action.action_kind == ActionKind.GREEN:
+        # Green actions auto-approve
+        return True
+    else:
+        # Red actions require approval
+        # TODO: Phase 2 - Integrate with Rust orchestrator for TUI/GUI
+        # For now, reject to be safe
+        return False
 
 
 @dataclass
