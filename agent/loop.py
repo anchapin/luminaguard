@@ -259,7 +259,7 @@ def think(
     return tool_call
 
 
-def execute_tool(call: ToolCall, mcp_client: McpClient) -> Dict[str, Any]:
+def execute_tool(call: ToolCall, mcp_client) -> Dict[str, Any]:
     """
     Execute a tool via MCP connection.
 
