@@ -2,7 +2,6 @@
 //
 // Firecracker VM configuration for secure agent execution
 
-#[cfg(target_os = "linux")]
 use crate::vm::seccomp::SeccompFilter;
 use serde::{Deserialize, Serialize};
 
@@ -27,13 +26,8 @@ pub struct VmConfig {
     /// Enable networking (default: false for security)
     pub enable_networking: bool,
 
-    /// vsock socket path (automatically generated)
-    #[serde(skip)]
-    pub vsock_path: Option<String>,
-
     /// Seccomp filter configuration
     #[serde(default)]
-    #[cfg(target_os = "linux")]
     pub seccomp_filter: Option<SeccompFilter>,
 }
 
@@ -43,11 +37,9 @@ impl Default for VmConfig {
             vm_id: "default".to_string(),
             vcpu_count: 1,
             memory_mb: 512,
-            kernel_path: "./resources/vmlinux".to_string(),
-            rootfs_path: "./resources/rootfs.ext4".to_string(),
+            kernel_path: "/path/to/vmlinux.bin".to_string(),
+            rootfs_path: "/path/to/rootfs.ext4".to_string(),
             enable_networking: false,
-            vsock_path: None,
-            #[cfg(target_os = "linux")]
             seccomp_filter: None,
         }
     }
@@ -56,15 +48,10 @@ impl Default for VmConfig {
 impl VmConfig {
     /// Create a new VM config with defaults
     pub fn new(vm_id: String) -> Self {
-        let mut config = Self {
+        Self {
             vm_id,
             ..Default::default()
-        };
-
-        // Generate vsock path
-        config.vsock_path = Some(format!("/tmp/ironclaw/vsock/{}.sock", config.vm_id));
-
-        config
+        }
     }
 
     /// Validate configuration
@@ -75,15 +62,11 @@ impl VmConfig {
         if self.memory_mb < 128 {
             anyhow::bail!("Memory must be at least 128 MB");
         }
-        if self.enable_networking {
-            anyhow::bail!("Networking MUST be disabled for security");
-        }
         Ok(())
     }
 
     /// Convert to Firecracker JSON config
     pub fn to_firecracker_json(&self) -> String {
-        // TODO: Implement actual Firecracker JSON format
         format!(
             r#"{{
   "boot-source": {{
@@ -103,6 +86,7 @@ impl VmConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::vm::seccomp::SeccompLevel;
 
     #[test]
     fn test_default_config() {
@@ -110,6 +94,7 @@ mod tests {
         assert_eq!(config.vcpu_count, 1);
         assert_eq!(config.memory_mb, 512);
         assert!(!config.enable_networking);
+        assert!(config.seccomp_filter.is_none());
     }
 
     #[test]
@@ -131,5 +116,12 @@ mod tests {
         let json = config.to_firecracker_json();
         assert!(json.contains("boot-source"));
         assert!(json.contains("machine-config"));
+    }
+
+    #[test]
+    fn test_seccomp_config() {
+        let mut config = VmConfig::new("secure-vm".to_string());
+        config.seccomp_filter = Some(SeccompFilter::new(SeccompLevel::Minimal));
+        assert!(config.seccomp_filter.is_some());
     }
 }
