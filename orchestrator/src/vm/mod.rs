@@ -7,10 +7,10 @@
 // - Ephemeral: VM destroyed after task completion
 // - Security: No host execution, full isolation
 
-pub mod firecracker;
 pub mod config;
-pub mod seccomp;
+pub mod firecracker;
 pub mod firewall;
+pub mod seccomp;
 
 // Prototype module for feasibility testing
 #[cfg(feature = "vm-prototype")]

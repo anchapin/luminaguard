@@ -3,28 +3,28 @@
 // This module will handle the actual Firecracker VM spawning.
 // Placeholder for Phase 2 implementation.
 
-use anyhow::{Result, Context, anyhow};
-#[cfg(unix)]
-use tokio::process::Child;
+use crate::vm::config::VmConfig;
+use anyhow::{anyhow, Context, Result};
+use serde::Serialize;
+use std::path::Path;
 #[cfg(not(unix))]
 use std::process::Child;
-use std::path::Path;
-use serde::Serialize;
-use tracing::{info, debug};
-use crate::vm::config::VmConfig;
+#[cfg(unix)]
+use tokio::process::Child;
+use tracing::{debug, info};
 
 #[cfg(unix)]
-use tokio::net::UnixStream;
+use bytes::Bytes;
 #[cfg(unix)]
-use hyper_util::rt::TokioIo;
+use http_body_util::{BodyExt, Full};
 #[cfg(unix)]
-use hyper::client::conn::http1::{SendRequest as HttpSendRequest, Connection as HttpConnection};
-#[cfg(unix)]
-use http_body_util::{Full, BodyExt};
+use hyper::client::conn::http1::{Connection as HttpConnection, SendRequest as HttpSendRequest};
 #[cfg(unix)]
 use hyper::{Request, StatusCode};
 #[cfg(unix)]
-use bytes::Bytes;
+use hyper_util::rt::TokioIo;
+#[cfg(unix)]
+use tokio::net::UnixStream;
 
 /// Firecracker VM process manager
 pub struct FirecrackerProcess {
@@ -299,14 +299,9 @@ async fn configure_vm(socket_path: &str, config: &VmConfig) -> Result<()> {
         guest_cid: 3,
         uds_path: vsock_path,
     };
-    send_request(
-        socket_path,
-        hyper::Method::PUT,
-        "/vsock",
-        Some(&vsock),
-    )
-    .await
-    .context("Failed to configure vsock")?;
+    send_request(socket_path, hyper::Method::PUT, "/vsock", Some(&vsock))
+        .await
+        .context("Failed to configure vsock")?;
 
     Ok(())
 }
@@ -363,8 +358,9 @@ mod tests {
                 || msg.contains("firecracker socket failed to appear")
                 || msg.contains("failed to configure vm")  // Generic config error, likely missing resources
                 || msg.contains("no such file")  // Missing file/path
-                || msg.contains("permission denied")  // Can't access resources
-                {
+                || msg.contains("permission denied")
+            // Can't access resources
+            {
                 println!("Skipping test (Firecracker resources unavailable): {}", msg);
                 return;
             }
