@@ -32,7 +32,6 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
-import time
 from typing import Any, Dict, List, Optional
 from dataclasses import dataclass
 from enum import Enum
@@ -174,6 +173,8 @@ class McpClient:
 
         if base_name not in safe_commands:
             # Log warning but don't fail - user may have custom setup
+            import sys
+
             print(
                 f"Warning: Command '{base_name}' not in known-safe list. "
                 f"Ensure this command is trusted and does not accept untrusted input.",
@@ -283,6 +284,8 @@ class McpClient:
 
         # Wait briefly for process to start
         # (In production, would check if process is ready)
+        import time
+
         time.sleep(0.1)
 
         self._state = McpState.CONNECTED
@@ -417,7 +420,7 @@ class McpClient:
         self.initialize()
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, _exc_type, _exc_val, _exc_tb):
         """Context manager exit"""
         self.shutdown()
         return False
@@ -430,6 +433,7 @@ def main():
     Usage:
         python -m agent.mcp_client
     """
+    import sys
     import tempfile
 
     print("IronClaw MCP Client - Test")
