@@ -13,11 +13,12 @@ pub mod config;
 pub mod firecracker;
 pub mod firewall;
 pub mod seccomp;
+#[cfg(unix)]
 pub mod vsock;
 
 // Prototype module for feasibility testing
 #[allow(unexpected_cfgs)]
-#[cfg(feature = "vm-prototype")]
+#[cfg(all(feature = "vm-prototype", unix))]
 pub mod prototype;
 
 #[cfg(test)]
@@ -250,3 +251,4 @@ pub fn verify_network_isolation(handle: &VmHandle) -> Result<bool> {
         Ok(false)
     }
 }
+ 
