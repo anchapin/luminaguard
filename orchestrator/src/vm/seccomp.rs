@@ -226,8 +226,7 @@ impl SeccompFilter {
             }
         });
 
-        serde_json::to_string_pretty(&filter)
-            .context("Failed to serialize seccomp filter")
+        serde_json::to_string_pretty(&filter).context("Failed to serialize seccomp filter")
     }
 }
 
@@ -272,12 +271,7 @@ impl SeccompAuditLog {
     }
 
     /// Log a blocked syscall
-    pub async fn log_blocked_syscall(
-        &self,
-        vm_id: &str,
-        syscall: &str,
-        pid: u32,
-    ) -> Result<()> {
+    pub async fn log_blocked_syscall(&self, vm_id: &str, syscall: &str, pid: u32) -> Result<()> {
         let entry = SeccompAuditEntry {
             vm_id: vm_id.to_string(),
             syscall: syscall.to_string(),
@@ -306,7 +300,10 @@ impl SeccompAuditLog {
                 vm_id, count
             );
         } else {
-            debug!("Blocked syscall in VM {}: {} (count: {})", vm_id, syscall, count);
+            debug!(
+                "Blocked syscall in VM {}: {} (count: {})",
+                vm_id, syscall, count
+            );
         }
 
         Ok(())
@@ -390,7 +387,10 @@ pub fn validate_seccomp_rules(filter: &SeccompFilter) -> Result<()> {
         }
     }
 
-    info!("Seccomp filter validation passed: {} syscalls allowed", whitelist.len());
+    info!(
+        "Seccomp filter validation passed: {} syscalls allowed",
+        whitelist.len()
+    );
 
     Ok(())
 }
@@ -415,12 +415,11 @@ mod tests {
 
     #[test]
     fn test_seccomp_filter_add_rule() {
-        let filter = SeccompFilter::default()
-            .add_rule(SyscallRule {
-                name: "test_syscall".to_string(),
-                action: SeccompAction::Allow,
-                rationale: "For testing".to_string(),
-            });
+        let filter = SeccompFilter::default().add_rule(SyscallRule {
+            name: "test_syscall".to_string(),
+            action: SeccompAction::Allow,
+            rationale: "For testing".to_string(),
+        });
 
         assert_eq!(filter.custom_rules.len(), 1);
         assert_eq!(filter.custom_rules[0].name, "test_syscall");
@@ -615,8 +614,14 @@ mod tests {
         let basic_count = basic.build_whitelist().len();
         let perm_count = permissive.build_whitelist().len();
 
-        assert!(min_count < basic_count, "Minimal should be smaller than Basic");
-        assert!(basic_count < perm_count, "Basic should be smaller than Permissive");
+        assert!(
+            min_count < basic_count,
+            "Minimal should be smaller than Basic"
+        );
+        assert!(
+            basic_count < perm_count,
+            "Basic should be smaller than Permissive"
+        );
     }
 
     // Property-based test: ensure minimal contains required syscalls
@@ -630,7 +635,11 @@ mod tests {
             let required = ["read", "write", "exit", "exit_group", "mmap"];
 
             for sys in &required {
-                assert!(whitelist.contains(&sys), "Required syscall {} not found in whitelist", sys);
+                assert!(
+                    whitelist.contains(&sys),
+                    "Required syscall {} not found in whitelist",
+                    sys
+                );
             }
         }
     }
@@ -643,23 +652,27 @@ mod tests {
 
         // These syscalls MUST NOT be allowed for security
         let dangerous = [
-            "socket",    // Network operations
-            "bind",      // Network operations
-            "listen",    // Network operations
-            "connect",   // Network operations
-            "clone",     // Process creation
-            "fork",      // Process creation
-            "vfork",     // Process creation
-            "execve",    // Execute programs
-            "mount",     // Filesystem mounting
-            "umount",    // Filesystem operations
-            "reboot",    // System reboot
-            "ptrace",    // Process tracing
+            "socket",     // Network operations
+            "bind",       // Network operations
+            "listen",     // Network operations
+            "connect",    // Network operations
+            "clone",      // Process creation
+            "fork",       // Process creation
+            "vfork",      // Process creation
+            "execve",     // Execute programs
+            "mount",      // Filesystem mounting
+            "umount",     // Filesystem operations
+            "reboot",     // System reboot
+            "ptrace",     // Process tracing
             "kexec_load", // Load new kernel
         ];
 
         for sys in &dangerous {
-            assert!(!whitelist.contains(&sys), "Dangerous syscall {} should be blocked", sys);
+            assert!(
+                !whitelist.contains(&sys),
+                "Dangerous syscall {} should be blocked",
+                sys
+            );
         }
     }
 }

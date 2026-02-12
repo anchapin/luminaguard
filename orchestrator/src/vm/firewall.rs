@@ -14,7 +14,6 @@ use std::process::Command;
 use tracing::{info, warn};
 
 /// Firewall manager for VM network isolation
-#[derive(Debug)]
 pub struct FirewallManager {
     vm_id: String,
     chain_name: String,
@@ -31,19 +30,10 @@ impl FirewallManager {
         // Sanitize vm_id to only contain alphanumeric characters
         let sanitized_id: String = vm_id
             .chars()
-            .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
+            .map(|c| if c.is_alphanumeric() { c } else { '_' })
             .collect();
 
-        // Calculate deterministic hash of the FULL vm_id to ensure uniqueness even if prefixes match
-        // We implement a simple FNV-1a hash inline to avoid external dependencies
-        // and ensure stability across process restarts (unlike DefaultHasher).
-        let hash = Self::fnv1a_hash(&vm_id);
-
-        // Truncate sanitized ID to 10 chars to leave room for hash (8 chars) + separators
-        // Chain name format: IRONCLAW_<prefix>_<hash> (max 28 chars)
-        // IRONCLAW_ (9) + prefix (10) + _ (1) + hash (8) = 28
-        let prefix: String = sanitized_id.chars().take(10).collect();
-        let chain_name = format!("IRONCLAW_{}_{:08x}", prefix, hash as u32); // Use lower 32 bits for 8 hex chars
+        let chain_name = format!("IRONCLAW_{}", sanitized_id);
 
         Self { vm_id, chain_name }
     }
@@ -309,10 +299,7 @@ mod tests {
         // Test that special characters are sanitized
         let manager = FirewallManager::new("test-vm@123#456".to_string());
         assert_eq!(manager.vm_id(), "test-vm@123#456");
-        // Chain name contains truncated prefix (10 chars)
-        // sanitized: test_vm_123_456 (15 chars)
-        // prefix: test_vm_12
-        assert!(manager.chain_name().contains("test_vm_12"));
+        assert!(manager.chain_name().contains("test_vm_123_456"));
         assert!(!manager.chain_name().contains('@'));
         assert!(!manager.chain_name().contains('#'));
     }
