@@ -86,9 +86,23 @@ These assets are **not** automatically downloaded (prototype limitation).
    mkdir -p /tmp/ironclaw-fc-test
    cd /tmp/ironclaw-fc-test
 
-   # Download official Firecracker kernel
-   wget https://s3.amazonaws.com/spec.ccfc.min/images/terraform/aws-k8s-1.23/test-1.23-x86_64/kernel.bin
-   mv kernel.bin vmlinux.bin
+   # Automated download (recommended)
+   ARCH="$(uname -m)"
+   release_url="https://github.com/firecracker-microvm/firecracker/releases"
+   latest_version=$(basename $(curl -fsSLI -o /dev/null -w %{url_effective} ${release_url}/latest))
+   CI_VERSION=${latest_version%.*}
+
+   # Find latest kernel
+   latest_kernel_key=$(curl "http://spec.ccfc.min.s3.amazonaws.com/?prefix=firecracker-ci/$CI_VERSION/$ARCH/vmlinux-&list-type=2" \
+       | grep -oP "(?<=<Key>)(firecracker-ci/$CI_VERSION/$ARCH/vmlinux-[0-9]+\.[0-9]+\.[0-9]{1,3})(?=</Key>)" \
+       | sort -V | tail -1)
+
+   # Download and symlink
+   wget "https://s3.amazonaws.com/spec.ccfc.min/${latest_kernel_key}"
+   ln -s $(basename ${latest_kernel_key}) vmlinux.bin
+
+   # Manual method: Visit https://s3.amazonaws.com/spec.ccfc.min/?prefix=firecracker-ci/
+   # and download the latest vmlinux-* file for your architecture
    ```
 
 2. **Create minimal rootfs:**
@@ -155,10 +169,17 @@ orchestrator/src/vm/prototype/
 
 Install Firecracker:
 ```bash
-# Download release
-wget https://github.com/firecracker-microvm/firecracker/releases/download/v1.7.0/firecracker-v1.7.0-x86_64
-chmod +x firecracker-v1.7.0-x86_64
-sudo mv firecracker-v1.7.0-x86_64 /usr/local/bin/firecracker
+# Download latest release
+ARCH="$(uname -m)"
+release_url="https://github.com/firecracker-microvm/firecracker/releases/latest"
+wget $(curl -sL $release_url | grep "browser_download_url.*$ARCH\"" | cut -d '"' -f 2)
+chmod +x firecracker-*
+sudo mv firecracker-* /usr/local/bin/firecracker
+
+# Or specific version (e.g., v1.14.1)
+wget https://github.com/firecracker-microvm/firecracker/releases/download/v1.14.1/firecracker-v1.14.1-x86_64
+chmod +x firecracker-v1.14.1-x86_64
+sudo mv firecracker-v1.14.1-x86_64 /usr/local/bin/firecracker
 ```
 
 ### "KVM not available"

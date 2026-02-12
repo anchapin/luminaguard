@@ -55,6 +55,9 @@ enum Commands {
         #[arg(long)]
         list_tools: bool,
     },
+    /// Test Firecracker feasibility prototype (requires --features vm-prototype)
+    #[cfg(feature = "vm-prototype")]
+    TestVmPrototype,
 }
 
 #[tokio::main]
@@ -96,6 +99,11 @@ async fn main() -> Result<()> {
         }) => {
             info!("Testing MCP connection...");
             test_mcp(command, args, list_tools).await?;
+        }
+        #[cfg(feature = "vm-prototype")]
+        Some(Commands::TestVmPrototype) => {
+            info!("Testing Firecracker feasibility...");
+            test_vm_prototype().await?;
         }
         None => {
             info!("No command specified. Use 'ironclaw --help' for usage.");
@@ -248,6 +256,34 @@ async fn test_mcp(command: Option<String>, args: Vec<String>, list_tools_only: b
     }
 
     Ok(())
+}
+
+/// Test Firecracker feasibility prototype
+#[cfg(feature = "vm-prototype")]
+async fn test_vm_prototype() -> Result<()> {
+    use ironclaw_orchestrator::vm::prototype::{self, Recommendation};
+
+    // Run the feasibility test
+    let result = prototype::run_feasibility_test().await;
+
+    // Print the report
+    prototype::print_report(&result);
+
+    // Return error if test failed
+    match result.recommendation {
+        Recommendation::Proceed => {
+            info!("✅ Feasibility test passed!");
+            Ok(())
+        }
+        Recommendation::Abandon => {
+            error!("❌ Feasibility test failed - Firecracker not viable");
+            std::process::exit(1);
+        }
+        Recommendation::Investigate => {
+            error!("⚠️  Feasibility test inconclusive - needs investigation");
+            std::process::exit(1);
+        }
+    }
 }
 
 #[cfg(test)]
