@@ -2,6 +2,7 @@
 //
 // Firecracker VM configuration for secure agent execution
 
+#[cfg(target_os = "linux")]
 use crate::vm::seccomp::SeccompFilter;
 use serde::{Deserialize, Serialize};
 
@@ -32,6 +33,7 @@ pub struct VmConfig {
 
     /// Seccomp filter configuration
     #[serde(default)]
+    #[cfg(target_os = "linux")]
     pub seccomp_filter: Option<SeccompFilter>,
 }
 
@@ -45,6 +47,7 @@ impl Default for VmConfig {
             rootfs_path: "./resources/rootfs.ext4".to_string(),
             enable_networking: false,
             vsock_path: None,
+            #[cfg(target_os = "linux")]
             seccomp_filter: None,
         }
     }
