@@ -13,6 +13,9 @@ use clap::{Parser, Subcommand};
 use tracing::{info, Level};
 use tracing_subscriber::EnvFilter;
 
+// Use the VM module from the library
+use ironclaw_orchestrator::vm::{destroy_vm, spawn_vm};
+
 /// IronClaw: Local-first Agentic AI Runtime
 #[derive(Parser, Debug)]
 #[command(name = "ironclaw")]
@@ -72,7 +75,15 @@ async fn main() -> Result<()> {
         }
         Some(Commands::SpawnVm) => {
             info!("Spawning JIT Micro-VM...");
-            spawn_vm().await?;
+            let handle = spawn_vm("cli-spawned-vm").await?;
+            info!(
+                "VM Spawned: ID={}, Time={:.2}ms",
+                handle.id, handle.spawn_time_ms
+            );
+
+            // For CLI utility, we demonstrate lifecycle
+            info!("Destroying VM...");
+            destroy_vm(handle).await?;
         }
         Some(Commands::TestMcp) => {
             info!("Testing MCP connection...");
@@ -98,20 +109,6 @@ async fn run_agent(task: String) -> Result<()> {
     Ok(())
 }
 
-/// Spawn a JIT Micro-VM
-/// Target: <200ms spawn time
-async fn spawn_vm() -> Result<()> {
-    info!("⚡ Spawning JIT Micro-VM...");
-    // TODO: Implement Firecracker VM spawning
-    // 1. Create VM configuration
-    // 2. Load kernel image
-    // 3. Configure network (if needed)
-    // 4. Start VM
-    // 5. Verify startup time <200ms
-    println!("VM spawning placeholder");
-    Ok(())
-}
-
 /// Test MCP (Model Context Protocol) connection
 async fn test_mcp() -> Result<()> {
     info!("🔌 Testing MCP connection...");
@@ -131,11 +128,5 @@ mod tests {
     fn test_args_parsing() {
         let args = Args::parse_from(["ironclaw", "run", "test task"]);
         assert!(matches!(args.command, Some(Commands::Run { .. })));
-    }
-
-    #[tokio::test]
-    async fn test_spawn_vm_placeholder() {
-        let result = spawn_vm().await;
-        assert!(result.is_ok());
     }
 }

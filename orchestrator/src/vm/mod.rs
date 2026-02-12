@@ -7,13 +7,10 @@
 // - Ephemeral: VM destroyed after task completion
 // - Security: No host execution, full isolation
 
-pub mod firecracker;
 pub mod config;
+pub mod firecracker;
+pub mod firewall;
 pub mod seccomp;
-
-// Prototype module for feasibility testing
-#[cfg(feature = "vm-prototype")]
-pub mod prototype;
 
 use anyhow::Result;
 use std::sync::Arc;
@@ -21,6 +18,7 @@ use tokio::sync::Mutex;
 
 use crate::vm::config::VmConfig;
 use crate::vm::firecracker::{start_firecracker, stop_firecracker, FirecrackerProcess};
+use crate::vm::firewall::FirewallManager;
 use crate::vm::seccomp::{SeccompFilter, SeccompLevel};
 
 /// VM handle for managing lifecycle
@@ -28,6 +26,7 @@ pub struct VmHandle {
     pub id: String,
     #[allow(dead_code)] // Field is unused on Windows but required on Linux
     process: Arc<Mutex<Option<FirecrackerProcess>>>,
+    pub firewall: Option<FirewallManager>,
     pub spawn_time_ms: f64,
 }
 
@@ -99,6 +98,40 @@ pub async fn spawn_vm(task_id: &str) -> Result<VmHandle> {
 pub async fn spawn_vm_with_config(task_id: &str, config: &VmConfig) -> Result<VmHandle> {
     tracing::info!("Spawning VM for task: {}", task_id);
 
+    // Setup Firewall (First line of defense)
+    // We do this BEFORE spawning the VM to ensure isolation from t=0
+    let firewall = FirewallManager::new(task_id.to_string());
+    let mut firewall_active = None;
+
+    // Configure firewall isolation
+    match firewall.configure_isolation() {
+        Ok(_) => {
+            // Check if isolation is verified
+            if let Ok(true) = firewall.verify_isolation() {
+                tracing::info!("Firewall isolation verified for VM: {}", task_id);
+                firewall_active = Some(firewall);
+            } else {
+                tracing::error!(
+                    "Firewall configured but verification failed for VM: {}",
+                    task_id
+                );
+                let _ = firewall.cleanup(); // Try to cleanup
+                anyhow::bail!("Firewall verification failed - aborting VM spawn for security");
+            }
+        }
+        Err(e) => {
+            // Check if failure is due to lack of root privileges (expected in dev/test)
+            if e.to_string().contains("root privileges") {
+                tracing::warn!("Skipping firewall isolation (requires root): {}", e);
+                // Proceed without firewall in non-root environment
+            } else {
+                // Critical failure (e.g. iptables missing or command failed)
+                tracing::error!("Failed to configure firewall: {}", e);
+                anyhow::bail!("Failed to configure firewall isolation: {}", e);
+            }
+        }
+    }
+
     // Apply default seccomp filter if not specified (security best practice)
     let config_with_seccomp = if config.seccomp_filter.is_none() {
         let mut secured_config = config.clone();
@@ -110,13 +143,23 @@ pub async fn spawn_vm_with_config(task_id: &str, config: &VmConfig) -> Result<Vm
     };
 
     // Start Firecracker VM
-    let process = start_firecracker(&config_with_seccomp).await?;
+    let process_result = start_firecracker(&config_with_seccomp).await;
 
+    if let Err(e) = process_result {
+        // Cleanup firewall if spawn failed
+        if let Some(fw) = &firewall_active {
+            let _ = fw.cleanup();
+        }
+        return Err(e);
+    }
+
+    let process = process_result?;
     let spawn_time = process.spawn_time_ms;
 
     Ok(VmHandle {
         id: task_id.to_string(),
         process: Arc::new(Mutex::new(Some(process))),
+        firewall: firewall_active,
         spawn_time_ms: spawn_time,
     })
 }
@@ -147,6 +190,13 @@ pub async fn spawn_vm_with_config(task_id: &str, config: &VmConfig) -> Result<Vm
 /// ```
 pub async fn destroy_vm(handle: VmHandle) -> Result<()> {
     tracing::info!("Destroying VM: {}", handle.id);
+
+    // Cleanup firewall
+    if let Some(fw) = &handle.firewall {
+        if let Err(e) = fw.cleanup() {
+            tracing::warn!("Failed to cleanup firewall for VM {}: {}", handle.id, e);
+        }
+    }
 
     // Take the process out of the Arc<Mutex>
     let process = handle.process.lock().await.take();

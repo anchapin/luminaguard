@@ -87,6 +87,9 @@ impl FirewallManager {
         // Add rules to drop all traffic
         self.add_drop_rules()?;
 
+        // Link chain to FORWARD to ensure effectiveness
+        self.link_chain()?;
+
         info!(
             "Firewall isolation configured for VM: {} (chain: {})",
             self.vm_id, self.chain_name
@@ -100,6 +103,9 @@ impl FirewallManager {
     /// This should be called when the VM is destroyed.
     pub fn cleanup(&self) -> Result<()> {
         info!("Cleaning up firewall rules for VM: {}", self.vm_id);
+
+        // Unlink chain first
+        let _ = self.unlink_chain(); // Ignore error if not linked
 
         // Flush and delete the chain
         self.flush_chain()?;
@@ -212,6 +218,42 @@ impl FirewallManager {
             anyhow::bail!("Failed to add DROP rule: {}", stderr);
         }
 
+        Ok(())
+    }
+
+    /// Link the custom chain to the FORWARD chain
+    fn link_chain(&self) -> Result<()> {
+        info!("Linking chain {} to FORWARD", self.chain_name);
+
+        // We append to FORWARD (-A) to act as a catch-all for traffic
+        // that falls through other rules.
+        let output = Command::new("iptables")
+            .args(["-A", "FORWARD", "-j", &self.chain_name])
+            .output()
+            .context("Failed to link chain to FORWARD")?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            anyhow::bail!("Failed to link chain: {}", stderr);
+        }
+        Ok(())
+    }
+
+    /// Unlink the custom chain from the FORWARD chain
+    fn unlink_chain(&self) -> Result<()> {
+        // iptables -D FORWARD -j IRONCLAW_...
+        let output = Command::new("iptables")
+            .args(["-D", "FORWARD", "-j", &self.chain_name])
+            .output()
+            .context("Failed to unlink chain")?;
+
+        if !output.status.success() {
+            // Often fails if rule doesn't exist, which is fine during cleanup
+            warn!(
+                "Failed to unlink chain (may not exist): {}",
+                self.chain_name
+            );
+        }
         Ok(())
     }
 
