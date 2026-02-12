@@ -8,9 +8,6 @@ license = "MIT"
 repository = "https://github.com/your-username/ironclaw"
 readme = "../README.md"
 
-[features]
-vm-prototype = []
-
 [dependencies]
 # Async runtime
 tokio = { version = "1.40", features = ["full"] }
@@ -51,9 +48,6 @@ chrono = { version = "0.4", features = ["serde"] }
 # UUID generation
 uuid = { version = "1.0", features = ["v4"] }
 
-# Temporary directories (for rootfs builder)
-tempfile = "3.10"
-
 [dev-dependencies]
 # Property-based testing
 proptest = "1.4"
@@ -82,3 +76,6 @@ strip = true
 [[bench]]
 name = "mcp_startup"
 harness = false
+
+[features]
+vm-prototype = []

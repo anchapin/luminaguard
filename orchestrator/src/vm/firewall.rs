@@ -28,15 +28,16 @@ impl FirewallManager {
     pub fn new(vm_id: String) -> Self {
         // Create a unique chain name for this VM
         // Sanitize vm_id to only contain alphanumeric characters
-        // and truncate to ensure chain name <= 28 chars (kernel limit)
-        // IRONCLAW_ is 9 chars, so we have 19 chars for the ID
         let sanitized_id: String = vm_id
             .chars()
-            .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
-            .take(19)
+            .map(|c| if c.is_alphanumeric() { c } else { '_' })
             .collect();
 
-        let chain_name = format!("IRONCLAW_{}", sanitized_id);
+        // Truncate to 19 characters to prevent iptables errors (max 28 chars)
+        // "IRONCLAW_" (9) + 19 = 28
+        let truncated_id: String = sanitized_id.chars().take(19).collect();
+
+        let chain_name = format!("IRONCLAW_{}", truncated_id);
 
         Self { vm_id, chain_name }
     }
@@ -342,6 +343,7 @@ mod tests {
             "with@symbol",
             "with space",
             "with/slash",
+            "very_long_task_name_that_exceeds_limit_1234567890",
         ];
 
         for vm_id in test_cases {
