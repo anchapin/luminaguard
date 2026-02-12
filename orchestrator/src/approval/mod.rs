@@ -17,9 +17,6 @@
 // - Any destructive or external communication
 
 use serde::{Deserialize, Serialize};
-use std::io::IsTerminal;
-
-mod tui;
 
 /// Action type (Green or Red)
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -81,43 +78,24 @@ impl ApprovalCliff {
 
     /// Present the Diff Card UI to the user
     ///
-    /// Presents a TUI (Text User Interface) to the user with details of the action
-    /// and waits for approval. In non-interactive environments, it falls back to
-    /// a default policy (Approve Green, Reject Red).
+    /// # TODO (Phase 2)
+    ///
+    /// This will be implemented in Phase 2 as a TUI or GUI.
+    /// For now, it returns a placeholder decision.
     pub async fn present_diff_card(action: &Action) -> ApprovalDecision {
         tracing::info!("Presenting Diff Card for action: {}", action.description);
 
-        // Check if running in an interactive terminal
-        if std::io::stdout().is_terminal() {
-            // Run TUI in a blocking task to avoid blocking the async executor
-            let action_clone = action.clone();
-            let decision = tokio::task::spawn_blocking(move || tui::run_diff_card(&action_clone))
-                .await
-                .unwrap_or_else(|e| {
-                    tracing::error!("Failed to join TUI task: {}", e);
-                    Err(anyhow::anyhow!("Task join error"))
-                });
+        // TODO: Phase 2 implementation
+        // 1. Render Diff Card UI (TUI or GUI)
+        // 2. Show action description
+        // 3. Show changes (file diff, message content, etc.)
+        // 4. Wait for user input (approve/reject)
+        // 5. Return decision
 
-            match decision {
-                Ok(d) => {
-                    tracing::info!("User decision: {:?}", d);
-                    return d;
-                }
-                Err(e) => {
-                    tracing::error!("Error presenting Diff Card: {}", e);
-                    // Fallthrough to default policy on error
-                }
-            }
-        } else {
-            tracing::warn!("Non-interactive environment detected. Using default policy.");
-        }
-
-        // Default Policy (Fallback):
-        // - Green Actions: Auto-approve
-        // - Red Actions: Auto-reject (safety)
+        // Placeholder: Auto-approve Green actions, reject Red for now
         match action.kind {
             ActionKind::Green => ApprovalDecision::Approve,
-            ActionKind::Red => ApprovalDecision::Reject,
+            ActionKind::Red => ApprovalDecision::Reject, // Safe default
         }
     }
 

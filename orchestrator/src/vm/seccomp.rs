@@ -246,9 +246,6 @@ pub struct SeccompAuditEntry {
     pub attack_detected: bool,
 }
 
-/// Maximum number of audit entries to keep in memory
-const MAX_SECCOMP_LOG_ENTRIES: usize = 10000;
-
 /// Seccomp audit log manager
 #[derive(Debug, Clone)]
 pub struct SeccompAuditLog {
@@ -664,26 +661,5 @@ mod tests {
         for sys in &dangerous {
             assert!(!whitelist.contains(&sys), "Dangerous syscall {} should be blocked", sys);
         }
-    }
-
-    #[tokio::test]
-    async fn test_audit_log_limit() {
-        let log = SeccompAuditLog::new();
-        let max = MAX_SECCOMP_LOG_ENTRIES;
-
-        // Add max + 5 entries
-        for i in 0..(max + 5) {
-            log.log_blocked_syscall("vm-limit", "socket", i as u32)
-                .await
-                .unwrap();
-        }
-
-        let entries = log.get_entries_for_vm("vm-limit").await;
-        assert_eq!(entries.len(), max);
-
-        // Verify we have the latest entries (FIFO)
-        // The first 5 should be gone (0..4). The oldest remaining should be 5.
-        assert_eq!(entries[0].pid, 5);
-        assert_eq!(entries[max - 1].pid, (max + 4) as u32);
     }
 }
