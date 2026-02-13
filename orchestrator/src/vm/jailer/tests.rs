@@ -18,7 +18,7 @@ mod tests {
             Ok(_path) => {
                 println!("Jailer is installed at: /usr/local/bin/jailer");
             }
-            Err(e) => {
+            Err(ref e) => {
                 println!("Jailer not installed: {}", e);
                 println!("Tests requiring real Jailer will be skipped");
             }

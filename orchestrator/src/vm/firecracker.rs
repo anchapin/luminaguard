@@ -376,23 +376,23 @@ mod tests {
             ..VmConfig::default()
         };
 
-        let start = std::time::Instant::now();
+        let _start = std::time::Instant::now();
         let result = start_firecracker(&config).await;
 
         match result {
             Ok(process) => {
-                let elapsed = start.elapsed();
-                println!("Firecracker started in {:.2}ms, PID: {}", elapsed.as_millis(), process.pid);
+                // Clone socket_path before moving process
+                let socket_path = process.socket_path.clone();
 
                 // Verify socket was created
-                assert!(std::path::Path::new(&process.socket_path).exists());
+                assert!(std::path::Path::new(&socket_path).exists());
 
                 // Stop the VM
                 stop_firecracker(process).await.unwrap();
                 println!("Firecracker stopped successfully");
 
                 // Verify socket was cleaned up
-                assert!(!std::path::Path::new(&process.socket_path).exists());
+                assert!(!std::path::Path::new(&socket_path).exists());
             }
             Err(e) => {
                 eprintln!("Failed to start Firecracker: {}", e);
@@ -470,14 +470,17 @@ mod tests {
         assert!(!process.socket_path.is_empty());
         assert!(process.spawn_time_ms > 0.0);
 
+        // Clone socket_path before moving process
+        let socket_path = process.socket_path.clone();
+
         // Verify socket exists
-        assert!(std::path::Path::new(&process.socket_path).exists());
+        assert!(std::path::Path::new(&socket_path).exists());
 
         // Stop
         stop_firecracker(process).await.unwrap();
 
         // Verify cleanup
-        assert!(!std::path::Path::new(&process.socket_path).exists());
+        assert!(!std::path::Path::new(&socket_path).exists());
 
         println!("Firecracker lifecycle test completed successfully");
     }
@@ -502,7 +505,7 @@ mod tests {
             return;
         }
 
-        let config = VmConfig {
+        let _config = VmConfig {
             vm_id: "perf-test-vm".to_string(),
             kernel_path: kernel_path.to_string(),
             rootfs_path: rootfs_path.to_string(),
