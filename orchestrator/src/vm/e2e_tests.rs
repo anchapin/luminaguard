@@ -15,13 +15,13 @@
 // cargo test --lib vm::e2e_tests -- --ignored --nocapture
 // ```
 
+use crate::vm::config::VmConfig;
+use crate::vm::jailer::{verify_jailer_installed, JailerConfig};
+use crate::vm::seccomp::{SeccompFilter, SeccompLevel};
 use crate::vm::{
     destroy_vm, pool_stats, spawn_vm, spawn_vm_jailed, spawn_vm_with_config,
     verify_network_isolation, warmup_pool,
 };
-use crate::vm::config::VmConfig;
-use crate::vm::jailer::{JailerConfig, verify_jailer_installed};
-use crate::vm::seccomp::{SeccompFilter, SeccompLevel};
 use std::time::Instant;
 
 fn has_firecracker() -> bool {
@@ -146,9 +146,18 @@ async fn e2e_multi_task_agent_workflow() {
     println!("  Total time: {:.2}s", total_time.as_secs_f64());
     println!("  Tasks completed: {}", task_count);
     println!("  Average spawn time: {:.2}ms", avg_spawn.as_millis());
-    println!("  Min spawn time: {:.2}ms", spawn_times.iter().min().unwrap().as_millis());
-    println!("  Max spawn time: {:.2}ms", spawn_times.iter().max().unwrap().as_millis());
-    println!("  Time per task: {:.2}ms", total_time.as_millis() as f64 / task_count as f64);
+    println!(
+        "  Min spawn time: {:.2}ms",
+        spawn_times.iter().min().unwrap().as_millis()
+    );
+    println!(
+        "  Max spawn time: {:.2}ms",
+        spawn_times.iter().max().unwrap().as_millis()
+    );
+    println!(
+        "  Time per task: {:.2}ms",
+        total_time.as_millis() as f64 / task_count as f64
+    );
     println!("✅ Multi-task workflow completed\n");
 }
 
@@ -460,9 +469,7 @@ async fn e2e_agent_performance_under_load() {
                     destroy_vm(h).await.unwrap();
                     Ok(start.elapsed())
                 }
-                Err(e) => {
-                    Err(e)
-                }
+                Err(e) => Err(e),
             }
         }));
     }
@@ -489,7 +496,10 @@ async fn e2e_agent_performance_under_load() {
     println!("  Total time: {:.2}s", total_time.as_secs_f64());
     println!("  Tasks completed: {}", times.len());
     println!("  Average task time: {:.2}ms", avg_time.as_millis());
-    println!("  Throughput: {:.2} tasks/sec", times.len() as f64 / total_time.as_secs_f64());
+    println!(
+        "  Throughput: {:.2} tasks/sec",
+        times.len() as f64 / total_time.as_secs_f64()
+    );
 
     if !times.is_empty() {
         println!("✅ Load test completed\n");

@@ -53,8 +53,12 @@ mod tests {
             ..VmConfig::new("task-2".to_string())
         };
 
-        let handle1 = crate::vm::spawn_vm_with_config("task-1", &config1).await.unwrap();
-        let handle2 = crate::vm::spawn_vm_with_config("task-2", &config2).await.unwrap();
+        let handle1 = crate::vm::spawn_vm_with_config("task-1", &config1)
+            .await
+            .unwrap();
+        let handle2 = crate::vm::spawn_vm_with_config("task-2", &config2)
+            .await
+            .unwrap();
 
         // Verify they have different IDs
         assert_ne!(handle1.id, handle2.id);
@@ -108,7 +112,9 @@ mod tests {
             ..VmConfig::new("firewall-test".to_string())
         };
 
-        let handle = crate::vm::spawn_vm_with_config("firewall-test", &config).await.unwrap();
+        let handle = crate::vm::spawn_vm_with_config("firewall-test", &config)
+            .await
+            .unwrap();
 
         // Verify isolation (may be false if not running as root)
         let isolated = verify_network_isolation(&handle);
@@ -157,8 +163,12 @@ mod tests {
             ..VmConfig::new("vsock-unique-2".to_string())
         };
 
-        let handle1 = crate::vm::spawn_vm_with_config("vsock-unique-1", &config1).await.unwrap();
-        let handle2 = crate::vm::spawn_vm_with_config("vsock-unique-2", &config2).await.unwrap();
+        let handle1 = crate::vm::spawn_vm_with_config("vsock-unique-1", &config1)
+            .await
+            .unwrap();
+        let handle2 = crate::vm::spawn_vm_with_config("vsock-unique-2", &config2)
+            .await
+            .unwrap();
 
         let path1 = handle1.vsock_path().unwrap();
         let path2 = handle2.vsock_path().unwrap();
@@ -329,7 +339,9 @@ mod tests {
             ..VmConfig::new(long_id.clone())
         };
 
-        let handle = crate::vm::spawn_vm_with_config(&long_id, &config).await.unwrap();
+        let handle = crate::vm::spawn_vm_with_config(&long_id, &config)
+            .await
+            .unwrap();
 
         // Verify ID is handled correctly
         assert!(handle.id.len() <= 128); // Reasonable limit
@@ -374,7 +386,9 @@ mod tests {
             ..VmConfig::new(special_id.to_string())
         };
 
-        let handle = crate::vm::spawn_vm_with_config(special_id, &config).await.unwrap();
+        let handle = crate::vm::spawn_vm_with_config(special_id, &config)
+            .await
+            .unwrap();
 
         // Verify firewall chain name is sanitized
         let chain = handle.firewall_manager.as_ref().unwrap().chain_name();
@@ -478,7 +492,9 @@ mod tests {
             ..VmConfig::new("cleanup-test".to_string())
         };
 
-        let handle = crate::vm::spawn_vm_with_config("cleanup-test", &config).await.unwrap();
+        let handle = crate::vm::spawn_vm_with_config("cleanup-test", &config)
+            .await
+            .unwrap();
 
         let chain_name = handle
             .firewall_manager
@@ -528,7 +544,9 @@ mod tests {
                 ..VmConfig::new(task_id.clone())
             };
 
-            let handle = crate::vm::spawn_vm_with_config(&task_id, &config).await.unwrap();
+            let handle = crate::vm::spawn_vm_with_config(&task_id, &config)
+                .await
+                .unwrap();
             let vsock_path = handle.vsock_path();
             assert!(vsock_path.is_some());
             assert!(vsock_path.unwrap().contains("/tmp/ironclaw/vsock/"));
@@ -545,8 +563,8 @@ mod tests {
     /// 3. VM lifecycle completes successfully
     #[tokio::test]
     async fn test_real_firecracker_execution() {
-        use std::time::Instant;
         use crate::vm::config::VmConfig;
+        use std::time::Instant;
 
         // Verify assets exist
         let kernel_path = "/tmp/ironclaw-fc-test/vmlinux.bin";
@@ -557,11 +575,17 @@ mod tests {
         println!("Rootfs path: {}", rootfs_path);
 
         if !std::path::Path::new(kernel_path).exists() {
-            println!("Skipping test: Firecracker kernel not available at {}", kernel_path);
+            println!(
+                "Skipping test: Firecracker kernel not available at {}",
+                kernel_path
+            );
             return;
         }
         if !std::path::Path::new(rootfs_path).exists() {
-            println!("Skipping test: Firecracker rootfs not available at {}", rootfs_path);
+            println!(
+                "Skipping test: Firecracker rootfs not available at {}",
+                rootfs_path
+            );
             return;
         }
 
