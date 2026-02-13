@@ -588,7 +588,9 @@ fn verify_jailer_executable() -> Result<()> {
     }
 
     // Check if file is executable
-    let metadata = jailer_path.metadata().context("Failed to read jailer binary metadata")?;
+    let metadata = jailer_path
+        .metadata()
+        .context("Failed to read jailer binary metadata")?;
     let permissions = metadata.permissions();
     let mode = permissions.mode();
 
@@ -629,7 +631,10 @@ fn verify_jailer_executable() -> Result<()> {
         }
     }
 
-    debug!("Jailer binary verified as executable and functional: {:?}", jailer_path);
+    debug!(
+        "Jailer binary verified as executable and functional: {:?}",
+        jailer_path
+    );
     Ok(())
 }
 
