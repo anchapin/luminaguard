@@ -599,7 +599,7 @@ async fn test_real_vm_performance() {
     println!("  Max: {:.2}ms", max.as_millis());
 
     // Check against target
-    if avg.as_millis() > 200 {
+    if avg.as_millis() as f64 > 200.0 {
         println!("  ⚠️  Average exceeds 200ms target");
     } else {
         println!("  ✅ Average meets 200ms target");

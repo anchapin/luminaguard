@@ -186,11 +186,37 @@ async fn e2e_agent_with_security_features() {
     println!("  Spawned in {:.2}ms", start.elapsed().as_millis());
     destroy_vm(handle).await.unwrap();
 
-    // Test 2: Advanced seccomp - Skipped (Not implemented)
-    // println!("\nTest 2: VM with Advanced seccomp");
+    // Test 2: Permissive seccomp
+    println!("\nTest 2: VM with Permissive seccomp");
+    let mut config = VmConfig::new("security-permissive".to_string());
+    config.seccomp_filter = Some(SeccompFilter::new(SeccompLevel::Permissive));
 
-    // Test 3: Strict seccomp - Skipped (Not implemented)
-    // println!("\nTest 3: VM with Strict seccomp");
+    let start = Instant::now();
+    let handle = match spawn_vm_with_config("security-advanced", &config).await {
+        Ok(h) => h,
+        Err(e) => {
+            println!("Failed: {}", e);
+            return;
+        }
+    };
+    println!("  Spawned in {:.2}ms", start.elapsed().as_millis());
+    destroy_vm(handle).await.unwrap();
+
+    // Test 3: Minimal seccomp
+    println!("\nTest 3: VM with Minimal seccomp");
+    let mut config = VmConfig::new("security-minimal".to_string());
+    config.seccomp_filter = Some(SeccompFilter::new(SeccompLevel::Minimal));
+
+    let start = Instant::now();
+    let handle = match spawn_vm_with_config("security-strict", &config).await {
+        Ok(h) => h,
+        Err(e) => {
+            println!("Failed: {}", e);
+            return;
+        }
+    };
+    println!("  Spawned in {:.2}ms", start.elapsed().as_millis());
+    destroy_vm(handle).await.unwrap();
 
     println!("✅ Security features test completed\n");
 }
