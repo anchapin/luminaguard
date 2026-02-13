@@ -13,8 +13,8 @@ mod tests {
     /// - Jailer installed at /usr/local/bin/jailer
     #[test]
     fn test_verify_jailer_installed() {
-        let result = verify_jailer_installed();
-        match result {
+        let _result = verify_jailer_installed();
+        match _result {
             Ok(_path) => {
                 println!("Jailer is installed at: /usr/local/bin/jailer");
             }
@@ -23,6 +23,7 @@ mod tests {
                 println!("Tests requiring real Jailer will be skipped");
             }
         }
+        // Result is consumed above, no need for redundant assertion
     }
 
     /// Test that jailer config validates correct IDs
