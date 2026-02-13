@@ -28,7 +28,11 @@ pub fn verify_jailer_installed() -> Result<()> {
 
     if !jailer_path.exists() {
         // Try alternative paths
-        let alternative_paths = vec!["/usr/bin/jailer", "/opt/firecracker/bin/jailer", "./jailer"];
+        let alternative_paths = vec![
+            "/usr/bin/jailer",
+            "/opt/firecracker/bin/jailer",
+            "./jailer",
+        ];
 
         for path in alternative_paths {
             if Path::new(path).exists() {

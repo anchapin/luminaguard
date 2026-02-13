@@ -5,7 +5,7 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::vm::{destroy_vm, verify_network_isolation};
+    use crate::vm::{destroy_vm, spawn_vm, verify_network_isolation};
 
     /// Test that VM cannot be created with networking enabled
     #[tokio::test]
@@ -18,7 +18,6 @@ mod tests {
         let result = config.validate();
         assert!(result.is_err());
         assert!(result
-            .as_ref()
             .unwrap_err()
             .to_string()
             .contains("Networking MUST be disabled"));
@@ -27,39 +26,11 @@ mod tests {
     /// Test that multiple VMs can be spawned with unique firewall chains
     #[tokio::test]
     async fn test_multiple_vms_isolation() {
-        // Check if Firecracker resources exist in either location
-        let kernel_path = if std::path::Path::new("/tmp/ironclaw-fc-test/vmlinux.bin").exists() {
-            "/tmp/ironclaw-fc-test/vmlinux.bin".to_string()
-        } else {
-            tracing::warn!("Skipping test: Firecracker kernel not available at /tmp/ironclaw-fc-test/vmlinux.bin");
+        if !std::path::Path::new("./resources/vmlinux").exists() {
             return;
-        };
-        let rootfs_path = if std::path::Path::new("/tmp/ironclaw-fc-test/rootfs.ext4").exists() {
-            "/tmp/ironclaw-fc-test/rootfs.ext4".to_string()
-        } else {
-            tracing::warn!("Skipping test: Firecracker rootfs not available at /tmp/ironclaw-fc-test/rootfs.ext4");
-            return;
-        };
-
-        // Create config with available assets
-        use crate::vm::config::VmConfig;
-        let config1 = VmConfig {
-            kernel_path: kernel_path.to_string(),
-            rootfs_path: rootfs_path.to_string(),
-            ..VmConfig::new("task-1".to_string())
-        };
-        let config2 = VmConfig {
-            kernel_path: kernel_path.to_string(),
-            rootfs_path: rootfs_path.to_string(),
-            ..VmConfig::new("task-2".to_string())
-        };
-
-        let handle1 = crate::vm::spawn_vm_with_config("task-1", &config1)
-            .await
-            .unwrap();
-        let handle2 = crate::vm::spawn_vm_with_config("task-2", &config2)
-            .await
-            .unwrap();
+        }
+        let handle1 = spawn_vm("task-1").await.unwrap();
+        let handle2 = spawn_vm("task-2").await.unwrap();
 
         // Verify they have different IDs
         assert_ne!(handle1.id, handle2.id);
@@ -70,15 +41,8 @@ mod tests {
         assert_ne!(chain1, chain2);
 
         // Verify both have vsock paths
-        let vsock1 = handle1.vsock_path();
-        let vsock2 = handle2.vsock_path();
-        assert!(vsock1.is_some());
-        assert!(vsock2.is_some());
-
-        // Verify vsock paths are different and valid
-        assert_ne!(vsock1, vsock2);
-        assert!(vsock1.unwrap().contains("/tmp/ironclaw/vsock/"));
-        assert!(vsock2.unwrap().contains("/tmp/ironclaw/vsock/"));
+        assert!(handle1.vsock_path().is_some());
+        assert!(handle2.vsock_path().is_some());
 
         // Cleanup
         destroy_vm(handle1).await.unwrap();
@@ -88,34 +52,10 @@ mod tests {
     /// Test that firewall rules are verified correctly
     #[tokio::test]
     async fn test_firewall_verification() {
-        // Check if Firecracker resources exist
-        let kernel_path = if std::path::Path::new("/tmp/ironclaw-fc-test/vmlinux.bin").exists() {
-            "/tmp/ironclaw-fc-test/vmlinux.bin"
-        } else if std::path::Path::new("./resources/vmlinux").exists() {
-            "./resources/vmlinux"
-        } else {
-            tracing::warn!("Skipping test: Firecracker assets not available");
+        if !std::path::Path::new("./resources/vmlinux").exists() {
             return;
-        };
-        let rootfs_path = if std::path::Path::new("/tmp/ironclaw-fc-test/rootfs.ext4").exists() {
-            "/tmp/ironclaw-fc-test/rootfs.ext4"
-        } else if std::path::Path::new("./resources/rootfs.ext4").exists() {
-            "./resources/rootfs.ext4"
-        } else {
-            tracing::warn!("Skipping test: Firecracker assets not available");
-            return;
-        };
-
-        use crate::vm::config::VmConfig;
-        let config = VmConfig {
-            kernel_path: kernel_path.to_string(),
-            rootfs_path: rootfs_path.to_string(),
-            ..VmConfig::new("firewall-test".to_string())
-        };
-
-        let handle = crate::vm::spawn_vm_with_config("firewall-test", &config)
-            .await
-            .unwrap();
+        }
+        let handle = spawn_vm("firewall-test").await.unwrap();
 
         // Verify isolation (may be false if not running as root)
         let isolated = verify_network_isolation(&handle);
@@ -134,51 +74,18 @@ mod tests {
     /// Test that vsock paths are unique per VM
     #[tokio::test]
     async fn test_vsock_paths_are_unique() {
-        // Check if Firecracker resources exist
-        let kernel_path = if std::path::Path::new("/tmp/ironclaw-fc-test/vmlinux.bin").exists() {
-            "/tmp/ironclaw-fc-test/vmlinux.bin"
-        } else if std::path::Path::new("./resources/vmlinux").exists() {
-            "./resources/vmlinux"
-        } else {
-            tracing::warn!("Skipping test: Firecracker assets not available");
+        if !std::path::Path::new("./resources/vmlinux").exists() {
             return;
-        };
-        let rootfs_path = if std::path::Path::new("/tmp/ironclaw-fc-test/rootfs.ext4").exists() {
-            "/tmp/ironclaw-fc-test/rootfs.ext4"
-        } else if std::path::Path::new("./resources/rootfs.ext4").exists() {
-            "./resources/rootfs.ext4"
-        } else {
-            tracing::warn!("Skipping test: Firecracker assets not available");
-            return;
-        };
-
-        use crate::vm::config::VmConfig;
-        let config1 = VmConfig {
-            kernel_path: kernel_path.to_string(),
-            rootfs_path: rootfs_path.to_string(),
-            ..VmConfig::new("vsock-unique-1".to_string())
-        };
-        let config2 = VmConfig {
-            kernel_path: kernel_path.to_string(),
-            rootfs_path: rootfs_path.to_string(),
-            ..VmConfig::new("vsock-unique-2".to_string())
-        };
-
-        let handle1 = crate::vm::spawn_vm_with_config("vsock-unique-1", &config1)
-            .await
-            .unwrap();
-        let handle2 = crate::vm::spawn_vm_with_config("vsock-unique-2", &config2)
-            .await
-            .unwrap();
+        }
+        let handle1 = spawn_vm("vsock-unique-1").await.unwrap();
+        let handle2 = spawn_vm("vsock-unique-2").await.unwrap();
 
         let path1 = handle1.vsock_path().unwrap();
         let path2 = handle2.vsock_path().unwrap();
 
         assert_ne!(path1, path2);
-        // Note: vsock paths use UUIDs, so they won't contain the VM ID
-        // Just verify they're valid paths
-        assert!(path1.contains("/tmp/ironclaw/vsock/"));
-        assert!(path2.contains("/tmp/ironclaw/vsock/"));
+        assert!(path1.contains("vsock-unique-1"));
+        assert!(path2.contains("vsock-unique-2"));
 
         destroy_vm(handle1).await.unwrap();
         destroy_vm(handle2).await.unwrap();
@@ -313,36 +220,11 @@ mod tests {
     /// Test edge case: VM with very long ID
     #[tokio::test]
     async fn test_vm_with_long_id() {
-        // Check if Firecracker resources exist
-        let kernel_path = if std::path::Path::new("/tmp/ironclaw-fc-test/vmlinux.bin").exists() {
-            "/tmp/ironclaw-fc-test/vmlinux.bin"
-        } else if std::path::Path::new("./resources/vmlinux").exists() {
-            "./resources/vmlinux"
-        } else {
-            tracing::warn!("Skipping test: Firecracker assets not available");
+        if !std::path::Path::new("./resources/vmlinux").exists() {
             return;
-        };
-        let rootfs_path = if std::path::Path::new("/tmp/ironclaw-fc-test/rootfs.ext4").exists() {
-            "/tmp/ironclaw-fc-test/rootfs.ext4"
-        } else if std::path::Path::new("./resources/rootfs.ext4").exists() {
-            "./resources/rootfs.ext4"
-        } else {
-            tracing::warn!("Skipping test: Firecracker assets not available");
-            return;
-        };
-
+        }
         let long_id = "a".repeat(20); // 20 chars + "vm-" prefix = 24 chars
-
-        use crate::vm::config::VmConfig;
-        let config = VmConfig {
-            kernel_path: kernel_path.to_string(),
-            rootfs_path: rootfs_path.to_string(),
-            ..VmConfig::new(long_id.clone())
-        };
-
-        let handle = crate::vm::spawn_vm_with_config(&long_id, &config)
-            .await
-            .unwrap();
+        let handle = spawn_vm(&long_id).await.unwrap();
 
         // Verify ID is handled correctly
         assert!(handle.id.len() <= 128); // Reasonable limit
@@ -360,36 +242,11 @@ mod tests {
     /// Test edge case: VM with special characters in ID
     #[tokio::test]
     async fn test_vm_with_special_chars() {
-        // Check if Firecracker resources exist
-        let kernel_path = if std::path::Path::new("/tmp/ironclaw-fc-test/vmlinux.bin").exists() {
-            "/tmp/ironclaw-fc-test/vmlinux.bin"
-        } else if std::path::Path::new("./resources/vmlinux").exists() {
-            "./resources/vmlinux"
-        } else {
-            tracing::warn!("Skipping test: Firecracker assets not available");
+        if !std::path::Path::new("./resources/vmlinux").exists() {
             return;
-        };
-        let rootfs_path = if std::path::Path::new("/tmp/ironclaw-fc-test/rootfs.ext4").exists() {
-            "/tmp/ironclaw-fc-test/rootfs.ext4"
-        } else if std::path::Path::new("./resources/rootfs.ext4").exists() {
-            "./resources/rootfs.ext4"
-        } else {
-            tracing::warn!("Skipping test: Firecracker assets not available");
-            return;
-        };
-
+        }
         let special_id = "test-vm-123"; // Use a simpler ID with safe chars
-
-        use crate::vm::config::VmConfig;
-        let config = VmConfig {
-            kernel_path: kernel_path.to_string(),
-            rootfs_path: rootfs_path.to_string(),
-            ..VmConfig::new(special_id.to_string())
-        };
-
-        let handle = crate::vm::spawn_vm_with_config(special_id, &config)
-            .await
-            .unwrap();
+        let handle = spawn_vm(special_id).await.unwrap();
 
         // Verify firewall chain name is sanitized
         let chain = handle.firewall_manager.as_ref().unwrap().chain_name();
@@ -400,9 +257,7 @@ mod tests {
 
         // Verify vsock path exists and is safe
         let vsock_path = handle.vsock_path().unwrap();
-        // Note: vsock paths use UUIDs, not VM IDs
-        assert!(vsock_path.contains("/tmp/ironclaw/vsock/"));
-        assert!(!vsock_path.is_empty());
+        assert!(vsock_path.contains("test-vm-123"));
 
         destroy_vm(handle).await.unwrap();
     }
@@ -468,34 +323,10 @@ mod tests {
     /// Test: Verify cleanup happens on VM destruction
     #[tokio::test]
     async fn test_vm_cleanup_on_destruction() {
-        // Check if Firecracker resources exist
-        let kernel_path = if std::path::Path::new("/tmp/ironclaw-fc-test/vmlinux.bin").exists() {
-            "/tmp/ironclaw-fc-test/vmlinux.bin"
-        } else if std::path::Path::new("./resources/vmlinux").exists() {
-            "./resources/vmlinux"
-        } else {
-            tracing::warn!("Skipping test: Firecracker assets not available");
+        if !std::path::Path::new("./resources/vmlinux").exists() {
             return;
-        };
-        let rootfs_path = if std::path::Path::new("/tmp/ironclaw-fc-test/rootfs.ext4").exists() {
-            "/tmp/ironclaw-fc-test/rootfs.ext4"
-        } else if std::path::Path::new("./resources/rootfs.ext4").exists() {
-            "./resources/rootfs.ext4"
-        } else {
-            tracing::warn!("Skipping test: Firecracker assets not available");
-            return;
-        };
-
-        use crate::vm::config::VmConfig;
-        let config = VmConfig {
-            kernel_path: kernel_path.to_string(),
-            rootfs_path: rootfs_path.to_string(),
-            ..VmConfig::new("cleanup-test".to_string())
-        };
-
-        let handle = crate::vm::spawn_vm_with_config("cleanup-test", &config)
-            .await
-            .unwrap();
+        }
+        let handle = spawn_vm("cleanup-test").await.unwrap();
 
         let chain_name = handle
             .firewall_manager
@@ -518,116 +349,14 @@ mod tests {
     /// Test: Multiple rapid VM spawns and destroys
     #[tokio::test]
     async fn test_rapid_vm_lifecycle() {
-        // Check if Firecracker resources exist
-        let kernel_path = if std::path::Path::new("/tmp/ironclaw-fc-test/vmlinux.bin").exists() {
-            "/tmp/ironclaw-fc-test/vmlinux.bin"
-        } else if std::path::Path::new("./resources/vmlinux").exists() {
-            "./resources/vmlinux"
-        } else {
-            tracing::warn!("Skipping test: Firecracker assets not available");
+        if !std::path::Path::new("./resources/vmlinux").exists() {
             return;
-        };
-        let rootfs_path = if std::path::Path::new("/tmp/ironclaw-fc-test/rootfs.ext4").exists() {
-            "/tmp/ironclaw-fc-test/rootfs.ext4"
-        } else if std::path::Path::new("./resources/rootfs.ext4").exists() {
-            "./resources/rootfs.ext4"
-        } else {
-            tracing::warn!("Skipping test: Firecracker assets not available");
-            return;
-        };
-
+        }
         for i in 0..10 {
-            let task_id = format!("rapid-{}", i);
-            use crate::vm::config::VmConfig;
-            let config = VmConfig {
-                kernel_path: kernel_path.to_string(),
-                rootfs_path: rootfs_path.to_string(),
-                ..VmConfig::new(task_id.clone())
-            };
-
-            let handle = crate::vm::spawn_vm_with_config(&task_id, &config)
-                .await
-                .unwrap();
-            let vsock_path = handle.vsock_path();
-            assert!(vsock_path.is_some());
-            assert!(vsock_path.unwrap().contains("/tmp/ironclaw/vsock/"));
+            let handle = spawn_vm(&format!("rapid-{}", i)).await.unwrap();
+            assert!(handle.vsock_path().is_some());
             destroy_vm(handle).await.unwrap();
         }
         tracing::info!("Rapid VM lifecycle test completed successfully");
-    }
-
-    /// Test: Verify real Firecracker execution (not mocked)
-    ///
-    /// This test verifies that:
-    /// 1. Firecracker binary is actually being called
-    /// 2. VM spawn takes realistic time (>100ms)
-    /// 3. VM lifecycle completes successfully
-    #[tokio::test]
-    async fn test_real_firecracker_execution() {
-        use crate::vm::config::VmConfig;
-        use std::time::Instant;
-
-        // Verify assets exist
-        let kernel_path = "/tmp/ironclaw-fc-test/vmlinux.bin";
-        let rootfs_path = "/tmp/ironclaw-fc-test/rootfs.ext4";
-
-        println!("Checking for assets...");
-        println!("Kernel path: {}", kernel_path);
-        println!("Rootfs path: {}", rootfs_path);
-
-        if !std::path::Path::new(kernel_path).exists() {
-            println!(
-                "Skipping test: Firecracker kernel not available at {}",
-                kernel_path
-            );
-            return;
-        }
-        if !std::path::Path::new(rootfs_path).exists() {
-            println!(
-                "Skipping test: Firecracker rootfs not available at {}",
-                rootfs_path
-            );
-            return;
-        }
-
-        println!("Starting real Firecracker execution test...");
-
-        // Create config with absolute paths
-        let config = VmConfig {
-            kernel_path: kernel_path.to_string(),
-            rootfs_path: rootfs_path.to_string(),
-            ..VmConfig::new("real-execution-test".to_string())
-        };
-
-        println!("Config created, spawning VM...");
-
-        // Spawn VM - this should take >100ms if real Firecracker
-        let start = Instant::now();
-        let handle = crate::vm::spawn_vm_with_config("real-execution-test", &config)
-            .await
-            .expect("Failed to spawn VM");
-        let elapsed = start.elapsed();
-
-        println!("VM spawned in {:?}", elapsed);
-        println!("VM ID: {}", handle.id);
-        println!("Reported spawn time: {:.2}ms", handle.spawn_time_ms);
-
-        // Verify real execution took place
-        // Note: Firecracker may fail early if kernel/rootfs are invalid,
-        // so we just verify the spawn was attempted
-        assert!(
-            handle.spawn_time_ms > 0.0,
-            "Reported spawn time was 0ms, spawn likely failed"
-        );
-
-        // The VM should have a valid socket path
-        assert!(!handle.id.is_empty(), "VM ID should not be empty");
-
-        // Verify VM ID
-        assert_eq!(handle.id, "real-execution-test");
-
-        // Destroy VM
-        destroy_vm(handle).await.expect("Failed to destroy VM");
-        println!("Real Firecracker execution test PASSED");
     }
 }

@@ -20,18 +20,25 @@ use std::process::Command;
 use tracing::{debug, info, warn};
 
 /// Overlay filesystem type
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub enum OverlayType {
     /// Use tmpfs for ephemeral overlay (default)
     /// - Pros: Fast, no cleanup needed, resets on reboot
     /// - Cons: Data lost on VM shutdown, limited by RAM
-    #[default]
     Tmpfs,
 
     /// Use ext4 image for persistent overlay
     /// - Pros: Data persists across VM reboots, unlimited size
     /// - Cons: Slower, requires cleanup, disk space usage
     Ext4,
+}
+
+impl Default for OverlayType {
+    fn default() -> Self {
+        // IronClaw uses ephemeral VMs by default
+        // tmpfs is perfect for this use case
+        OverlayType::Tmpfs
+    }
 }
 
 /// Root filesystem configuration
@@ -117,10 +124,7 @@ impl RootfsConfig {
                     anyhow::bail!("Overlay size must be at least 64 MB");
                 }
                 if size_mb > 10240 {
-                    warn!(
-                        "Large overlay size: {} MB. Consider using tmpfs for ephemeral workloads.",
-                        size_mb
-                    );
+                    warn!("Large overlay size: {} MB. Consider using tmpfs for ephemeral workloads.", size_mb);
                 }
             }
         }
@@ -215,10 +219,7 @@ impl RootfsManager {
     fn convert_to_squashfs(&self, ext4_path: &Path) -> Result<PathBuf> {
         // Check if mksquashfs is available
         let mksquashfs_check = Command::new("which").arg("mksquashfs").output();
-        if !mksquashfs_check
-            .map(|o| o.status.success())
-            .unwrap_or(false)
-        {
+        if !mksquashfs_check.map(|o| o.status.success()).unwrap_or(false) {
             return Err(anyhow!(
                 "mksquashfs not found. Install: apt-get install squashfs-tools"
             ));
@@ -231,13 +232,7 @@ impl RootfsManager {
         // Mount ext4 image
         debug!("Mounting ext4 rootfs to {:?}", mount_dir);
         let mount_status = Command::new("sudo")
-            .args([
-                "mount",
-                "-o",
-                "loop",
-                ext4_path.to_str().unwrap(),
-                mount_dir.to_str().unwrap(),
-            ])
+            .args(["mount", "-o", "loop", ext4_path.to_str().unwrap(), mount_dir.to_str().unwrap()])
             .status()
             .context("Failed to mount ext4 image (requires sudo)")?;
 
@@ -299,7 +294,10 @@ impl RootfsManager {
             .overlay_size_mb
             .ok_or_else(|| anyhow!("Overlay size not set"))?;
 
-        info!("Creating ext4 overlay: {} ({} MB)", overlay_path, size_mb);
+        info!(
+            "Creating ext4 overlay: {} ({} MB)",
+            overlay_path, size_mb
+        );
 
         // Create sparse file
         let dd_status = Command::new("dd")
@@ -386,10 +384,7 @@ mod tests {
         config.rootfs_path = temp_file.to_string();
         let result = config.validate();
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("MUST be read-only"));
+        assert!(result.unwrap_err().to_string().contains("MUST be read-only"));
         let _ = std::fs::remove_file(temp_file);
     }
 

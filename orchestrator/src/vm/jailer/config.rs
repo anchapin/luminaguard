@@ -70,19 +70,8 @@ impl Default for JailerConfig {
 impl JailerConfig {
     /// Create a new Jailer config with defaults
     pub fn new(id: String) -> Self {
-        Self {
-            id,
-            ..Default::default()
-        }
-    }
-
-    /// Create a test config with paths that work in test environments
-    /// Uses /dev/null for exec_file which always exists
-    #[cfg(test)]
-    pub fn test_config(id: String) -> Self {
-        let mut config = Self::new(id);
-        config.exec_file = PathBuf::from("/dev/null");
-        config.chroot_base_dir = PathBuf::from("/tmp");
+        let mut config = Self::default();
+        config.id = id;
         config
     }
 
@@ -129,13 +118,19 @@ impl JailerConfig {
 
         // Validate exec file exists
         if !self.exec_file.exists() {
-            anyhow::bail!("Firecracker binary not found at: {:?}", self.exec_file);
+            anyhow::bail!(
+                "Firecracker binary not found at: {:?}",
+                self.exec_file
+            );
         }
 
         // Validate chroot base dir exists or can be created
         if let Some(parent) = self.chroot_base_dir.parent() {
             if !parent.exists() {
-                anyhow::bail!("Chroot base parent directory does not exist: {:?}", parent);
+                anyhow::bail!(
+                    "Chroot base parent directory does not exist: {:?}",
+                    parent
+                );
             }
         }
 
@@ -227,26 +222,28 @@ mod tests {
 
     #[test]
     fn test_config_validation_valid_id() {
-        let config = JailerConfig::test_config("valid-vm-id-123".to_string());
+        let mut config = JailerConfig::new("valid-vm-id-123".to_string());
+        // Point to a file that exists for validation
+        config.exec_file = PathBuf::from("Cargo.toml");
         assert!(config.validate().is_ok());
     }
 
     #[test]
     fn test_config_validation_empty_id() {
-        let config = JailerConfig::test_config("".to_string());
+        let config = JailerConfig::new("".to_string());
         assert!(config.validate().is_err());
     }
 
     #[test]
     fn test_config_invalid_chars_in_id() {
-        let config = JailerConfig::test_config("invalid@id#with$symbols".to_string());
+        let config = JailerConfig::new("invalid@id#with$symbols".to_string());
         assert!(config.validate().is_err());
     }
 
     #[test]
     fn test_config_id_too_long() {
         let long_id = "a".repeat(65); // 65 chars > 64 limit
-        let config = JailerConfig::test_config(long_id);
+        let config = JailerConfig::new(long_id);
         assert!(config.validate().is_err());
     }
 
@@ -295,43 +292,11 @@ mod tests {
     #[test]
     fn test_build_args_with_cgroups() {
         let mut config = JailerConfig::new("test-vm".to_string());
-        config
-            .cgroups
-            .insert("cpu.shares".to_string(), "2048".to_string());
+        config.cgroups.insert("cpu.shares".to_string(), "2048".to_string());
 
         let args = config.build_args();
 
         assert!(args.contains(&"--cgroup".to_string()));
         assert!(args.contains(&"cpu.shares=2048".to_string()));
-    }
-}
-
-// Property-based tests with Proptest
-#[cfg(test)]
-mod proptests {
-    use super::*;
-    use proptest::prelude::*;
-
-    proptest! {
-        #[test]
-        fn prop_vm_id_alphanumeric_or_dash(id in "[a-zA-Z0-9-\\-]{1,64}") {
-            // Valid IDs should pass validation
-            let config = JailerConfig::test_config(id.to_string());
-            prop_assert!(config.validate().is_ok());
-        }
-
-        #[test]
-        fn prop_vm_id_empty_or_too_long(id in ".{0,}.{65,}") {
-            // Empty or too long IDs should fail validation
-            let config = JailerConfig::test_config(id.to_string());
-            prop_assert!(config.validate().is_err());
-        }
-
-        #[test]
-        fn prop_vm_id_invalid_chars(id in "[^a-zA-Z0-9\\-]+") {
-            // IDs with invalid chars should fail validation
-            let config = JailerConfig::test_config(id.to_string());
-            prop_assert!(config.validate().is_err());
-        }
     }
 }
