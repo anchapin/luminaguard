@@ -70,9 +70,10 @@ impl Default for JailerConfig {
 impl JailerConfig {
     /// Create a new Jailer config with defaults
     pub fn new(id: String) -> Self {
-        let mut config = Self::default();
-        config.id = id;
-        config
+        Self {
+            id,
+            ..Default::default()
+        }
     }
 
     /// Create a test config with paths that work in test environments
