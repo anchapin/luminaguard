@@ -70,19 +70,21 @@ impl Default for JailerConfig {
 impl JailerConfig {
     /// Create a new Jailer config with defaults
     pub fn new(id: String) -> Self {
-        let mut config = Self::default();
-        config.id = id;
-        config
+        Self {
+            id,
+            ..Default::default()
+        }
     }
 
     /// Create a test config with paths that work in test environments
     /// Uses /dev/null for exec_file which always exists
     #[cfg(test)]
     pub fn test_config(id: String) -> Self {
-        let mut config = Self::new(id);
-        config.exec_file = PathBuf::from("/dev/null");
-        config.chroot_base_dir = PathBuf::from("/tmp");
-        config
+        Self {
+            exec_file: PathBuf::from("/dev/null"),
+            chroot_base_dir: PathBuf::from("/tmp"),
+            ..Self::new(id)
+        }
     }
 
     /// Set custom UID/GID for privilege separation
