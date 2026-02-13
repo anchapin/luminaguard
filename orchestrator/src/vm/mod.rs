@@ -11,6 +11,7 @@ pub mod config;
 pub mod firecracker;
 pub mod firewall;
 pub mod hypervisor;
+pub mod hyperv;
 pub mod jailer;
 pub mod pool;
 pub mod rootfs;
@@ -38,15 +39,12 @@ use std::sync::Arc;
 use tokio::sync::{Mutex, OnceCell};
 
 use crate::vm::config::VmConfig;
-use crate::vm::firecracker::start_firecracker;
 use crate::vm::firewall::FirewallManager;
-use crate::vm::hypervisor::VmInstance;
+use crate::vm::hypervisor::{Hypervisor, VmInstance};
 use crate::vm::jailer::{
     start_jailed_firecracker,
-    stop_jailed_firecracker,
     verify_jailer_installed,
     JailerConfig,
-    JailerProcess,
 };
 use crate::vm::pool::{PoolConfig, SnapshotPool};
 use crate::vm::seccomp::{SeccompFilter, SeccompLevel};
@@ -222,14 +220,19 @@ pub async fn spawn_vm_with_config(task_id: &str, config: &VmConfig) -> Result<Vm
         }
     }
 
-    // Start Firecracker VM
-    let process = start_firecracker(&config_with_seccomp).await?;
+    // Start VM using the appropriate hypervisor for the platform
+    let hypervisor: Box<dyn Hypervisor> = if cfg!(windows) {
+        Box::new(crate::vm::hyperv::HypervHypervisor)
+    } else {
+        Box::new(crate::vm::firecracker::FirecrackerHypervisor)
+    };
 
-    let spawn_time = process.spawn_time_ms;
+    let instance = hypervisor.spawn(&config_with_seccomp).await?;
+    let spawn_time = instance.spawn_time_ms();
 
     Ok(VmHandle {
         id: task_id.to_string(),
-        process: Arc::new(Mutex::new(Some(Box::new(process)))),
+        process: Arc::new(Mutex::new(Some(instance))),
         spawn_time_ms: spawn_time,
         config: config.clone(),
         firewall_manager: Some(firewall_manager),
