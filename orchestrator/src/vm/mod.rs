@@ -9,8 +9,8 @@
 
 pub mod config;
 pub mod firecracker;
-pub mod jailer;
 pub mod firewall;
+pub mod jailer;
 pub mod pool;
 pub mod rootfs;
 pub mod seccomp;
@@ -38,8 +38,11 @@ use tokio::sync::{Mutex, OnceCell};
 
 use crate::vm::config::VmConfig;
 use crate::vm::firecracker::{start_firecracker, stop_firecracker, FirecrackerProcess};
-use crate::vm::jailer::{JailerConfig, JailerProcess, start_jailed_firecracker, stop_jailed_firecracker, verify_jailer_installed};
 use crate::vm::firewall::FirewallManager;
+use crate::vm::jailer::{
+    start_jailed_firecracker, stop_jailed_firecracker, verify_jailer_installed, JailerConfig,
+    JailerProcess,
+};
 use crate::vm::pool::{PoolConfig, SnapshotPool};
 use crate::vm::seccomp::{SeccompFilter, SeccompLevel};
 
@@ -541,10 +544,7 @@ pub async fn spawn_vm_jailed(
 ///     Ok(())
 /// }
 /// ```
-pub async fn destroy_vm_jailed(
-    handle: VmHandle,
-    jailer_config: &JailerConfig,
-) -> Result<()> {
+pub async fn destroy_vm_jailed(handle: VmHandle, jailer_config: &JailerConfig) -> Result<()> {
     tracing::info!("Destroying JAILED VM: {}", handle.id);
 
     // Take process out of Arc<Mutex>
