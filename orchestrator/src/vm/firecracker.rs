@@ -391,18 +391,11 @@ mod tests {
             ..VmConfig::default()
         };
 
-        let start = std::time::Instant::now();
+        let _start = std::time::Instant::now();
         let result = start_firecracker(&config).await;
 
         match result {
             Ok(process) => {
-                let elapsed = start.elapsed();
-                println!(
-                    "Firecracker started in {:.2}ms, PID: {}",
-                    elapsed.as_millis(),
-                    process.pid
-                );
-
                 // Clone socket_path before moving process
                 let socket_path = process.socket_path.clone();
 

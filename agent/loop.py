@@ -34,6 +34,24 @@ except ImportError:
     from mcp_client import McpClient, McpError
 
 
+class Style:
+    """Terminal styling helper that respects NO_COLOR"""
+
+    _no_color = bool(os.environ.get("NO_COLOR"))
+
+    BOLD = "" if _no_color else "\033[1m"
+    CYAN = "" if _no_color else "\033[36m"
+    RESET = "" if _no_color else "\033[0m"
+
+    @classmethod
+    def bold(cls, text: str) -> str:
+        return f"{cls.BOLD}{text}{cls.RESET}"
+
+    @classmethod
+    def cyan(cls, text: str) -> str:
+        return f"{cls.CYAN}{text}{cls.RESET}"
+
+
 class ActionKind(Enum):
     """Type of action (for Approval Cliff)"""
 
@@ -290,7 +308,7 @@ def run_loop(
         >>> state = run_loop("Read /tmp/test.txt", ["read_file"], client)
         >>> client.shutdown()
     """
-    print(f"\n🚀 Starting task: \033[1m{task}\033[0m")
+    print(f"\n🚀 Starting task: {Style.bold(task)}")
     state = AgentState(
         messages=[{"role": "user", "content": task}], tools=tools, context={}
     )
@@ -308,7 +326,7 @@ def run_loop(
             print("\n✅ Task complete!")
             break
 
-        print(f"🛠️  Executing tool: \033[36m{action.name}\033[0m")
+        print(f"🛠️  Executing tool: {Style.cyan(action.name)}")
         # Execute tool (if MCP client provided)
         if mcp_client is not None:
             result = execute_tool(action, mcp_client)

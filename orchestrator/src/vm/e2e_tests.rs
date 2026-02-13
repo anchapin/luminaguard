@@ -195,13 +195,13 @@ async fn e2e_agent_with_security_features() {
     println!("  Spawned in {:.2}ms", start.elapsed().as_millis());
     destroy_vm(handle).await.unwrap();
 
-    // Test 2: Permissive seccomp
-    println!("\nTest 2: VM with Permissive seccomp");
-    let mut config = VmConfig::new("security-permissive".to_string());
-    config.seccomp_filter = Some(SeccompFilter::new(SeccompLevel::Permissive));
+    // Test 2: Basic seccomp
+    println!("\nTest 2: VM with Basic seccomp");
+    let mut config = VmConfig::new("security-basic".to_string());
+    config.seccomp_filter = Some(SeccompFilter::new(SeccompLevel::Basic));
 
     let start = Instant::now();
-    let handle = match spawn_vm_with_config("security-advanced", &config).await {
+    let handle = match spawn_vm_with_config("security-basic", &config).await {
         Ok(h) => h,
         Err(e) => {
             println!("Failed: {}", e);
@@ -211,13 +211,13 @@ async fn e2e_agent_with_security_features() {
     println!("  Spawned in {:.2}ms", start.elapsed().as_millis());
     destroy_vm(handle).await.unwrap();
 
-    // Test 3: Minimal seccomp
-    println!("\nTest 3: VM with Minimal seccomp");
-    let mut config = VmConfig::new("security-minimal".to_string());
-    config.seccomp_filter = Some(SeccompFilter::new(SeccompLevel::Minimal));
+    // Test 3: Permissive seccomp
+    println!("\nTest 3: VM with Permissive seccomp");
+    let mut config = VmConfig::new("security-permissive".to_string());
+    config.seccomp_filter = Some(SeccompFilter::new(SeccompLevel::Permissive));
 
     let start = Instant::now();
-    let handle = match spawn_vm_with_config("security-strict", &config).await {
+    let handle = match spawn_vm_with_config("security-permissive", &config).await {
         Ok(h) => h,
         Err(e) => {
             println!("Failed: {}", e);
