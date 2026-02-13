@@ -261,7 +261,7 @@ pub async fn start_jailed_firecracker(
         if let Some(mut stderr) = child.stderr.take() {
             use tokio::io::AsyncReadExt;
             let mut error_buf = vec![];
-            if let Ok(_) = stderr.read_to_end(&mut error_buf).await {
+            if stderr.read_to_end(&mut error_buf).await.is_ok() {
                 let error_output = String::from_utf8_lossy(&error_buf);
                 if !error_output.trim().is_empty() {
                     return Err(anyhow!(
