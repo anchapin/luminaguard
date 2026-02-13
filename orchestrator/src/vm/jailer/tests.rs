@@ -300,4 +300,134 @@ mod tests {
             .await
             .unwrap();
     }
+
+    /// Integration test: Verify real jailer binary can be executed
+    #[tokio::test]
+    async fn test_real_jailer_execution() {
+        use std::process::Command;
+
+        // Skip if jailer not installed
+        if verify_jailer_installed().is_err() {
+            println!("Skipping: Jailer not installed");
+            return;
+        }
+
+        // Test 1: Verify jailer --help works
+        let help_output = Command::new("jailer")
+            .arg("--help")
+            .output();
+
+        match help_output {
+            Ok(output) => {
+                assert!(output.status.success(), "Jailer --help should succeed");
+                let help_text = String::from_utf8_lossy(&output.stdout);
+                assert!(help_text.contains("exec-file"), "Jailer help should mention exec-file");
+                assert!(help_text.contains("id"), "Jailer help should mention id");
+                println!("✓ Jailer --help works correctly");
+            }
+            Err(e) => {
+                panic!("Failed to execute jailer --help: {}", e);
+            }
+        }
+
+        // Test 2: Verify jailer version works
+        let version_output = Command::new("jailer")
+            .arg("--version")
+            .output();
+
+        match version_output {
+            Ok(output) => {
+                assert!(output.status.success(), "Jailer --version should succeed");
+                let version_text = String::from_utf8_lossy(&output.stdout);
+                println!("✓ Jailer version: {}", version_text.trim());
+            }
+            Err(e) => {
+                panic!("Failed to execute jailer --version: {}", e);
+            }
+        }
+
+        // Test 3: Verify jailer rejects invalid arguments
+        let invalid_output = Command::new("jailer")
+            .arg("--invalid-arg")
+            .output();
+
+        match invalid_output {
+            Ok(output) => {
+                assert!(!output.status.success(), "Jailer should reject invalid arguments");
+                println!("✓ Jailer correctly rejects invalid arguments");
+            }
+            Err(e) => {
+                panic!("Failed to execute jailer with invalid args: {}", e);
+            }
+        }
+    }
+
+    /// Integration test: Verify jailer binary path resolution
+    #[tokio::test]
+    async fn test_jailer_path_resolution() {
+        use std::path::Path;
+
+        // Test default path
+        let default_path = Path::new("/usr/local/bin/jailer");
+        if default_path.exists() {
+            println!("✓ Jailer found at default path: /usr/local/bin/jailer");
+        }
+
+        // Test alternative paths
+        let alt_paths = vec![
+            "/usr/bin/jailer",
+            "/opt/firecracker/bin/jailer",
+            "/usr/local/bin/firecracker-v1.14.1-x86_64",
+        ];
+
+        for path in alt_paths {
+            if Path::new(path).exists() {
+                println!("✓ Jailer also found at: {}", path);
+            }
+        }
+
+        // Verify verify_jailer_installed() function
+        if verify_jailer_installed().is_ok() {
+            println!("✓ verify_jailer_installed() succeeds");
+        } else {
+            println!("✗ verify_jailer_installed() failed (expected if no jailer installed)");
+        }
+    }
+
+    /// Integration test: Test jailer config builds valid arguments
+    #[tokio::test]
+    async fn test_jailer_arg_validation() {
+        // Test with default config
+        let config = JailerConfig::new("test-vm".to_string());
+        let args = config.build_args();
+
+        // Verify required args are present
+        let args_str = args.join(" ");
+        assert!(args_str.contains("--id test-vm"), "Args should contain --id");
+        assert!(args_str.contains("--node 0"), "Args should contain --node");
+        assert!(args_str.contains("--uid"), "Args should contain --uid");
+        assert!(args_str.contains("--gid"), "Args should contain --gid");
+        assert!(args_str.contains("--exec-file"), "Args should contain --exec-file");
+        assert!(args_str.contains("--chroot-base-dir"), "Args should contain --chroot-base-dir");
+        assert!(args_str.contains("--daemonize"), "Args should contain --daemonize");
+        assert!(args_str.contains("--new-pid-ns"), "Args should contain --new-pid-ns");
+        assert!(args_str.ends_with("--"), "Args should end with separator");
+
+        println!("✓ Jailer args build correctly: {}", args_str);
+    }
+
+    /// Integration test: Test chroot path generation
+    #[tokio::test]
+    async fn test_chroot_path_generation() {
+        use std::path::Path;
+
+        let config = JailerConfig::new("test-vm".to_string());
+        let chroot_dir = config.chroot_dir();
+
+        // Verify path structure: /srv/jailer/firecracker/<id>/root
+        assert!(chroot_dir.is_absolute(), "Chroot path should be absolute");
+        assert!(chroot_dir.ends_with("firecracker/test-vm/root"), "Chroot path should end with expected structure");
+
+        println!("✓ Chroot path generated correctly: {}", chroot_dir.display());
+    }
 }

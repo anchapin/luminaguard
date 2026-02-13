@@ -1,6 +1,22 @@
 // Jailer Process Management
 //
 // Handles spawning and managing Firecracker processes via Jailer
+//
+// Real Jailer Execution Flow:
+// 1. Verify jailer binary is executable
+// 2. Validate configuration (VM resources, jailer settings)
+// 3. Create chroot directory structure
+// 4. Prepare resources in chroot (hard links to kernel/rootfs)
+// 5. Build and execute jailer command with all arguments
+// 6. Wait for API socket to be created
+// 7. Configure VM via Firecracker API (boot source, drives, machine config)
+// 8. Start the VM instance
+//
+// Security Layers:
+// - chroot: Filesystem isolation
+// - cgroups: Resource limits (CPU, memory)
+// - namespaces: Process, network, mount isolation
+// - UID/GID: Privilege separation
 
 use anyhow::{anyhow, Context, Result};
 use std::path::{Path, PathBuf};
@@ -23,6 +39,39 @@ pub struct JailerProcess {
 }
 
 /// Start Firecracker via Jailer
+///
+/// This function performs real jailer binary execution, which requires:
+/// - Root privileges (CAP_SYS_ADMIN for namespace/cgroup operations)
+/// - Jailer binary at `/usr/local/bin/jailer`
+/// - Firecracker binary (path specified in jailer_config.exec_file)
+/// - Valid kernel and rootfs files
+/// - Proper cgroup setup (v1 or v2)
+///
+/// # Arguments
+///
+/// * `vm_config` - VM configuration (kernel, rootfs, memory, CPU)
+/// * `jailer_config` - Jailer sandbox configuration (chroot, cgroups, namespaces)
+///
+/// # Returns
+///
+/// * `JailerProcess` - Handle for managing the jailed Firecracker process
+///
+/// # Example
+///
+/// ```no_run
+/// use ironclaw_orchestrator::vm::{config::VmConfig, jailer::{JailerConfig, start_jailed_firecracker}};
+///
+/// #[tokio::main]
+/// async fn main() -> anyhow::Result<()> {
+///     let vm_config = VmConfig::new("my-vm".to_string());
+///     let jailer_config = JailerConfig::new("my-vm".to_string())
+///         .with_user(1000, 1000);
+///
+///     let jailer_process = start_jailed_firecracker(&vm_config, &jailer_config).await?;
+///     println!("Jailed VM spawned: PID={}, Socket={}", jailer_process.pid, jailer_process.socket_path);
+///     Ok(())
+/// }
+/// ```
 pub async fn start_jailed_firecracker(
     vm_config: &VmConfig,
     jailer_config: &JailerConfig,
@@ -33,6 +82,9 @@ pub async fn start_jailed_firecracker(
         jailer_config.id
     );
 
+    // 0. Verify jailer binary is executable
+    verify_jailer_executable()?;
+
     // 1. Validate jailer configuration
     jailer_config.validate().context("Invalid jailer configuration")?;
 
@@ -41,10 +93,18 @@ pub async fn start_jailed_firecracker(
     let rootfs_path = PathBuf::from(&vm_config.rootfs_path);
 
     if !kernel_path.exists() {
-        return Err(anyhow!("Kernel image not found at: {:?}", kernel_path));
+        return Err(anyhow!(
+            "Kernel image not found at: {:?}. \
+            Download from https://github.com/firecracker-microvm/firecracker/blob/main/docs/rootfs-and-kernel-setup.md",
+            kernel_path
+        ));
     }
     if !rootfs_path.exists() {
-        return Err(anyhow!("Root filesystem not found at: {:?}", rootfs_path));
+        return Err(anyhow!(
+            "Root filesystem not found at: {:?}. \
+            Download from https://github.com/firecracker-microvm/firecracker/blob/main/docs/rootfs-and-kernel-setup.md",
+            rootfs_path
+        ));
     }
 
     // 3. Prepare chroot directory structure
@@ -55,7 +115,7 @@ pub async fn start_jailed_firecracker(
         if !parent.exists() {
             tokio::fs::create_dir_all(parent)
                 .await
-                .context("Failed to create chroot base directory")?;
+                .context("Failed to create chroot base directory. This may require root privileges for /srv/jailer")?;
         }
     }
 
@@ -77,29 +137,68 @@ pub async fn start_jailed_firecracker(
 
     // Create hard links to kernel and rootfs in chroot
     // Hard links are preferred over copies to avoid duplicating large files
-    tokio::fs::hard_link(&kernel_path, &jailed_kernel_path)
-        .await
-        .with_context(|| {
-            format!(
-                "Failed to create hard link to kernel. \
-                Ensure kernel and chroot are on same filesystem: {:?} -> {:?}",
-                kernel_path, jailed_kernel_path
-            )
-        })?;
+    // This requires both source and destination to be on the same filesystem
+    match tokio::fs::hard_link(&kernel_path, &jailed_kernel_path).await {
+        Ok(_) => {
+            debug!(
+                "Created hard link to kernel in chroot: {:?}",
+                jailed_kernel_path
+            );
+        }
+        Err(e) => {
+            // If hard link fails, fall back to copy
+            debug!(
+                "Hard link failed (different filesystems?), copying kernel: {:?}",
+                e
+            );
+            tokio::fs::copy(&kernel_path, &jailed_kernel_path)
+                .await
+                .with_context(|| {
+                    format!(
+                        "Failed to copy kernel to chroot: {:?} -> {:?}",
+                        kernel_path, jailed_kernel_path
+                    )
+                })?;
+            debug!(
+                "Copied kernel to chroot: {:?} ({} bytes)",
+                jailed_kernel_path,
+                kernel_path.metadata().map(|m| m.len()).unwrap_or(0)
+            );
+        }
+    }
 
-    tokio::fs::hard_link(&rootfs_path, &jailed_rootfs_path)
-        .await
-        .with_context(|| {
-            format!(
-                "Failed to create hard link to rootfs. \
-                Ensure rootfs and chroot are on same filesystem: {:?} -> {:?}",
-                rootfs_path, jailed_rootfs_path
-            )
-        })?;
+    match tokio::fs::hard_link(&rootfs_path, &jailed_rootfs_path).await {
+        Ok(_) => {
+            debug!(
+                "Created hard link to rootfs in chroot: {:?}",
+                jailed_rootfs_path
+            );
+        }
+        Err(e) => {
+            // If hard link fails, fall back to copy
+            debug!(
+                "Hard link failed (different filesystems?), copying rootfs: {:?}",
+                e
+            );
+            tokio::fs::copy(&rootfs_path, &jailed_rootfs_path)
+                .await
+                .with_context(|| {
+                    format!(
+                        "Failed to copy rootfs to chroot: {:?} -> {:?}",
+                        rootfs_path, jailed_rootfs_path
+                    )
+                })?;
+            debug!(
+                "Copied rootfs to chroot: {:?} ({} bytes)",
+                jailed_rootfs_path,
+                rootfs_path.metadata().map(|m| m.len()).unwrap_or(0)
+            );
+        }
+    }
 
     debug!(
-        "Created hard links to resources in chroot: {:?}, {:?}",
-        jailed_kernel_path, jailed_rootfs_path
+        "VM resources prepared in chroot directory: {:?}",
+        chroot_dir
     );
 
     // 5. Build jailer command
@@ -119,16 +218,16 @@ pub async fn start_jailed_firecracker(
 
     jailer_cmd.args(&args);
 
-    // Redirect stdout/stderr
-    jailer_cmd.stdout(std::process::Stdio::null());
-    jailer_cmd.stderr(std::process::Stdio::null());
+    // Redirect stdout/stderr (capture stderr for debugging errors)
+    jailer_cmd.stdout(std::process::Stdio::piped());
+    jailer_cmd.stderr(std::process::Stdio::piped());
 
     debug!("Jailer command: jailer {}", args.join(" "));
 
     // 6. Spawn jailer process
     let mut child = jailer_cmd
         .spawn()
-        .context("Failed to spawn jailer process")?;
+        .context("Failed to spawn jailer process. Ensure jailer is installed at /usr/local/bin/jailer and is executable.")?;
 
     let pid = child
         .id()
@@ -157,8 +256,31 @@ pub async fn start_jailed_firecracker(
     if !socket_ready {
         // Kill the process if socket never appeared
         let _ = child.kill().await;
+
+        // Try to read stderr for error details
+        if let Some(mut stderr) = child.stderr.take() {
+            use tokio::io::AsyncReadExt;
+            let mut error_buf = vec![];
+            if let Ok(_) = stderr.read_to_end(&mut error_buf).await {
+                let error_output = String::from_utf8_lossy(&error_buf);
+                if !error_output.trim().is_empty() {
+                    return Err(anyhow!(
+                        "Jailed Firecracker API socket did not appear in time: {:?}\n\
+                        Jailer stderr output: {}",
+                        jailed_socket_path,
+                        error_output
+                    ));
+                }
+            }
+        }
+
         return Err(anyhow!(
-            "Jailed Firecracker API socket did not appear in time: {:?}",
+            "Jailed Firecracker API socket did not appear in time: {:?}\n\
+            This may indicate:\n\
+            1. Kernel or rootfs resources are missing or inaccessible\n\
+            2. Insufficient permissions (need CAP_SYS_ADMIN for namespaces)\n\
+            3. Cgroup v2 not configured properly\n\
+            4. Firewall or security policies blocking execution",
             jailed_socket_path
         ));
     }
@@ -434,6 +556,81 @@ async fn start_instance(socket_path: &str) -> Result<()> {
         return Err(anyhow!("Failed to start instance"));
     }
 
+    Ok(())
+}
+
+/// Verify that the jailer binary is executable
+///
+/// This function checks that:
+/// 1. The jailer binary exists at the expected path
+/// 2. The binary has execute permissions
+/// 3. Can be executed (basic sanity check)
+///
+/// # Returns
+///
+/// * `Ok(())` - Jailer binary is executable
+/// * `Err(_)` - Jailer binary is missing or not executable
+fn verify_jailer_executable() -> Result<()> {
+    use std::os::unix::fs::PermissionsExt;
+    use std::path::Path;
+    use std::process::Command;
+
+    let jailer_path = Path::new("/usr/local/bin/jailer");
+
+    if !jailer_path.exists() {
+        anyhow::bail!(
+            "Jailer binary not found at {:?}. \
+            \nTo install Firecracker, follow the official guide: \
+            \nhttps://github.com/firecracker-microvm/firecracker/blob/main/docs/getting-started.md \
+            \n\nOr download pre-built binaries: \
+            \nhttps://github.com/firecracker-microvm/firecracker/releases",
+            jailer_path
+        );
+    }
+
+    // Check if file is executable
+    let metadata = jailer_path.metadata().context("Failed to read jailer binary metadata")?;
+    let permissions = metadata.permissions();
+    let mode = permissions.mode();
+
+    if mode & 0o111 == 0 {
+        anyhow::bail!(
+            "Jailer binary is not executable: {:?}. \
+            \nRun: chmod +x /usr/local/bin/jailer",
+            jailer_path
+        );
+    }
+
+    // Verify the binary can actually execute by checking --version
+    let version_check = Command::new("jailer")
+        .arg("--version")
+        .output()
+        .context("Failed to execute jailer binary");
+
+    match version_check {
+        Ok(output) => {
+            if !output.status.success() {
+                anyhow::bail!(
+                    "Jailer binary exists but --version check failed. \
+                    \nStderr: {}",
+                    String::from_utf8_lossy(&output.stderr)
+                );
+            }
+            debug!(
+                "Jailer binary verified: {}",
+                String::from_utf8_lossy(&output.stdout).trim()
+            );
+        }
+        Err(e) => {
+            anyhow::bail!(
+                "Jailer binary exists but cannot be executed: {}. \
+                \nThis may indicate a corrupted binary or missing dependencies.",
+                e
+            );
+        }
+    }
+
+    debug!("Jailer binary verified as executable and functional: {:?}", jailer_path);
     Ok(())
 }
 
