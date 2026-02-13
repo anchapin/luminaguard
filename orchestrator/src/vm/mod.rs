@@ -24,6 +24,14 @@ pub mod prototype;
 #[cfg(test)]
 mod tests;
 
+// Real integration tests that run against actual binaries
+#[cfg(test)]
+mod integration_tests;
+
+// End-to-end tests for complete workflows
+#[cfg(test)]
+mod e2e_tests;
+
 use anyhow::{Context, Result};
 use std::sync::Arc;
 use tokio::sync::{Mutex, OnceCell};

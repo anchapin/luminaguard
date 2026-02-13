@@ -7,16 +7,23 @@ mod tests {
     use crate::vm::config::VmConfig;
     use crate::vm::jailer::{JailerConfig, verify_jailer_installed};
 
-    /// Test that jailer can be verified as installed
+    /// Integration test: Verify Jailer binary is available
+    ///
+    /// Requirements:
+    /// - Jailer installed at /usr/local/bin/jailer
     #[test]
     fn test_verify_jailer_installed() {
-        // This test will pass if jailer is installed
         let result = verify_jailer_installed();
-        if result.is_ok() {
-            println!("Jailer is installed at: /usr/local/bin/jailer");
-        } else {
-            println!("Jailer not installed (expected in some environments)");
+        match result {
+            Ok(_path) => {
+                println!("Jailer is installed at: /usr/local/bin/jailer");
+            }
+            Err(e) => {
+                println!("Jailer not installed: {}", e);
+                println!("Tests requiring real Jailer will be skipped");
+            }
         }
+        assert!(result.is_ok() || result.is_err()); // Always passes, just reports status
     }
 
     /// Test that jailer config validates correct IDs

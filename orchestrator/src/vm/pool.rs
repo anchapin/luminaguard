@@ -339,7 +339,6 @@ pub struct PoolStats {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::TempDir;
 
     #[tokio::test]
     async fn test_pool_config_default() {
