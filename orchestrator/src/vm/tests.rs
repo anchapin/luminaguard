@@ -5,7 +5,7 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::vm::{destroy_vm, spawn_vm, verify_network_isolation};
+    use crate::vm::{destroy_vm, should_skip_hypervisor_tests, spawn_vm, verify_network_isolation};
 
     /// Test that VM cannot be created with networking enabled
     #[tokio::test]
@@ -26,6 +26,11 @@ mod tests {
     /// Test that multiple VMs can be spawned with unique firewall chains
     #[tokio::test]
     async fn test_multiple_vms_isolation() {
+        if should_skip_hypervisor_tests() {
+            tracing::warn!("Skipping hypervisor-dependent test");
+            return;
+        }
+
         // Check if Firecracker resources exist in either location
         let kernel_path = if std::path::Path::new("/tmp/ironclaw-fc-test/vmlinux.bin").exists() {
             "/tmp/ironclaw-fc-test/vmlinux.bin".to_string()
@@ -87,6 +92,11 @@ mod tests {
     /// Test that firewall rules are verified correctly
     #[tokio::test]
     async fn test_firewall_verification() {
+        if should_skip_hypervisor_tests() {
+            tracing::warn!("Skipping hypervisor-dependent test");
+            return;
+        }
+
         // Check if Firecracker resources exist
         let kernel_path = if std::path::Path::new("/tmp/ironclaw-fc-test/vmlinux.bin").exists() {
             "/tmp/ironclaw-fc-test/vmlinux.bin"
@@ -133,6 +143,11 @@ mod tests {
     /// Test that vsock paths are unique per VM
     #[tokio::test]
     async fn test_vsock_paths_are_unique() {
+        if should_skip_hypervisor_tests() {
+            tracing::warn!("Skipping hypervisor-dependent test");
+            return;
+        }
+
         // Check if Firecracker resources exist
         let kernel_path = if std::path::Path::new("/tmp/ironclaw-fc-test/vmlinux.bin").exists() {
             "/tmp/ironclaw-fc-test/vmlinux.bin"
@@ -312,6 +327,11 @@ mod tests {
     /// Test edge case: VM with very long ID
     #[tokio::test]
     async fn test_vm_with_long_id() {
+        if should_skip_hypervisor_tests() {
+            tracing::warn!("Skipping hypervisor-dependent test");
+            return;
+        }
+
         // Check if Firecracker resources exist
         let kernel_path = if std::path::Path::new("/tmp/ironclaw-fc-test/vmlinux.bin").exists() {
             "/tmp/ironclaw-fc-test/vmlinux.bin"
@@ -359,6 +379,11 @@ mod tests {
     /// Test edge case: VM with special characters in ID
     #[tokio::test]
     async fn test_vm_with_special_chars() {
+        if should_skip_hypervisor_tests() {
+            tracing::warn!("Skipping hypervisor-dependent test");
+            return;
+        }
+
         // Check if Firecracker resources exist
         let kernel_path = if std::path::Path::new("/tmp/ironclaw-fc-test/vmlinux.bin").exists() {
             "/tmp/ironclaw-fc-test/vmlinux.bin"
@@ -467,6 +492,11 @@ mod tests {
     /// Test: Verify cleanup happens on VM destruction
     #[tokio::test]
     async fn test_vm_cleanup_on_destruction() {
+        if should_skip_hypervisor_tests() {
+            tracing::warn!("Skipping hypervisor-dependent test");
+            return;
+        }
+
         // Check if Firecracker resources exist
         let kernel_path = if std::path::Path::new("/tmp/ironclaw-fc-test/vmlinux.bin").exists() {
             "/tmp/ironclaw-fc-test/vmlinux.bin"
@@ -517,6 +547,11 @@ mod tests {
     /// Test: Multiple rapid VM spawns and destroys
     #[tokio::test]
     async fn test_rapid_vm_lifecycle() {
+        if should_skip_hypervisor_tests() {
+            tracing::warn!("Skipping hypervisor-dependent test");
+            return;
+        }
+
         // Check if Firecracker resources exist
         let kernel_path = if std::path::Path::new("/tmp/ironclaw-fc-test/vmlinux.bin").exists() {
             "/tmp/ironclaw-fc-test/vmlinux.bin"
@@ -563,6 +598,11 @@ mod tests {
     /// 3. VM lifecycle completes successfully
     #[tokio::test]
     async fn test_real_firecracker_execution() {
+        if should_skip_hypervisor_tests() {
+            tracing::warn!("Skipping hypervisor-dependent test");
+            return;
+        }
+
         use crate::vm::config::VmConfig;
         use std::time::Instant;
 

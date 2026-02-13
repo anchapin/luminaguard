@@ -333,15 +333,18 @@ pub async fn warmup_pool() -> Result<()> {
 }
 
 #[cfg(test)]
+pub(crate) fn should_skip_hypervisor_tests() -> bool {
+    std::env::var("SKIP_HYPERVISOR_TESTS").is_ok() || cfg!(not(target_os = "linux"))
+}
+
+#[cfg(test)]
 mod inline_tests {
     use super::*;
 
     #[tokio::test]
     async fn test_vm_spawn_and_destroy() {
-        // This test requires actual Firecracker installation
-        // Skip in CI if not available
-        if !std::path::Path::new("/usr/local/bin/firecracker").exists() {
-            tracing::warn!("Skipping test: Firecracker binary not found");
+        if should_skip_hypervisor_tests() {
+            tracing::warn!("Skipping hypervisor-dependent test");
             return;
         }
 
