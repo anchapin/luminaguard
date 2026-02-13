@@ -122,13 +122,13 @@ impl JailerConfig {
             anyhow::bail!("VM ID too long (max 64 characters)");
         }
 
-        // Only alphanumeric and hyphens allowed
+        // Only ASCII alphanumeric and hyphens allowed
         if !self
             .id
             .chars()
             .all(|c| c.is_ascii_alphanumeric() || c == '-')
         {
-            anyhow::bail!("VM ID can only contain alphanumeric characters and hyphens");
+            anyhow::bail!("VM ID can only contain ASCII alphanumeric characters and hyphens");
         }
 
         // Validate exec file exists
