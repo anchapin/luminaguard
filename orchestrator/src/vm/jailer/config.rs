@@ -122,7 +122,7 @@ impl JailerConfig {
         }
 
         // Only alphanumeric and hyphens allowed
-        if !self.id.chars().all(|c| c.is_alphanumeric() || c == '-') {
+        if !self.id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-') {
             anyhow::bail!("VM ID can only contain alphanumeric characters and hyphens");
         }
 
