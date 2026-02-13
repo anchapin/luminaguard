@@ -20,7 +20,7 @@ use std::process::Command;
 use tracing::{debug, info, warn};
 
 /// Overlay filesystem type
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub enum OverlayType {
     /// Use tmpfs for ephemeral overlay (default)
     /// - Pros: Fast, no cleanup needed, resets on reboot
