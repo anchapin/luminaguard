@@ -318,6 +318,7 @@ async fn start_instance(client: &mut FirecrackerClient) -> Result<()> {
     Ok(())
 }
 
+#[cfg(test)]
 fn create_rootfs_drive(path: &str) -> Drive {
     Drive {
         drive_id: "rootfs".to_string(),
