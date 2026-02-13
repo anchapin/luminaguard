@@ -145,7 +145,11 @@ mod tests {
             let config = VmConfig::new("test".to_string());
             let result = hv.spawn(&config).await;
             assert!(result.is_err());
-            assert!(result.unwrap_err().to_string().contains("only available on macOS"));
+            if let Err(e) = result {
+                assert!(e.to_string().contains("only available on macOS"));
+            } else {
+                panic!("Expected an error, but got Ok");
+            }
         }
     }
 }
