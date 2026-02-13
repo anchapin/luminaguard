@@ -82,6 +82,18 @@ jobs:
           path: orchestrator/target
           key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
 
+      - name: Debug Environment (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          echo "## Environment Variables"
+          Get-ChildItem Env: | Format-List
+          echo "## Rust Toolchain"
+          rustc --version --verbose
+          cargo --version --verbose
+          where.exe rustc
+          where.exe cargo
+        shell: pwsh
+
       - name: Run cargo test
         working-directory: orchestrator
         run: cargo test --lib --bins --verbose
