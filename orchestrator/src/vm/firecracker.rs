@@ -218,11 +218,24 @@ async fn send_request<T: Serialize>(
     }
 }
 
+/// Create rootfs drive configuration
+///
+/// Ensures rootfs is always mounted as read-only for security.
+fn create_rootfs_drive(path: &str) -> Drive {
+    Drive {
+        drive_id: "rootfs".to_string(),
+        path_on_host: path.to_string(),
+        is_root_device: true,
+        // CRITICAL SECURITY: Shared rootfs must be read-only to prevent cross-VM contamination
+        is_read_only: true,
+    }
+}
+
 async fn configure_vm(socket_path: &str, config: &VmConfig) -> Result<()> {
     // 1. Set Boot Source
     let boot_source = BootSource {
         kernel_image_path: config.kernel_path.clone(),
-        boot_args: Some("console=ttyS0 reboot=k panic=1 pci=off".to_string()),
+        boot_args: Some("console=ttyS0 reboot=k panic=1 pci=off ro".to_string()),
     };
     send_request(
         socket_path,
@@ -234,12 +247,7 @@ async fn configure_vm(socket_path: &str, config: &VmConfig) -> Result<()> {
     .context("Failed to configure boot source")?;
 
     // 2. Set Rootfs Drive
-    let rootfs = Drive {
-        drive_id: "rootfs".to_string(),
-        path_on_host: config.rootfs_path.clone(),
-        is_root_device: true,
-        is_read_only: false,
-    };
+    let rootfs = create_rootfs_drive(&config.rootfs_path);
     send_request(
         socket_path,
         hyper::Method::PUT,
@@ -395,7 +403,10 @@ mod tests {
                 assert!(std::path::Path::new(&socket_path).exists());
 
                 let socket_path = process.socket_path.clone();
+<<<<<<< HEAD
 
+=======
+>>>>>>> origin/main
                 // Stop the VM
                 stop_firecracker(process).await.unwrap();
                 println!("Firecracker stopped successfully");
@@ -488,7 +499,10 @@ mod tests {
         assert!(std::path::Path::new(&socket_path).exists());
 
         let socket_path = process.socket_path.clone();
+<<<<<<< HEAD
 
+=======
+>>>>>>> origin/main
         // Stop
         stop_firecracker(process).await.unwrap();
 
@@ -519,13 +533,6 @@ mod tests {
             println!("Skipping: VM resources not available");
             return;
         }
-
-        let _config = VmConfig {
-            vm_id: "perf-test-vm".to_string(),
-            kernel_path: kernel_path.to_string(),
-            rootfs_path: rootfs_path.to_string(),
-            ..VmConfig::default()
-        };
 
         // Measure multiple spawns for average
         let mut times = Vec::new();
@@ -1026,5 +1033,29 @@ mod tests {
         assert!(json.contains("InstanceStart"));
 
         println!("Action serialization test passed");
+    }
+
+    /// Security Test: Verify rootfs drive is always read-only
+    ///
+    /// This test ensures that the `create_rootfs_drive` helper function
+    /// enforces the security invariant that shared rootfs images must be read-only.
+    #[test]
+    fn test_rootfs_drive_is_secure() {
+        let path = "/tmp/rootfs.ext4";
+        let drive = create_rootfs_drive(path);
+
+        assert_eq!(drive.drive_id, "rootfs");
+        assert_eq!(drive.path_on_host, path);
+        assert!(drive.is_root_device);
+        assert!(
+            drive.is_read_only,
+            "SECURITY: Shared rootfs must be mounted read-only"
+        );
+
+        // Verify JSON serialization also reflects this
+        let json = serde_json::to_string(&drive).unwrap();
+        assert!(json.contains("\"is_read_only\":true"));
+
+        println!("Rootfs security check passed: is_read_only=true");
     }
 }
