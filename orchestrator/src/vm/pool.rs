@@ -298,6 +298,8 @@ impl SnapshotPool {
             max_size: self.config.pool_size,
             oldest_snapshot_age_secs: oldest_snapshot.map(|d| d.as_secs()),
             newest_snapshot_age_secs: newest_snapshot.map(|d| d.as_secs()),
+            active_vms: 0, // TODO: Implement active VM tracking
+            queued_tasks: 0, // TODO: Implement task queue tracking
         }
     }
 
@@ -334,6 +336,12 @@ pub struct PoolStats {
 
     /// Age of newest snapshot in seconds
     pub newest_snapshot_age_secs: Option<u64>,
+
+    /// Active VMs (placeholder)
+    pub active_vms: usize,
+
+    /// Queued tasks (placeholder)
+    pub queued_tasks: usize,
 }
 
 #[cfg(test)]
@@ -368,10 +376,13 @@ mod tests {
             max_size: 5,
             oldest_snapshot_age_secs: Some(100),
             newest_snapshot_age_secs: Some(50),
+            active_vms: 0,
+            queued_tasks: 0,
         };
 
         assert_eq!(stats.current_size, 3);
         assert_eq!(stats.max_size, 5);
+        assert_eq!(stats.active_vms, 0);
     }
 
     #[tokio::test]

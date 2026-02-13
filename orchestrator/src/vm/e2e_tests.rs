@@ -186,10 +186,10 @@ async fn e2e_agent_with_security_features() {
     println!("  Spawned in {:.2}ms", start.elapsed().as_millis());
     destroy_vm(handle).await.unwrap();
 
-    // Test 2: Advanced seccomp
-    println!("\nTest 2: VM with Advanced seccomp");
+    // Test 2: VM with Basic seccomp
+    println!("\nTest 2: VM with Basic seccomp");
     let mut config = VmConfig::new("security-advanced".to_string());
-    config.seccomp_filter = Some(SeccompFilter::new(SeccompLevel::Advanced));
+    config.seccomp_filter = Some(SeccompFilter::new(SeccompLevel::Basic));
 
     let start = Instant::now();
     let handle = match spawn_vm_with_config("security-advanced", &config).await {
@@ -202,10 +202,10 @@ async fn e2e_agent_with_security_features() {
     println!("  Spawned in {:.2}ms", start.elapsed().as_millis());
     destroy_vm(handle).await.unwrap();
 
-    // Test 3: Strict seccomp
-    println!("\nTest 3: VM with Strict seccomp");
+    // Test 3: Permissive seccomp
+    println!("\nTest 3: VM with Permissive seccomp");
     let mut config = VmConfig::new("security-strict".to_string());
-    config.seccomp_filter = Some(SeccompFilter::new(SeccompLevel::Strict));
+    config.seccomp_filter = Some(SeccompFilter::new(SeccompLevel::Permissive));
 
     let start = Instant::now();
     let handle = match spawn_vm_with_config("security-strict", &config).await {

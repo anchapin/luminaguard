@@ -538,7 +538,7 @@ async fn test_real_pool_warmup() {
             // Check stats
             if let Ok(stats) = pool_stats().await {
                 println!("Pool size after warmup: {}/{}", stats.current_size, stats.max_size);
-                println!("Oldest snapshot: {}s, Newest snapshot: {}s",
+                println!("Oldest snapshot: {:?}s, Newest snapshot: {:?}s",
                     stats.oldest_snapshot_age_secs, stats.newest_snapshot_age_secs);
             }
         }
@@ -600,7 +600,7 @@ async fn test_real_vm_performance() {
     println!("  Max: {:.2}ms", max.as_millis());
 
     // Check against target
-    if avg.as_millis() > 200.0 {
+    if avg.as_millis() > 200 {
         println!("  ⚠️  Average exceeds 200ms target");
     } else {
         println!("  ✅ Average meets 200ms target");
