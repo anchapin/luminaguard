@@ -7,7 +7,7 @@
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 #[cfg(windows)]
-use std::time::Instant;
+use std::sync::{Arc, Mutex};
 use tracing::info;
 
 #[cfg(windows)]
@@ -47,7 +47,7 @@ pub struct HypervInstance {
     pub id: String,
     pub spawn_time_ms: f64,
     #[cfg(windows)]
-    partition: Partition,
+    partition: Arc<Mutex<Partition>>,
 }
 
 #[cfg(windows)]
@@ -76,7 +76,7 @@ impl HypervInstance {
         Ok(Self {
             id: config.vm_id.clone(),
             spawn_time_ms,
-            partition,
+            partition: Arc::new(Mutex::new(partition)),
         })
     }
 }
@@ -104,7 +104,8 @@ impl VmInstance for HypervInstance {
 
     async fn stop(&mut self) -> Result<()> {
         info!("Stopping Hyper-V VM (ID: {})", self.id);
-        // WHPX partition is automatically cleaned up when dropped
+        let mut partition = self.partition.lock().unwrap();
+        partition.terminate().map_err(|e| anyhow!("Failed to terminate WHPX partition: {:?}", e))?;
         Ok(())
     }
 }
