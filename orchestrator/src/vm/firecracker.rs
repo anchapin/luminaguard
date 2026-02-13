@@ -1,8 +1,10 @@
+#![cfg(unix)]
 // Firecracker Integration
 //
 // This module handles the actual Firecracker VM spawning using the HTTP API over Unix sockets.
 
 use anyhow::{anyhow, Context, Result};
+use async_trait::async_trait;
 use bytes::Bytes;
 use http_body_util::{BodyExt, Full};
 use hyper::{Request, StatusCode};
@@ -10,19 +12,74 @@ use hyper_util::rt::TokioIo;
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 use std::time::Instant;
+#[cfg(unix)]
 use tokio::net::UnixStream;
 use tokio::process::{Child, Command};
 use tracing::{debug, info};
 
 use crate::vm::config::VmConfig;
+use crate::vm::hypervisor::{Hypervisor, VmInstance};
+
+/// Firecracker Hypervisor implementation
+pub struct FirecrackerHypervisor;
+
+#[async_trait]
+impl Hypervisor for FirecrackerHypervisor {
+    async fn spawn(&self, config: &VmConfig) -> Result<Box<dyn VmInstance>> {
+        let process = start_firecracker(config).await?;
+        Ok(Box::new(process))
+    }
+
+    fn name(&self) -> &str {
+        "firecracker"
+    }
+}
 
 /// Firecracker VM process manager
 #[derive(Debug)]
 pub struct FirecrackerProcess {
+    pub id: String,
     pub pid: u32,
     pub socket_path: String,
     pub child_process: Option<Child>,
     pub spawn_time_ms: f64,
+}
+
+#[async_trait]
+impl VmInstance for FirecrackerProcess {
+    fn id(&self) -> &str {
+        &self.id
+    }
+
+    fn pid(&self) -> u32 {
+        self.pid
+    }
+
+    fn socket_path(&self) -> &str {
+        &self.socket_path
+    }
+
+    fn spawn_time_ms(&self) -> f64 {
+        self.spawn_time_ms
+    }
+
+    async fn stop(&mut self) -> Result<()> {
+        info!("Stopping Firecracker VM (ID: {}, PID: {})", self.id, self.pid);
+
+        if let Some(mut child) = self.child_process.take() {
+            child
+                .kill()
+                .await
+                .context("Failed to kill firecracker process")?;
+        }
+
+        // Cleanup socket
+        if Path::new(&self.socket_path).exists() {
+            let _ = tokio::fs::remove_file(&self.socket_path).await;
+        }
+
+        Ok(())
+    }
 }
 
 // Firecracker API structs
@@ -54,10 +111,12 @@ struct Action {
     action_type: String,
 }
 
+#[cfg(unix)]
 struct FirecrackerClient {
     sender: hyper::client::conn::http1::SendRequest<Full<Bytes>>,
 }
 
+#[cfg(unix)]
 impl FirecrackerClient {
     async fn new(socket_path: &str) -> Result<Self> {
         let stream = UnixStream::connect(socket_path)
@@ -201,6 +260,7 @@ pub async fn start_firecracker(config: &VmConfig) -> Result<FirecrackerProcess> 
     info!("VM {} started in {:.2}ms", config.vm_id, spawn_time_ms);
 
     Ok(FirecrackerProcess {
+        id: config.vm_id.clone(),
         pid,
         socket_path,
         child_process: Some(child),
@@ -210,24 +270,7 @@ pub async fn start_firecracker(config: &VmConfig) -> Result<FirecrackerProcess> 
 
 /// Stop a Firecracker VM process
 pub async fn stop_firecracker(mut process: FirecrackerProcess) -> Result<()> {
-    info!("Stopping Firecracker VM (PID: {})", process.pid);
-
-    // Try to send InstanceStart with "Exit" action? No, Send SendCtrlAltDel?
-    // Or just kill the process. Firecracker usually handles SIGTERM gracefully.
-
-    if let Some(mut child) = process.child_process.take() {
-        child
-            .kill()
-            .await
-            .context("Failed to kill firecracker process")?;
-    }
-
-    // Cleanup socket
-    if Path::new(&process.socket_path).exists() {
-        let _ = tokio::fs::remove_file(&process.socket_path).await;
-    }
-
-    Ok(())
+    process.stop().await
 }
 
 // Helper functions for API interaction
@@ -268,7 +311,7 @@ async fn configure_vm(client: &mut FirecrackerClient, config: &VmConfig) -> Resu
     Ok(())
 }
 
-async fn configure_vm(client: &mut FirecrackerClient, config: &VmConfig) -> Result<()> {
+async fn start_instance(client: &mut FirecrackerClient) -> Result<()> {
     let action = Action {
         action_type: "InstanceStart".to_string(),
     };
@@ -277,6 +320,16 @@ async fn configure_vm(client: &mut FirecrackerClient, config: &VmConfig) -> Resu
         .await
         .context("Failed to start instance")?;
     Ok(())
+}
+
+#[cfg(test)]
+fn create_rootfs_drive(path: &str) -> Drive {
+    Drive {
+        drive_id: "rootfs".to_string(),
+        path_on_host: path.to_string(),
+        is_root_device: true,
+        is_read_only: true,
+    }
 }
 
 #[cfg(test)]
@@ -562,7 +615,7 @@ mod tests {
 
         // Create invalid kernel (too small to be real kernel)
         let invalid_kernel = std::env::temp_dir().join("invalid_kernel");
-        std::fs::write(&invalid_kernel, b"INVALID_KERNEL").unwrap();
+        let _ = std::fs::write(&invalid_kernel, b"INVALID_KERNEL");
 
         let config = VmConfig {
             vm_id: "invalid-kernel-test".to_string(),
@@ -593,11 +646,11 @@ mod tests {
 
         // Create valid kernel path (dummy file)
         let dummy_kernel = std::env::temp_dir().join("dummy_kernel");
-        std::fs::write(&dummy_kernel, vec![0u8; 1024]).unwrap();
+        let _ = std::fs::write(&dummy_kernel, vec![0u8; 1024]);
 
         // Create invalid rootfs (too small)
         let invalid_rootfs = std::env::temp_dir().join("invalid_rootfs.ext4");
-        std::fs::write(&invalid_rootfs, b"INVALID_ROOTFS").unwrap();
+        let _ = std::fs::write(&invalid_rootfs, b"INVALID_ROOTFS");
 
         let config = VmConfig {
             vm_id: "invalid-rootfs-test".to_string(),
@@ -683,6 +736,7 @@ mod tests {
     async fn test_stop_firecracker_without_process() {
         // Create a mock process without a real child
         let process = FirecrackerProcess {
+            id: "test".to_string(),
             pid: 99999, // Non-existent PID
             socket_path: "/tmp/nonexistent.socket".to_string(),
             child_process: None,
@@ -707,12 +761,13 @@ mod tests {
         let socket_path = std::env::temp_dir().join("test-socket-123.sock");
 
         // Create a dummy file (not a real socket, but tests cleanup logic)
-        std::fs::write(&socket_path, b"test").unwrap();
+        let _ = std::fs::write(&socket_path, b"test");
 
         assert!(std::path::Path::new(&socket_path).exists());
 
         // Create process
         let process = FirecrackerProcess {
+            id: "test".to_string(),
             pid: 12345,
             socket_path: socket_path.to_str().unwrap().to_string(),
             child_process: None,
@@ -734,6 +789,7 @@ mod tests {
     #[test]
     fn test_firecracker_spawn_time_tracking() {
         let process = FirecrackerProcess {
+            id: "test".to_string(),
             pid: 123,
             socket_path: "/tmp/test.socket".to_string(),
             child_process: None,
@@ -756,6 +812,7 @@ mod tests {
     #[test]
     fn test_firecracker_process_struct() {
         let process = FirecrackerProcess {
+            id: "test".to_string(),
             pid: 12345,
             socket_path: "/tmp/vm.socket".to_string(),
             child_process: None,
@@ -806,7 +863,7 @@ mod tests {
     #[tokio::test]
     async fn test_vm_config_validation_in_firecracker() {
         let kernel_path = std::env::temp_dir().join("test_kernel");
-        std::fs::write(&kernel_path, b"KERNEL").unwrap();
+        let _ = std::fs::write(&kernel_path, b"KERNEL");
 
         let config = VmConfig {
             vm_id: "validation-test".to_string(),
@@ -1023,7 +1080,7 @@ mod tests {
     /// This test ensures that the `create_rootfs_drive` helper function
     /// enforces the security invariant that shared rootfs images must be read-only.
     #[test]
-    fn test_rootfs_drive_is_secure() {
+fn test_rootfs_drive_is_secure() {
         let path = "/tmp/rootfs.ext4";
         let drive = create_rootfs_drive(path);
 
