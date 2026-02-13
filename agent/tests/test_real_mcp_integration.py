@@ -48,11 +48,9 @@ class TestRealMcpFilesystemServer:
         """Check if npx is available"""
         try:
             import subprocess
+
             result = subprocess.run(
-                ["which", "npx"],
-                capture_output=True,
-                text=True,
-                timeout=5
+                ["which", "npx"], capture_output=True, text=True, timeout=5
             )
             if result.returncode != 0:
                 pytest.skip("npx not available")
@@ -74,7 +72,7 @@ class TestRealMcpFilesystemServer:
             print(f"\nStarting filesystem server for directory: {tmpdir}")
             client = McpClient(
                 "filesystem",
-                ["npx", "-y", "@modelcontextprotocol/server-filesystem", tmpdir]
+                ["npx", "-y", "@modelcontextprotocol/server-filesystem", tmpdir],
             )
 
             # Measure spawn time
@@ -116,10 +114,7 @@ class TestRealMcpFilesystemServer:
             # Test write_file
             write_result = client.call_tool(
                 "write_file",
-                {
-                    "path": "new_file.txt",
-                    "content": "Written by real integration test"
-                }
+                {"path": "new_file.txt", "content": "Written by real integration test"},
             )
             print(f"Write result: {write_result}")
 
@@ -143,7 +138,7 @@ class TestRealMcpFilesystemServer:
         with tempfile.TemporaryDirectory() as tmpdir:
             with McpClient(
                 "filesystem",
-                ["npx", "-y", "@modelcontextprotocol/server-filesystem", tmpdir]
+                ["npx", "-y", "@modelcontextprotocol/server-filesystem", tmpdir],
             ) as client:
                 # Try to read non-existent file
                 try:
@@ -157,10 +152,7 @@ class TestRealMcpFilesystemServer:
                 try:
                     client.call_tool(
                         "write_file",
-                        {
-                            "path": "nonexistent/subdir/file.txt",
-                            "content": "test"
-                        }
+                        {"path": "nonexistent/subdir/file.txt", "content": "test"},
                     )
                     assert False, "Should have raised McpError"
                 except McpError as e:
@@ -184,7 +176,7 @@ class TestRealMcpFilesystemServer:
 
             with McpClient(
                 "filesystem",
-                ["npx", "-y", "@modelcontextprotocol/server-filesystem", tmpdir]
+                ["npx", "-y", "@modelcontextprotocol/server-filesystem", tmpdir],
             ) as client:
                 # Measure tool call latency
                 latencies = []
@@ -197,10 +189,14 @@ class TestRealMcpFilesystemServer:
 
                 avg_latency = sum(latencies) / len(latencies)
                 print(f"Average tool call latency: {avg_latency*1000:.2f}ms")
-                print(f"Min: {min(latencies)*1000:.2f}ms, Max: {max(latencies)*1000:.2f}ms")
+                print(
+                    f"Min: {min(latencies)*1000:.2f}ms, Max: {max(latencies)*1000:.2f}ms"
+                )
 
                 # Tool calls should be fast (< 1 second)
-                assert avg_latency < 1.0, f"Average latency too high: {avg_latency:.2f}s"
+                assert (
+                    avg_latency < 1.0
+                ), f"Average latency too high: {avg_latency:.2f}s"
 
                 # Test concurrent operations
                 start = time.time()
@@ -223,8 +219,7 @@ class TestRealMcpGitHubServer:
     def test_real_github_server_basic_operations(self):
         """Test basic GitHub operations with real server"""
         with McpClient(
-            "github",
-            ["npx", "-y", "@modelcontextprotocol/server-github"]
+            "github", ["npx", "-y", "@modelcontextprotocol/server-github"]
         ) as client:
             # List available tools
             tools = client.list_tools()
@@ -240,8 +235,8 @@ class TestRealMcpGitHubServer:
                 {
                     "owner": "modelcontextprotocol",
                     "repo": "servers",
-                    "query": "label:bug"
-                }
+                    "query": "label:bug",
+                },
             )
 
             print(f"GitHub search result: {json.dumps(result, indent=2)[:500]}...")
@@ -254,8 +249,7 @@ class TestRealMcpGitHubServer:
     def test_real_github_server_error_handling(self):
         """Test error handling with real GitHub server"""
         with McpClient(
-            "github",
-            ["npx", "-y", "@modelcontextprotocol/server-github"]
+            "github", ["npx", "-y", "@modelcontextprotocol/server-github"]
         ) as client:
             # Try invalid repository
             try:
@@ -264,8 +258,8 @@ class TestRealMcpGitHubServer:
                     {
                         "owner": "nonexistent-repo-owner-12345",
                         "repo": "nonexistent-repo-12345",
-                        "query": "test"
-                    }
+                        "query": "test",
+                    },
                 )
                 # May succeed with empty result, or may fail
                 print("Invalid repo call completed (may have empty result)")
@@ -291,7 +285,7 @@ class TestRealMcpClientLifecycle:
             # Use context manager
             with McpClient(
                 "filesystem",
-                ["npx", "-y", "@modelcontextprotocol/server-filesystem", tmpdir]
+                ["npx", "-y", "@modelcontextprotocol/server-filesystem", tmpdir],
             ) as client:
                 assert client.state.value == "initialized"
 
@@ -312,7 +306,7 @@ class TestRealMcpClientLifecycle:
 
                 with McpClient(
                     "filesystem",
-                    ["npx", "-y", "@modelcontextprotocol/server-filesystem", tmpdir]
+                    ["npx", "-y", "@modelcontextprotocol/server-filesystem", tmpdir],
                 ) as client:
                     (Path(tmpdir) / f"file{i}.txt").write_text(f"Content {i}")
 
@@ -331,16 +325,12 @@ class TestRealMcpClientLifecycle:
 
             with McpClient(
                 "filesystem",
-                ["npx", "-y", "@modelcontextprotocol/server-filesystem", tmpdir]
+                ["npx", "-y", "@modelcontextprotocol/server-filesystem", tmpdir],
             ) as client:
                 # Write large file
                 start = time.time()
                 result = client.call_tool(
-                    "write_file",
-                    {
-                        "path": "large_output.txt",
-                        "content": large_content
-                    }
+                    "write_file", {"path": "large_output.txt", "content": large_content}
                 )
                 write_time = time.time() - start
                 print(f"Wrote 1MB file in {write_time:.2f}s")
@@ -371,7 +361,7 @@ class TestRealMcpToolOperations:
         with tempfile.TemporaryDirectory() as tmpdir:
             with McpClient(
                 "filesystem",
-                ["npx", "-y", "@modelcontextprotocol/server-filesystem", tmpdir]
+                ["npx", "-y", "@modelcontextprotocol/server-filesystem", tmpdir],
             ) as client:
                 # List all tools
                 tools = client.list_tools()
@@ -406,7 +396,7 @@ class TestRealMcpToolOperations:
 
             with McpClient(
                 "filesystem",
-                ["npx", "-y", "@modelcontextprotocol/server-filesystem", tmpdir]
+                ["npx", "-y", "@modelcontextprotocol/server-filesystem", tmpdir],
             ) as client:
                 # List directory with options
                 result = client.call_tool(
@@ -414,7 +404,7 @@ class TestRealMcpToolOperations:
                     {
                         "path": ".",
                         # Some servers support recursive or other options
-                    }
+                    },
                 )
 
                 print(f"Directory listing: {result}")
@@ -422,10 +412,7 @@ class TestRealMcpToolOperations:
                 # Write file with special characters
                 result = client.call_tool(
                     "write_file",
-                    {
-                        "path": "special-@#$.txt",
-                        "content": "Special chars: @#$%^&*()"
-                    }
+                    {"path": "special-@#$.txt", "content": "Special chars: @#$%^&*()"},
                 )
                 print(f"Write special file result: {result}")
 
@@ -449,7 +436,7 @@ def test_real_mcp_server_startup_time():
         start = time.time()
         client = McpClient(
             "filesystem",
-            ["npx", "-y", "@modelcontextprotocol/server-filesystem", tmpdir]
+            ["npx", "-y", "@modelcontextprotocol/server-filesystem", tmpdir],
         )
         client.spawn()
         client.initialize()
@@ -462,7 +449,7 @@ def test_real_mcp_server_startup_time():
         start = time.time()
         client = McpClient(
             "filesystem",
-            ["npx", "-y", "@modelcontextprotocol/server-filesystem", tmpdir]
+            ["npx", "-y", "@modelcontextprotocol/server-filesystem", tmpdir],
         )
         client.spawn()
         client.initialize()
@@ -487,7 +474,7 @@ def test_real_mcp_error_recovery():
     with tempfile.TemporaryDirectory() as tmpdir:
         client = McpClient(
             "filesystem",
-            ["npx", "-y", "@modelcontextprotocol/server-filesystem", tmpdir]
+            ["npx", "-y", "@modelcontextprotocol/server-filesystem", tmpdir],
         )
 
         client.spawn()
@@ -523,4 +510,6 @@ if __name__ == "__main__":
         print("Set RUN_INTEGRATION_TESTS=1 to run.")
         print("Optional: Set GH_TOKEN for GitHub API tests")
         print("\nExample:")
-        print("  RUN_INTEGRATION_TESTS=1 python -m pytest tests/test_real_mcp_integration.py -v -s")
+        print(
+            "  RUN_INTEGRATION_TESTS=1 python -m pytest tests/test_real_mcp_integration.py -v -s"
+        )
