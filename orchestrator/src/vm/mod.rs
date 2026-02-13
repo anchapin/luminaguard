@@ -8,15 +8,19 @@
 // - Security: No host execution, full isolation
 
 pub mod config;
+#[cfg(unix)]
 pub mod firecracker;
 pub mod firewall;
 pub mod hypervisor;
+#[cfg(windows)]
 pub mod hyperv;
+#[cfg(unix)]
 pub mod jailer;
 pub mod pool;
 pub mod rootfs;
 pub mod seccomp;
 pub mod snapshot;
+#[cfg(unix)]
 pub mod vsock;
 
 // Prototype module for feasibility testing
@@ -221,11 +225,7 @@ pub async fn spawn_vm_with_config(task_id: &str, config: &VmConfig) -> Result<Vm
     }
 
     // Start VM using the appropriate hypervisor for the platform
-    let hypervisor: Box<dyn Hypervisor> = if cfg!(windows) {
-        Box::new(crate::vm::hyperv::HypervHypervisor)
-    } else {
-        Box::new(crate::vm::firecracker::FirecrackerHypervisor)
-    };
+    let hypervisor = get_hypervisor();
 
     let instance = hypervisor.spawn(&config_with_seccomp).await?;
     let spawn_time = instance.spawn_time_ms();
@@ -237,6 +237,16 @@ pub async fn spawn_vm_with_config(task_id: &str, config: &VmConfig) -> Result<Vm
         config: config.clone(),
         firewall_manager: Some(firewall_manager),
     })
+}
+
+#[cfg(windows)]
+fn get_hypervisor() -> Box<dyn Hypervisor> {
+    Box::new(crate::vm::hyperv::HypervHypervisor)
+}
+
+#[cfg(not(windows))]
+fn get_hypervisor() -> Box<dyn Hypervisor> {
+    Box::new(crate::vm::firecracker::FirecrackerHypervisor)
 }
 
 /// Destroy a VM (ephemeral cleanup)

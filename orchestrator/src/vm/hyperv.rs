@@ -1,3 +1,4 @@
+#![cfg(windows)]
 // Windows Hyper-V (WHPX) Backend
 //
 // This module implements the Hypervisor and VmInstance traits using the
