@@ -24,6 +24,14 @@ pub mod prototype;
 #[cfg(test)]
 mod tests;
 
+// Real integration tests that run against actual binaries
+#[cfg(test)]
+mod integration_tests;
+
+// End-to-end tests for complete workflows
+#[cfg(test)]
+mod e2e_tests;
+
 use anyhow::{Context, Result};
 use std::sync::Arc;
 use tokio::sync::{Mutex, OnceCell};
@@ -326,13 +334,35 @@ mod inline_tests {
         // This test requires actual Firecracker installation
         // Skip in CI if not available
         if !std::path::Path::new("/usr/local/bin/firecracker").exists() {
+            tracing::warn!("Skipping test: Firecracker binary not found");
             return;
         }
+
+        // Check if Firecracker resources exist
+        let kernel_path = if std::path::Path::new("/tmp/ironclaw-fc-test/vmlinux.bin").exists() {
+            "/tmp/ironclaw-fc-test/vmlinux.bin".to_string()
+        } else {
+            tracing::warn!("Skipping test: Firecracker kernel not available at /tmp/ironclaw-fc-test/vmlinux.bin. Run: ./scripts/download-firecracker-assets.sh");
+            return;
+        };
+        let rootfs_path = if std::path::Path::new("/tmp/ironclaw-fc-test/rootfs.ext4").exists() {
+            "/tmp/ironclaw-fc-test/rootfs.ext4".to_string()
+        } else {
+            tracing::warn!("Skipping test: Firecracker rootfs not available at /tmp/ironclaw-fc-test/rootfs.ext4. Run: ./scripts/download-firecracker-assets.sh");
+            return;
+        };
 
         // Ensure test assets exist
         let _ = std::fs::create_dir_all("/tmp/ironclaw-fc-test");
 
-        let result = spawn_vm("test-task").await;
+        use config::VmConfig;
+        let config = VmConfig {
+            kernel_path: kernel_path.to_string(),
+            rootfs_path: rootfs_path.to_string(),
+            ..VmConfig::new("test-task".to_string())
+        };
+
+        let result = spawn_vm_with_config("test-task", &config).await;
 
         // If assets don't exist, we expect an error
         if result.is_err() {
