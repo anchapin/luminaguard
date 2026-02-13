@@ -5,7 +5,7 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::vm::{destroy_vm, spawn_vm, verify_network_isolation};
+    use crate::vm::{destroy_vm, verify_network_isolation};
 
     /// Test that VM cannot be created with networking enabled
     #[tokio::test]
@@ -18,6 +18,7 @@ mod tests {
         let result = config.validate();
         assert!(result.is_err());
         assert!(result
+            .as_ref()
             .unwrap_err()
             .to_string()
             .contains("Networking MUST be disabled"));
