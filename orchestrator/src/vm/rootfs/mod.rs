@@ -20,25 +20,18 @@ use std::process::Command;
 use tracing::{debug, info, warn};
 
 /// Overlay filesystem type
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub enum OverlayType {
     /// Use tmpfs for ephemeral overlay (default)
     /// - Pros: Fast, no cleanup needed, resets on reboot
     /// - Cons: Data lost on VM shutdown, limited by RAM
+    #[default]
     Tmpfs,
 
     /// Use ext4 image for persistent overlay
     /// - Pros: Data persists across VM reboots, unlimited size
     /// - Cons: Slower, requires cleanup, disk space usage
     Ext4,
-}
-
-impl Default for OverlayType {
-    fn default() -> Self {
-        // IronClaw uses ephemeral VMs by default
-        // tmpfs is perfect for this use case
-        OverlayType::Tmpfs
-    }
 }
 
 /// Root filesystem configuration
