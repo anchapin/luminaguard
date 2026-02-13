@@ -331,15 +331,7 @@ fn create_rootfs_drive(path: &str) -> Drive {
     }
 }
 
-#[cfg(test)]
-fn create_rootfs_drive(path: &str) -> Drive {
-    Drive {
-        drive_id: "rootfs".to_string(),
-        path_on_host: path.to_string(),
-        is_root_device: true,
-        is_read_only: true,
-    }
-}
+
 
 #[cfg(test)]
 mod tests {
