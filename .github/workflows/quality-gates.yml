@@ -22,7 +22,7 @@ jobs:
       - name: Check for bypass label
         id: check-label
         run: |
-          if ${{ contains(github.event.pull_request.labels.*.name, 'quality: bypass') }}; then
+          if ${{ contains(github.event.pull_request.labels.*.name, 'quality: bypass') }};
             echo "⚠️  Quality bypass requested via label"
             echo "should-bypass=true" >> $GITHUB_OUTPUT
           else
@@ -35,7 +35,11 @@ jobs:
 
   complexity:
     name: Complexity Analysis
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
     needs: check-bypass
     if: needs.check-bypass.outputs.should-bypass != 'true'
     steps:
@@ -55,6 +59,7 @@ jobs:
           cd agent
           radon cc . -a -nb
           echo "✅ Complexity analysis passed"
+        shell: bash
 
       - name: Check complexity threshold
         run: |
@@ -66,10 +71,15 @@ jobs:
             exit 1
           fi
           echo "✅ No blocks exceed complexity threshold"
+        shell: bash
 
   documentation:
     name: Documentation Coverage
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
     needs: check-bypass
     if: needs.check-bypass.outputs.should-bypass != 'true'
     steps:
@@ -89,10 +99,15 @@ jobs:
           cd agent
           interrogate . --fail-under=60 -vv
           echo "✅ Documentation coverage check passed"
+        shell: bash
 
   dead-code:
     name: Dead Code Detection
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
     needs: check-bypass
     if: needs.check-bypass.outputs.should-bypass != 'true'
     steps:
@@ -112,10 +127,15 @@ jobs:
           cd agent
           pycln . --check
           echo "✅ Dead code check passed"
+        shell: bash
 
   duplication:
     name: Duplicate Code Detection
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
     needs: check-bypass
     if: needs.check-bypass.outputs.should-bypass != 'true'
     steps:
@@ -130,10 +150,16 @@ jobs:
       - name: Install jscpd
         run: npm install -g jscpd
 
-      - name: Install jq for JSON parsing
+      - name: Install jq
         run: |
-          sudo apt-get update
-          sudo apt-get install -y jq
+          if [[ "${{ runner.os }}" == "Linux" ]]; then
+            sudo apt-get update && sudo apt-get install -y jq
+          elif [[ "${{ runner.os }}" == "macOS" ]]; then
+            brew install jq
+          elif [[ "${{ runner.os }}" == "Windows" ]]; then
+            choco install jq
+          fi
+        shell: bash
 
       - name: Check duplication threshold
         run: |
@@ -175,10 +201,15 @@ jobs:
           else
             echo "✅ Duplicate count acceptable ($CLONES ≤ 5)"
           fi
+        shell: bash
 
   bloat:
     name: Bloat Detection
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
     needs: check-bypass
     if: needs.check-bypass.outputs.should-bypass != 'true'
     steps:
@@ -194,6 +225,7 @@ jobs:
             exit 1
           fi
           echo "✅ No bloated Python files found"
+        shell: bash
 
       - name: Check loop.py line count
         run: |
@@ -208,6 +240,7 @@ jobs:
           else
             echo "ℹ️  loop.py not created yet"
           fi
+        shell: bash
 
   quality-summary:
     name: Quality Summary
@@ -253,3 +286,4 @@ jobs:
           
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## ✅ All Quality Gates Passed" >> $GITHUB_STEP_SUMMARY
+        shell: bash
