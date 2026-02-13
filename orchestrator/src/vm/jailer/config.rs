@@ -70,9 +70,7 @@ impl Default for JailerConfig {
 impl JailerConfig {
     /// Create a new Jailer config with defaults
     pub fn new(id: String) -> Self {
-        let mut config = Self::default();
-        config.id = id;
-        config
+        Self { id, ..Default::default() }
     }
 
     /// Create a test config with paths that work in test environments
@@ -121,9 +119,9 @@ impl JailerConfig {
             anyhow::bail!("VM ID too long (max 64 characters)");
         }
 
-        // Only alphanumeric and hyphens allowed
-        if !self.id.chars().all(|c| c.is_alphanumeric() || c == '-') {
-            anyhow::bail!("VM ID can only contain alphanumeric characters and hyphens");
+        // Only ASCII alphanumeric and hyphens allowed
+        if !self.id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-') {
+            anyhow::bail!("VM ID can only contain ASCII alphanumeric characters and hyphens");
         }
 
         // Validate exec file exists
