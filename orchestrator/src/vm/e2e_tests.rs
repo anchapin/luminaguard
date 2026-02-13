@@ -186,10 +186,10 @@ async fn e2e_agent_with_security_features() {
     println!("  Spawned in {:.2}ms", start.elapsed().as_millis());
     destroy_vm(handle).await.unwrap();
 
-    // Test 2: Advanced seccomp
-    println!("\nTest 2: VM with Advanced seccomp");
-    let mut config = VmConfig::new("security-advanced".to_string());
-    config.seccomp_filter = Some(SeccompFilter::new(SeccompLevel::Advanced));
+    // Test 2: Permissive seccomp
+    println!("\nTest 2: VM with Permissive seccomp");
+    let mut config = VmConfig::new("security-permissive".to_string());
+    config.seccomp_filter = Some(SeccompFilter::new(SeccompLevel::Permissive));
 
     let start = Instant::now();
     let handle = match spawn_vm_with_config("security-advanced", &config).await {
@@ -202,10 +202,10 @@ async fn e2e_agent_with_security_features() {
     println!("  Spawned in {:.2}ms", start.elapsed().as_millis());
     destroy_vm(handle).await.unwrap();
 
-    // Test 3: Strict seccomp
-    println!("\nTest 3: VM with Strict seccomp");
-    let mut config = VmConfig::new("security-strict".to_string());
-    config.seccomp_filter = Some(SeccompFilter::new(SeccompLevel::Strict));
+    // Test 3: Minimal seccomp
+    println!("\nTest 3: VM with Minimal seccomp");
+    let mut config = VmConfig::new("security-minimal".to_string());
+    config.seccomp_filter = Some(SeccompFilter::new(SeccompLevel::Minimal));
 
     let start = Instant::now();
     let handle = match spawn_vm_with_config("security-strict", &config).await {
@@ -289,8 +289,8 @@ async fn e2e_agent_pool_warmup() {
                 println!("Pool status:");
                 println!("  Current size: {}", stats.current_size);
                 println!("  Max size: {}", stats.max_size);
-                println!("  Active VMs: {}", stats.active_vms);
-                println!("  Queued tasks: {}", stats.queued_tasks);
+                println!("  Oldest snapshot: {:?}s", stats.oldest_snapshot_age_secs);
+                println!("  Newest snapshot: {:?}s", stats.newest_snapshot_age_secs);
             }
         }
         Err(e) => {
