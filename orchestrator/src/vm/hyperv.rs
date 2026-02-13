@@ -12,9 +12,8 @@ use tracing::info;
 
 #[cfg(windows)]
 use libwhp::{
-    instruction_emulator::{Emulator, EmulatorCallbacks},
-    partition::Partition,
-    vcpus::Vcpu,
+    Partition,
+    Vcpu,
 };
 
 use crate::vm::config::VmConfig;
@@ -62,7 +61,7 @@ impl HypervInstance {
 
         // 2. Configure partition
         partition
-            .set_property(libwhp::partition::PartitionProperty::ProcessorCount(config.vcpu_count as u32))
+            .set_property(libwhp::PartitionProperty::ProcessorCount(config.vcpu_count as u32))
             .map_err(|e| anyhow!("Failed to set vCPU count: {:?}", e))?;
 
         // TODO: Map memory, setup vCPUs, load kernel/rootfs
