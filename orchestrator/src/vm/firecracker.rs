@@ -239,11 +239,7 @@ async fn configure_vm(client: &mut FirecrackerClient, config: &VmConfig) -> Resu
         boot_args: Some("console=ttyS0 reboot=k panic=1 pci=off".to_string()),
     };
     client
-        .request(
-            hyper::Method::PUT,
-            "/boot-source",
-            Some(&boot_source),
-        )
+        .request(hyper::Method::PUT, "/boot-source", Some(&boot_source))
         .await
         .context("Failed to configure boot source")?;
 
@@ -255,11 +251,7 @@ async fn configure_vm(client: &mut FirecrackerClient, config: &VmConfig) -> Resu
         is_read_only: false,
     };
     client
-        .request(
-            hyper::Method::PUT,
-            "/drives/rootfs",
-            Some(&rootfs),
-        )
+        .request(hyper::Method::PUT, "/drives/rootfs", Some(&rootfs))
         .await
         .context("Failed to configure rootfs")?;
 
@@ -269,11 +261,7 @@ async fn configure_vm(client: &mut FirecrackerClient, config: &VmConfig) -> Resu
         mem_size_mib: config.memory_mb,
     };
     client
-        .request(
-            hyper::Method::PUT,
-            "/machine-config",
-            Some(&machine_config),
-        )
+        .request(hyper::Method::PUT, "/machine-config", Some(&machine_config))
         .await
         .context("Failed to configure machine")?;
 
@@ -397,7 +385,11 @@ mod tests {
         match result {
             Ok(process) => {
                 let elapsed = start.elapsed();
-                println!("Firecracker started in {:.2}ms, PID: {}", elapsed.as_millis(), process.pid);
+                println!(
+                    "Firecracker started in {:.2}ms, PID: {}",
+                    elapsed.as_millis(),
+                    process.pid
+                );
 
                 // Clone socket_path before moving process
                 let socket_path = process.socket_path.clone();
@@ -463,7 +455,9 @@ mod tests {
         let kernel_path = "./resources/vmlinux";
         let rootfs_path = "./resources/rootfs.ext4";
 
-        if !std::path::Path::new(kernel_path).exists() || !std::path::Path::new(rootfs_path).exists() {
+        if !std::path::Path::new(kernel_path).exists()
+            || !std::path::Path::new(rootfs_path).exists()
+        {
             println!("Skipping: VM resources not available");
             return;
         }
@@ -520,7 +514,9 @@ mod tests {
         let kernel_path = "./resources/vmlinux";
         let rootfs_path = "./resources/rootfs.ext4";
 
-        if !std::path::Path::new(kernel_path).exists() || !std::path::Path::new(rootfs_path).exists() {
+        if !std::path::Path::new(kernel_path).exists()
+            || !std::path::Path::new(rootfs_path).exists()
+        {
             println!("Skipping: VM resources not available");
             return;
         }
@@ -647,7 +643,9 @@ mod tests {
         let kernel_path = "./resources/vmlinux";
         let rootfs_path = "./resources/rootfs.ext4";
 
-        if !std::path::Path::new(kernel_path).exists() || !std::path::Path::new(rootfs_path).exists() {
+        if !std::path::Path::new(kernel_path).exists()
+            || !std::path::Path::new(rootfs_path).exists()
+        {
             println!("Skipping: VM resources not available");
             return;
         }
@@ -683,7 +681,10 @@ mod tests {
         // Note: We can't reliably check this without more code,
         // but we can verify the socket cleanup
 
-        println!("Cleanup test passed: PID {}, socket removed: {}", pid, socket_path);
+        println!(
+            "Cleanup test passed: PID {}, socket removed: {}",
+            pid, socket_path
+        );
     }
 
     /// Integration test: Stop Firecracker without process
@@ -755,7 +756,10 @@ mod tests {
         assert!(process.spawn_time_ms > 0.0);
         assert!(process.spawn_time_ms < 10000.0); // Less than 10 seconds
 
-        println!("Spawn time tracking test passed: {:.2}ms", process.spawn_time_ms);
+        println!(
+            "Spawn time tracking test passed: {:.2}ms",
+            process.spawn_time_ms
+        );
     }
 
     /// Integration test: Firecracker process struct
@@ -796,7 +800,9 @@ mod tests {
 
         match result {
             Ok(mut client) => {
-                let res = client.request(hyper::Method::PUT, "/boot-source", Some(&boot_source)).await;
+                let res = client
+                    .request(hyper::Method::PUT, "/boot-source", Some(&boot_source))
+                    .await;
                 assert!(res.is_err());
             }
             Err(e) => {
@@ -817,7 +823,11 @@ mod tests {
         let config = VmConfig {
             vm_id: "validation-test".to_string(),
             kernel_path: kernel_path.to_str().unwrap().to_string(),
-            rootfs_path: std::env::temp_dir().join("test_rootfs.ext4").to_str().unwrap().to_string(),
+            rootfs_path: std::env::temp_dir()
+                .join("test_rootfs.ext4")
+                .to_str()
+                .unwrap()
+                .to_string(),
             ..VmConfig::default()
         };
 
@@ -844,7 +854,9 @@ mod tests {
         let kernel_path = "./resources/vmlinux";
         let rootfs_path = "./resources/rootfs.ext4";
 
-        if !std::path::Path::new(kernel_path).exists() || !std::path::Path::new(rootfs_path).exists() {
+        if !std::path::Path::new(kernel_path).exists()
+            || !std::path::Path::new(rootfs_path).exists()
+        {
             println!("Skipping: VM resources not available");
             return;
         }
@@ -860,9 +872,9 @@ mod tests {
                 ..VmConfig::default()
             };
 
-            tasks.push(tokio::spawn(async move {
-                start_firecracker(&config).await
-            }));
+            tasks.push(tokio::spawn(
+                async move { start_firecracker(&config).await },
+            ));
         }
 
         // Wait for all to complete

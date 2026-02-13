@@ -122,25 +122,23 @@ impl JailerConfig {
         }
 
         // Only alphanumeric and hyphens allowed
-        if !self.id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-') {
+        if !self
+            .id
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-')
+        {
             anyhow::bail!("VM ID can only contain alphanumeric characters and hyphens");
         }
 
         // Validate exec file exists
         if !self.exec_file.exists() {
-            anyhow::bail!(
-                "Firecracker binary not found at: {:?}",
-                self.exec_file
-            );
+            anyhow::bail!("Firecracker binary not found at: {:?}", self.exec_file);
         }
 
         // Validate chroot base dir exists or can be created
         if let Some(parent) = self.chroot_base_dir.parent() {
             if !parent.exists() {
-                anyhow::bail!(
-                    "Chroot base parent directory does not exist: {:?}",
-                    parent
-                );
+                anyhow::bail!("Chroot base parent directory does not exist: {:?}", parent);
             }
         }
 
@@ -300,7 +298,9 @@ mod tests {
     #[test]
     fn test_build_args_with_cgroups() {
         let mut config = JailerConfig::new("test-vm".to_string());
-        config.cgroups.insert("cpu.shares".to_string(), "2048".to_string());
+        config
+            .cgroups
+            .insert("cpu.shares".to_string(), "2048".to_string());
 
         let args = config.build_args();
 
