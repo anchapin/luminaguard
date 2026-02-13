@@ -22,12 +22,14 @@ jobs:
       - name: Check for bypass label
         id: check-label
         run: |
-          if ${{ contains(github.event.pull_request.labels.*.name, 'quality: bypass') }};
+          if contains(fromJSON($LABELS), 'quality: bypass');
             echo "⚠️  Quality bypass requested via label"
             echo "should-bypass=true" >> $GITHUB_OUTPUT
           else
             echo "should-bypass=false" >> $GITHUB_OUTPUT
           fi
+        env:
+          LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
         if: github.event_name == 'pull_request'
       - name: No bypass for pushes
         run: echo "should-bypass=false" >> $GITHUB_OUTPUT
