@@ -308,3 +308,34 @@ mod tests {
         assert!(args.contains(&"cpu.shares=2048".to_string()));
     }
 }
+}
+
+// Property-based tests with Proptest
+#[cfg(test)]
+mod proptests {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        #[test]
+        fn prop_vm_id_alphanumeric_or_dash(id in "[a-zA-Z0-9-\\-]{1,64}") {
+            // Valid IDs should pass validation
+            let config = JailerConfig::test_config(id.to_string());
+            prop_assert!(config.validate().is_ok());
+        }
+
+        #[test]
+        fn prop_vm_id_empty_or_too_long(id in ".{0,}.{65,}") {
+            // Empty or too long IDs should fail validation
+            let config = JailerConfig::test_config(id.to_string());
+            prop_assert!(config.validate().is_err());
+        }
+
+        #[test]
+        fn prop_vm_id_invalid_chars(id in "[^a-zA-Z0-9\\-]+") {
+            // IDs with invalid chars should fail validation
+            let config = JailerConfig::test_config(id.to_string());
+            prop_assert!(config.validate().is_err());
+        }
+    }
+}
