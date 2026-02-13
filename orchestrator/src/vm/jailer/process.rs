@@ -25,8 +25,8 @@ use tokio::process::Child;
 use tokio::process::Command;
 use tracing::{debug, info};
 
-use crate::vm::jailer::config::JailerConfig;
 use crate::vm::config::VmConfig;
+use crate::vm::jailer::config::JailerConfig;
 
 /// Jailer process handle
 #[derive(Debug)]
@@ -77,16 +77,15 @@ pub async fn start_jailed_firecracker(
     jailer_config: &JailerConfig,
 ) -> Result<JailerProcess> {
     let start_time = Instant::now();
-    info!(
-        "Starting jailed Firecracker VM: {}",
-        jailer_config.id
-    );
+    info!("Starting jailed Firecracker VM: {}", jailer_config.id);
 
     // 0. Verify jailer binary is executable
     verify_jailer_executable()?;
 
     // 1. Validate jailer configuration
-    jailer_config.validate().context("Invalid jailer configuration")?;
+    jailer_config
+        .validate()
+        .context("Invalid jailer configuration")?;
 
     // 2. Validate VM resources
     let kernel_path = PathBuf::from(&vm_config.kernel_path);
@@ -290,10 +289,7 @@ pub async fn start_jailed_firecracker(
         .ok_or_else(|| anyhow!("Invalid socket path"))?
         .to_string();
 
-    info!(
-        "Jailed Firecracker API socket ready at: {}",
-        socket_path
-    );
+    info!("Jailed Firecracker API socket ready at: {}", socket_path);
 
     // 8. Configure VM via API
     // Note: We need to use paths relative to chroot in the API calls
@@ -333,10 +329,7 @@ pub async fn start_jailed_firecracker(
 
 /// Stop a jailed Firecracker VM process
 pub async fn stop_jailed_firecracker(mut process: JailerProcess) -> Result<()> {
-    info!(
-        "Stopping jailed Firecracker VM (PID: {})",
-        process.pid
-    );
+    info!("Stopping jailed Firecracker VM (PID: {})", process.pid);
 
     // Kill the jailer process (which will also kill Firecracker)
     if let Some(mut child) = process.child_process.take() {
@@ -354,7 +347,13 @@ pub async fn stop_jailed_firecracker(mut process: JailerProcess) -> Result<()> {
     // Cleanup hard links to kernel and rootfs
     // Note: We should be careful not to delete the original files
     let _ = tokio::fs::remove_file(process.chroot_dir.join("run").join("firecracker.socket")).await;
-    let _ = tokio::fs::remove_file(process.chroot_dir.join("run").join(format!("{}.json", process.pid))).await;
+    let _ = tokio::fs::remove_file(
+        process
+            .chroot_dir
+            .join("run")
+            .join(format!("{}.json", process.pid)),
+    )
+    .await;
 
     // Optionally cleanup entire chroot directory
     // This should be done carefully to avoid race conditions
@@ -589,7 +588,9 @@ fn verify_jailer_executable() -> Result<()> {
     }
 
     // Check if file is executable
-    let metadata = jailer_path.metadata().context("Failed to read jailer binary metadata")?;
+    let metadata = jailer_path
+        .metadata()
+        .context("Failed to read jailer binary metadata")?;
     let permissions = metadata.permissions();
     let mode = permissions.mode();
 
@@ -630,7 +631,10 @@ fn verify_jailer_executable() -> Result<()> {
         }
     }
 
-    debug!("Jailer binary verified as executable and functional: {:?}", jailer_path);
+    debug!(
+        "Jailer binary verified as executable and functional: {:?}",
+        jailer_path
+    );
     Ok(())
 }
 

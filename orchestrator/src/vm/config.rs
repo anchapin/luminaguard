@@ -2,9 +2,9 @@
 //
 // Firecracker VM configuration for secure agent execution
 
+use crate::vm::seccomp::SeccompFilter;
 use serde::Deserialize;
 use serde::Serialize;
-use crate::vm::seccomp::SeccompFilter;
 use uuid::Uuid;
 
 /// VM configuration for Firecracker
@@ -130,7 +130,10 @@ mod tests {
         config.enable_networking = true;
         let result = config.validate();
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Networking MUST be disabled"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Networking MUST be disabled"));
     }
 
     #[test]
