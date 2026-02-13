@@ -248,14 +248,14 @@ async fn configure_vm(client: &mut FirecrackerClient, config: &VmConfig) -> Resu
         drive_id: "rootfs".to_string(),
         path_on_host: config.rootfs_path.clone(),
         is_root_device: true,
-        is_read_only: false,
+        is_read_only: true, // SECURITY: Shared rootfs MUST be read-only
     };
     client
         .request(hyper::Method::PUT, "/drives/rootfs", Some(&rootfs))
         .await
         .context("Failed to configure rootfs")?;
 
-    // 3. Set Machine Config
+    // 3. Set Machine Configuration
     let machine_config = MachineConfiguration {
         vcpu_count: config.vcpu_count,
         mem_size_mib: config.memory_mb,
@@ -266,6 +266,18 @@ async fn configure_vm(client: &mut FirecrackerClient, config: &VmConfig) -> Resu
         .context("Failed to configure machine")?;
 
     Ok(())
+}
+
+/// Create rootfs drive configuration
+///
+/// Ensures rootfs is always mounted as read-only for security.
+fn create_rootfs_drive(path: &str) -> Drive {
+    Drive {
+        drive_id: "rootfs".to_string(),
+        path_on_host: path.to_string(),
+        is_root_device: true,
+        is_read_only: true, // SECURITY: Shared rootfs MUST be read-only
+    }
 }
 
 async fn start_instance(client: &mut FirecrackerClient) -> Result<()> {
@@ -520,13 +532,6 @@ mod tests {
             println!("Skipping: VM resources not available");
             return;
         }
-
-        let _config = VmConfig {
-            vm_id: "perf-test-vm".to_string(),
-            kernel_path: kernel_path.to_string(),
-            rootfs_path: rootfs_path.to_string(),
-            ..VmConfig::default()
-        };
 
         // Measure multiple spawns for average
         let mut times = Vec::new();
@@ -1028,5 +1033,29 @@ mod tests {
         assert!(json.contains("InstanceStart"));
 
         println!("Action serialization test passed");
+    }
+
+    /// Security Test: Verify rootfs drive is always read-only
+    ///
+    /// This test ensures that the `create_rootfs_drive` helper function
+    /// enforces the security invariant that shared rootfs images must be read-only.
+    #[test]
+    fn test_rootfs_drive_is_secure() {
+        let path = "/tmp/rootfs.ext4";
+        let drive = create_rootfs_drive(path);
+
+        assert_eq!(drive.drive_id, "rootfs");
+        assert_eq!(drive.path_on_host, path);
+        assert!(drive.is_root_device);
+        assert!(
+            drive.is_read_only,
+            "SECURITY: Shared rootfs must be mounted read-only"
+        );
+
+        // Verify JSON serialization also reflects this
+        let json = serde_json::to_string(&drive).unwrap();
+        assert!(json.contains("\"is_read_only\":true"));
+
+        println!("Rootfs security check passed: is_read_only=true");
     }
 }
