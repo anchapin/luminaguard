@@ -54,6 +54,67 @@ struct Action {
     action_type: String,
 }
 
+struct FirecrackerClient {
+    sender: hyper::client::conn::http1::SendRequest<Full<Bytes>>,
+}
+
+impl FirecrackerClient {
+    async fn new(socket_path: &str) -> Result<Self> {
+        let stream = UnixStream::connect(socket_path)
+            .await
+            .context("Failed to connect to firecracker socket")?;
+        let io = TokioIo::new(stream);
+        let (sender, conn) = hyper::client::conn::http1::handshake(io)
+            .await
+            .context("Handshake failed")?;
+
+        tokio::task::spawn(async move {
+            if let Err(err) = conn.await {
+                debug!("Connection closed: {:?}", err);
+            }
+        });
+
+        Ok(Self { sender })
+    }
+
+    async fn request<T: Serialize>(
+        &mut self,
+        method: hyper::Method,
+        path: &str,
+        body: Option<&T>,
+    ) -> Result<()> {
+        let req_body = if let Some(b) = body {
+            let json = serde_json::to_string(b).context("Failed to serialize body")?;
+            Full::new(Bytes::from(json))
+        } else {
+            Full::new(Bytes::from(""))
+        };
+
+        let req = Request::builder()
+            .method(method)
+            .uri(format!("http://localhost{}", path)) // Host header is required but ignored for unix socket
+            .header("Content-Type", "application/json")
+            .header("Accept", "application/json")
+            .body(req_body)
+            .context("Failed to build request")?;
+
+        let res = self
+            .sender
+            .send_request(req)
+            .await
+            .context("Failed to send request")?;
+
+        if res.status().is_success() || res.status() == StatusCode::NO_CONTENT {
+            Ok(())
+        } else {
+            let status = res.status();
+            let body_bytes = res.collect().await?.to_bytes();
+            let body_str = String::from_utf8_lossy(&body_bytes);
+            Err(anyhow!("Firecracker API error: {} - {}", status, body_str))
+        }
+    }
+}
+
 /// Start a Firecracker VM process
 pub async fn start_firecracker(config: &VmConfig) -> Result<FirecrackerProcess> {
     let start_time = Instant::now();
@@ -116,13 +177,21 @@ pub async fn start_firecracker(config: &VmConfig) -> Result<FirecrackerProcess> 
     }
 
     // 5. Connect to API and configure VM
-    if let Err(e) = configure_vm(&socket_path, config).await {
+    let mut client = match FirecrackerClient::new(&socket_path).await {
+        Ok(client) => client,
+        Err(e) => {
+            let _ = child.kill().await;
+            return Err(e);
+        }
+    };
+
+    if let Err(e) = configure_vm(&mut client, config).await {
         let _ = child.kill().await;
         return Err(e);
     }
 
     // 6. Start the instance
-    if let Err(e) = start_instance(&socket_path).await {
+    if let Err(e) = start_instance(&mut client).await {
         let _ = child.kill().await;
         return Err(e);
     }
@@ -163,75 +232,20 @@ pub async fn stop_firecracker(mut process: FirecrackerProcess) -> Result<()> {
 
 // Helper functions for API interaction
 
-async fn send_request<T: Serialize>(
-    socket_path: &str,
-    method: hyper::Method,
-    path: &str,
-    body: Option<&T>,
-) -> Result<()> {
-    // We create a new connection for each request for simplicity,
-    // though reusing it would be slightly faster.
-    // Given the low number of requests, this is acceptable.
-
-    let stream = UnixStream::connect(socket_path)
-        .await
-        .context("Failed to connect to firecracker socket")?;
-    let io = TokioIo::new(stream);
-    let (mut sender, conn) = hyper::client::conn::http1::handshake(io)
-        .await
-        .context("Handshake failed")?;
-
-    tokio::task::spawn(async move {
-        if let Err(err) = conn.await {
-            // It's expected that connection might close after response
-            debug!("Connection closed: {:?}", err);
-        }
-    });
-
-    let req_body = if let Some(b) = body {
-        let json = serde_json::to_string(b).context("Failed to serialize body")?;
-        Full::new(Bytes::from(json))
-    } else {
-        Full::new(Bytes::from(""))
-    };
-
-    let req = Request::builder()
-        .method(method)
-        .uri(format!("http://localhost{}", path)) // Host header is required but ignored for unix socket
-        .header("Content-Type", "application/json")
-        .header("Accept", "application/json")
-        .body(req_body)
-        .context("Failed to build request")?;
-
-    let res = sender
-        .send_request(req)
-        .await
-        .context("Failed to send request")?;
-
-    if res.status().is_success() || res.status() == StatusCode::NO_CONTENT {
-        Ok(())
-    } else {
-        let status = res.status();
-        let body_bytes = res.collect().await?.to_bytes();
-        let body_str = String::from_utf8_lossy(&body_bytes);
-        Err(anyhow!("Firecracker API error: {} - {}", status, body_str))
-    }
-}
-
-async fn configure_vm(socket_path: &str, config: &VmConfig) -> Result<()> {
+async fn configure_vm(client: &mut FirecrackerClient, config: &VmConfig) -> Result<()> {
     // 1. Set Boot Source
     let boot_source = BootSource {
         kernel_image_path: config.kernel_path.clone(),
         boot_args: Some("console=ttyS0 reboot=k panic=1 pci=off".to_string()),
     };
-    send_request(
-        socket_path,
-        hyper::Method::PUT,
-        "/boot-source",
-        Some(&boot_source),
-    )
-    .await
-    .context("Failed to configure boot source")?;
+    client
+        .request(
+            hyper::Method::PUT,
+            "/boot-source",
+            Some(&boot_source),
+        )
+        .await
+        .context("Failed to configure boot source")?;
 
     // 2. Set Rootfs Drive
     let rootfs = Drive {
@@ -240,37 +254,38 @@ async fn configure_vm(socket_path: &str, config: &VmConfig) -> Result<()> {
         is_root_device: true,
         is_read_only: false,
     };
-    send_request(
-        socket_path,
-        hyper::Method::PUT,
-        "/drives/rootfs",
-        Some(&rootfs),
-    )
-    .await
-    .context("Failed to configure rootfs")?;
+    client
+        .request(
+            hyper::Method::PUT,
+            "/drives/rootfs",
+            Some(&rootfs),
+        )
+        .await
+        .context("Failed to configure rootfs")?;
 
     // 3. Set Machine Config
     let machine_config = MachineConfiguration {
         vcpu_count: config.vcpu_count,
         mem_size_mib: config.memory_mb,
     };
-    send_request(
-        socket_path,
-        hyper::Method::PUT,
-        "/machine-config",
-        Some(&machine_config),
-    )
-    .await
-    .context("Failed to configure machine")?;
+    client
+        .request(
+            hyper::Method::PUT,
+            "/machine-config",
+            Some(&machine_config),
+        )
+        .await
+        .context("Failed to configure machine")?;
 
     Ok(())
 }
 
-async fn start_instance(socket_path: &str) -> Result<()> {
+async fn start_instance(client: &mut FirecrackerClient) -> Result<()> {
     let action = Action {
         action_type: "InstanceStart".to_string(),
     };
-    send_request(socket_path, hyper::Method::PUT, "/actions", Some(&action))
+    client
+        .request(hyper::Method::PUT, "/actions", Some(&action))
         .await
         .context("Failed to start instance")?;
     Ok(())
@@ -387,12 +402,13 @@ mod tests {
                 // Verify socket was created
                 assert!(std::path::Path::new(&process.socket_path).exists());
 
+                let socket_path = process.socket_path.clone();
                 // Stop the VM
                 stop_firecracker(process).await.unwrap();
                 println!("Firecracker stopped successfully");
 
                 // Verify socket was cleaned up
-                assert!(!std::path::Path::new(&process.socket_path).exists());
+                assert!(!std::path::Path::new(&socket_path).exists());
             }
             Err(e) => {
                 eprintln!("Failed to start Firecracker: {}", e);
@@ -473,11 +489,12 @@ mod tests {
         // Verify socket exists
         assert!(std::path::Path::new(&process.socket_path).exists());
 
+        let socket_path = process.socket_path.clone();
         // Stop
         stop_firecracker(process).await.unwrap();
 
         // Verify cleanup
-        assert!(!std::path::Path::new(&process.socket_path).exists());
+        assert!(!std::path::Path::new(&socket_path).exists());
 
         println!("Firecracker lifecycle test completed successfully");
     }
@@ -769,10 +786,18 @@ mod tests {
         };
 
         // Should fail to connect to non-existent socket
-        let result = send_request(&socket_path.to_str().unwrap().to_string(), hyper::Method::PUT, "/boot-source", Some(&boot_source)).await;
+        let result = FirecrackerClient::new(&socket_path.to_str().unwrap().to_string()).await;
 
-        assert!(result.is_err());
-        println!("API request without server test passed: {:?}", result.unwrap_err());
+        match result {
+            Ok(mut client) => {
+                let res = client.request(hyper::Method::PUT, "/boot-source", Some(&boot_source)).await;
+                assert!(res.is_err());
+            }
+            Err(e) => {
+                assert!(true); // Failed to connect as expected
+                println!("API request without server test passed: {:?}", e);
+            }
+        }
     }
 
     /// Integration test: VM config validation in Firecracker context
