@@ -45,6 +45,7 @@ use tokio::sync::{Mutex, OnceCell};
 use crate::vm::config::VmConfig;
 use crate::vm::firewall::FirewallManager;
 use crate::vm::hypervisor::{Hypervisor, VmInstance};
+#[cfg(unix)]
 use crate::vm::jailer::{start_jailed_firecracker, verify_jailer_installed, JailerConfig};
 use crate::vm::pool::{PoolConfig, SnapshotPool};
 use crate::vm::seccomp::{SeccompFilter, SeccompLevel};
