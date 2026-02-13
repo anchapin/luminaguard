@@ -385,14 +385,15 @@ mod tests {
                 println!("Firecracker started in {:.2}ms, PID: {}", elapsed.as_millis(), process.pid);
 
                 // Verify socket was created
-                assert!(std::path::Path::new(&process.socket_path).exists());
+                let socket_path = process.socket_path.clone();
+                assert!(std::path::Path::new(&socket_path).exists());
 
                 // Stop the VM
                 stop_firecracker(process).await.unwrap();
                 println!("Firecracker stopped successfully");
 
                 // Verify socket was cleaned up
-                assert!(!std::path::Path::new(&process.socket_path).exists());
+                assert!(!std::path::Path::new(&socket_path).exists());
             }
             Err(e) => {
                 eprintln!("Failed to start Firecracker: {}", e);
