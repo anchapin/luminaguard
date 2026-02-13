@@ -117,7 +117,7 @@ repos:
       # Duplicate Code Detection (jscpd)
       - id: duplicate-code
         name: Duplicate code detection (jscpd)
-        entry: jscpd . -i "**/.venv/**" -i "**/node_modules/**" -i "**/.git/**" -i "**/target/**" --reporters console --min-lines 10
+        entry: jscpd . -i "**/.venv/**" -i "**/node_modules/**" -i "**/.git/**" -i "**/target/**" -i "agent/.venv/**" -i "**/site-packages/**" --reporters console --min-lines 10
         language: system
         pass_filenames: false
 

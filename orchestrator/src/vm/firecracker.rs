@@ -403,6 +403,10 @@ mod tests {
                 assert!(std::path::Path::new(&socket_path).exists());
 
                 let socket_path = process.socket_path.clone();
+<<<<<<< HEAD
+
+=======
+>>>>>>> origin/main
                 // Stop the VM
                 stop_firecracker(process).await.unwrap();
                 println!("Firecracker stopped successfully");
@@ -495,6 +499,10 @@ mod tests {
         assert!(std::path::Path::new(&socket_path).exists());
 
         let socket_path = process.socket_path.clone();
+<<<<<<< HEAD
+
+=======
+>>>>>>> origin/main
         // Stop
         stop_firecracker(process).await.unwrap();
 
@@ -530,14 +538,14 @@ mod tests {
         let mut times = Vec::new();
 
         for i in 0..3 {
-            let config = VmConfig {
+            let _config = VmConfig {
                 vm_id: format!("perf-test-vm-{}", i),
                 kernel_path: kernel_path.to_string(),
                 rootfs_path: rootfs_path.to_string(),
                 ..VmConfig::default()
             };
 
-            match start_firecracker(&config).await {
+            match start_firecracker(&_config).await {
                 Ok(process) => {
                     times.push(process.spawn_time_ms);
                     stop_firecracker(process).await.unwrap();

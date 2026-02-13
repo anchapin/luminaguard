@@ -5,7 +5,9 @@
     "**/.venv/**",
     "**/node_modules/**",
     "**/.git/**",
-    "**/target/**"
+    "**/target/**",
+    "agent/.venv/**",
+    "**/site-packages/**"
   ],
   "format": ["python", "rust"],
   "minLines": 10,

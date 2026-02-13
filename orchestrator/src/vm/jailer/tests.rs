@@ -425,8 +425,6 @@ mod tests {
     /// Integration test: Test chroot path generation
     #[tokio::test]
     async fn test_chroot_path_generation() {
-        use std::path::Path;
-
         let config = JailerConfig::new("test-vm".to_string());
         let chroot_dir = config.chroot_dir();
 
