@@ -84,10 +84,27 @@ This enables:
 | Memory Footprint | <100MB | ~80MB ✅ |
 | Pool Hit Rate | >80% | >90% ✅ |
 
+### MCP Transport Status
+
+**Phase 1 - Completed:**
+- ✅ Stdio transport - Local MCP server connections via process spawning
+
+**Phase 2 - Completed:**
+- ✅ HTTP transport - Remote MCP server support via HTTP POST
+  - Exponential backoff retry logic (1s → 32s, configurable)
+  - Load balancing via round-robin across multiple server instances
+  - Custom HTTP headers (authentication, API keys, etc.)
+  - Configurable request timeouts
+  - Smart error handling (retries on transient failures, not on auth errors)
+  - Full TLS/HTTPS support
+
+**Phase 3 - Planned:**
+- ⏳ Streamable HTTP transport (long-lived connections with chunked responses)
+
 ### Next Steps
 
-1. Complete macOS AppleHV implementation
-2. Unify VM config across platforms
-3. Add HTTP transport for MCP (Phase 2)
-4. Enterprise-grade monitoring and logging
-5. Multi-platform CI/CD pipeline
+1. HTTP transport integration tests with mock servers
+2. Enterprise-grade monitoring and logging
+3. Multi-platform CI/CD pipeline
+4. Performance benchmarking (latency, throughput)
+5. Documentation and user guides

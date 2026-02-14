@@ -11,9 +11,9 @@ pub mod config;
 #[cfg(unix)]
 pub mod firecracker;
 pub mod firewall;
-pub mod hypervisor;
 #[cfg(windows)]
 pub mod hyperv;
+pub mod hypervisor;
 #[cfg(unix)]
 pub mod jailer;
 pub mod pool;
@@ -334,7 +334,7 @@ pub async fn warmup_pool() -> Result<()> {
     let stats = pool.stats().await;
 
     tracing::info!(
-        "Pool warmed up with {}/{}" ,
+        "Pool warmed up with {}/{}",
         stats.current_size,
         stats.max_size
     );
@@ -519,7 +519,7 @@ pub async fn spawn_vm_jailed(
 
     Ok(VmHandle {
         id: task_id.to_string(),
-        process: Arc::new(Mutex::new(Some(Box::new(jailer_process)))) ,
+        process: Arc::new(Mutex::new(Some(Box::new(jailer_process)))),
         spawn_time_ms: spawn_time,
         config: vm_config.clone(),
         firewall_manager: Some(firewall_manager),

@@ -171,6 +171,8 @@ client.shutdown()
 **Security Note:** All commands are validated for shell injection prevention. Only known-safe commands (npx, python, node, cargo) are allowed by default.
 
 **Rust MCP Client (Orchestrator):**
+
+Stdio transport (local MCP servers):
 ```rust
 use luminaguard_orchestrator::mcp::McpClient;
 
@@ -192,6 +194,59 @@ let result = client.call_tool("read_file", json!({"path": "test.txt"})).await?;
 // Shutdown
 client.shutdown().await?;
 ```
+
+HTTP transport (remote MCP servers):
+```rust
+use luminaguard_orchestrator::mcp::{McpClient, HttpTransport};
+use std::time::Duration;
+
+// Create HTTP transport (basic)
+let transport = HttpTransport::new("https://api.example.com/mcp");
+let mut client = McpClient::new(transport);
+client.initialize().await?;
+
+// HTTP transport with retry and timeout
+let transport = HttpTransport::new("https://api.example.com/mcp")
+    .with_timeout(Duration::from_secs(60))
+    .with_retry(true)
+    .with_header("Authorization", "Bearer token123");
+let mut client = McpClient::new(transport);
+client.initialize().await?;
+
+// Load balancing across multiple MCP server instances
+let transport = HttpTransport::with_load_balancing(vec![
+    "https://mcp1.example.com/api",
+    "https://mcp2.example.com/api",
+    "https://mcp3.example.com/api",
+])
+.with_timeout(Duration::from_secs(60))
+.with_retry(true);
+let mut client = McpClient::new(transport);
+client.initialize().await?;
+let tools = client.list_tools().await?;
+let result = client.call_tool("some_tool", json!({})).await?;
+
+// Custom retry configuration
+use luminaguard_orchestrator::mcp::retry::RetryConfig;
+
+let retry_config = RetryConfig::default()
+    .max_attempts(5)
+    .base_delay(Duration::from_millis(100))
+    .max_delay(Duration::from_secs(10));
+
+let transport = HttpTransport::new("https://api.example.com/mcp")
+    .with_retry_config(retry_config);
+let mut client = McpClient::new(transport);
+client.initialize().await?;
+```
+
+**HTTP Transport Features:**
+- **Retry Logic**: Exponential backoff (1s → 32s, configurable max)
+- **Load Balancing**: Round-robin distribution across multiple servers
+- **Custom Headers**: Support for authentication and API keys
+- **Timeout Control**: Configurable request timeouts
+- **Error Handling**: Automatic retry on transient failures (network, 5xx)
+- **Connection State**: Graceful disconnect and connection checks
 
 ### VM Module Architecture
 

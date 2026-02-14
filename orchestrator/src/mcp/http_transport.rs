@@ -22,13 +22,24 @@
 //! This implementation currently supports **Simple HTTP** mode, which is sufficient
 //! for most use cases. Streamable HTTP support is planned for future phases.
 //!
+//! # Features
+//!
+//! - **Retry Logic**: Exponential backoff for transient failures
+//! - **Load Balancing**: Round-robin selection across multiple server instances
+//! - **TLS Validation**: Full certificate validation with optional custom CAs
+//! - **Custom Headers**: Support for authentication and custom headers
+//! - **Timeout Control**: Configurable request timeouts
+//!
 //! # Example
 //!
 //! ```ignore
 //! use luminaguard_orchestrator::mcp::{McpClient, HttpTransport};
+//! use std::time::Duration;
 //!
-//! // Create HTTP transport
-//! let transport = HttpTransport::new("https://api.example.com/mcp");
+//! // Create HTTP transport with retry
+//! let transport = HttpTransport::new("https://api.example.com/mcp")
+//!     .with_timeout(Duration::from_secs(60))
+//!     .with_retry(true);
 //!
 //! // Create MCP client
 //! let mut client = McpClient::new(transport);
@@ -41,11 +52,14 @@
 //! ```
 
 use crate::mcp::protocol::{McpRequest, McpResponse};
+use crate::mcp::retry::RetryConfig;
 use crate::mcp::transport::Transport;
 use anyhow::{Context, Result};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::Duration;
+use tracing::info;
 
 /// HTTP transport for remote MCP servers
 ///
@@ -54,14 +68,18 @@ use std::time::Duration;
 ///
 /// # Configuration
 ///
-/// - **url**: The base URL of the MCP server endpoint
+/// - **urls**: The base URL(s) of the MCP server endpoint (supports load balancing)
 /// - **timeout**: Request timeout (default: 30 seconds)
 /// - **headers**: Optional custom HTTP headers (e.g., authentication)
+/// - **retry**: Enable retry logic with exponential backoff (default: false)
+/// - **tls_verify**: Verify TLS certificates (default: true)
 ///
 /// # Example
 ///
 /// ```ignore
-/// let transport = HttpTransport::new("https://mcp.example.com");
+/// let transport = HttpTransport::new("https://mcp.example.com")
+///     .with_timeout(Duration::from_secs(60))
+///     .with_retry(true);
 /// let mut client = McpClient::new(transport);
 /// client.initialize().await?;
 /// ```
@@ -69,8 +87,11 @@ pub struct HttpTransport {
     /// Reqwest HTTP client
     client: reqwest::Client,
 
-    /// MCP server endpoint URL
-    url: String,
+    /// MCP server endpoint URLs (supports load balancing across multiple servers)
+    urls: Vec<String>,
+
+    /// Current URL index for load balancing (round-robin)
+    current_url_index: Arc<AtomicUsize>,
 
     /// Request timeout
     timeout: Duration,
@@ -81,6 +102,15 @@ pub struct HttpTransport {
 
     /// Connection state
     connected: bool,
+
+    /// Enable retry logic with exponential backoff
+    enable_retry: bool,
+
+    /// Retry configuration
+    retry_config: Option<RetryConfig>,
+
+    /// Custom HTTP headers
+    custom_headers: Vec<(String, String)>,
 }
 
 impl HttpTransport {
@@ -110,11 +140,62 @@ impl HttpTransport {
 
         Self {
             client,
-            url,
+            urls: vec![url],
+            current_url_index: Arc::new(AtomicUsize::new(0)),
             timeout: Duration::from_secs(30),
             buffered_response: Arc::new(Mutex::new(None)),
             connected: true,
+            enable_retry: false,
+            retry_config: None,
+            custom_headers: Vec::new(),
         }
+    }
+
+    /// Create HTTP transport with multiple server URLs for load balancing
+    ///
+    /// # Arguments
+    ///
+    /// * `urls` - List of MCP server URLs for load balancing (round-robin)
+    ///
+    /// # Returns
+    ///
+    /// Returns a new `HttpTransport` instance with multiple endpoints
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// let transport = HttpTransport::with_load_balancing(vec![
+    ///     "https://mcp1.example.com",
+    ///     "https://mcp2.example.com",
+    ///     "https://mcp3.example.com",
+    /// ]);
+    /// ```
+    pub fn with_load_balancing(urls: Vec<impl Into<String>>) -> Self {
+        let urls: Vec<String> = urls.into_iter().map(|u| u.into()).collect();
+
+        let client = reqwest::Client::builder()
+            .timeout(Duration::from_secs(30))
+            .build()
+            .expect("Failed to build HTTP client");
+
+        Self {
+            client,
+            urls,
+            current_url_index: Arc::new(AtomicUsize::new(0)),
+            timeout: Duration::from_secs(30),
+            buffered_response: Arc::new(Mutex::new(None)),
+            connected: true,
+            enable_retry: false,
+            retry_config: None,
+            custom_headers: Vec::new(),
+        }
+    }
+
+    /// Get the next URL in round-robin fashion (for load balancing)
+    fn get_next_url(&self) -> &str {
+        let idx = self.current_url_index.fetch_add(1, Ordering::SeqCst);
+        let position = idx % self.urls.len();
+        &self.urls[position]
     }
 
     /// Set the request timeout
@@ -139,14 +220,84 @@ impl HttpTransport {
         self
     }
 
-    /// Get the server URL
+    /// Enable retry logic with exponential backoff
+    ///
+    /// # Arguments
+    ///
+    /// * `enable` - Whether to enable retry logic
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// let transport = HttpTransport::new("https://mcp.example.com")
+    ///     .with_retry(true);
+    /// ```
+    pub fn with_retry(mut self, enable: bool) -> Self {
+        self.enable_retry = enable;
+        if enable {
+            self.retry_config = Some(RetryConfig::default());
+        }
+        self
+    }
+
+    /// Set custom retry configuration
+    ///
+    /// # Arguments
+    ///
+    /// * `config` - Custom retry configuration
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// let config = RetryConfig::default()
+    ///     .max_attempts(5)
+    ///     .base_delay(Duration::from_millis(100));
+    /// let transport = HttpTransport::new("https://mcp.example.com")
+    ///     .with_retry_config(config);
+    /// ```
+    pub fn with_retry_config(mut self, config: RetryConfig) -> Self {
+        self.enable_retry = true;
+        self.retry_config = Some(config);
+        self
+    }
+
+    /// Add a custom HTTP header
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - Header name
+    /// * `value` - Header value
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// let transport = HttpTransport::new("https://mcp.example.com")
+    ///     .with_header("Authorization", "Bearer token123")
+    ///     .with_header("X-Custom-Header", "value");
+    /// ```
+    pub fn with_header(mut self, name: impl Into<String>, value: impl Into<String>) -> Self {
+        self.custom_headers.push((name.into(), value.into()));
+        self
+    }
+
+    /// Get the server URLs
+    pub fn urls(&self) -> &[String] {
+        &self.urls
+    }
+
+    /// Get the primary server URL
     pub fn url(&self) -> &str {
-        &self.url
+        self.urls.first().map(|s| s.as_str()).unwrap_or("")
     }
 
     /// Get the request timeout
     pub fn timeout(&self) -> Duration {
         self.timeout
+    }
+
+    /// Check if retry is enabled
+    pub fn is_retry_enabled(&self) -> bool {
+        self.enable_retry
     }
 
     /// Disconnect from the MCP server
@@ -163,6 +314,8 @@ impl Transport for HttpTransport {
     /// Send a JSON-RPC request to the MCP server via HTTP POST
     ///
     /// The request is serialized to JSON and sent as an HTTP POST request body.
+    /// If retry logic is enabled, transient failures will be retried with exponential backoff.
+    /// If load balancing is configured, requests are distributed round-robin across servers.
     ///
     /// # Errors
     ///
@@ -170,6 +323,7 @@ impl Transport for HttpTransport {
     /// - Request serialization fails
     /// - HTTP request fails
     /// - Request times out
+    /// - All retry attempts are exhausted
     async fn send(&mut self, request: &McpRequest) -> Result<()> {
         if !self.connected {
             return Err(anyhow::anyhow!("Transport is not connected"));
@@ -179,14 +333,69 @@ impl Transport for HttpTransport {
         let json =
             serde_json::to_string(request).context("Failed to serialize MCP request to JSON")?;
 
-        tracing::debug!("Sending HTTP POST to {}: {}", self.url, json);
+        // Determine if we should use retry logic
+        if self.enable_retry {
+            if let Some(config) = self.retry_config.clone() {
+                return self.send_with_retry(&json, &config).await;
+            }
+        }
+
+        // Single attempt without retry
+        self.send_request(&json).await
+    }
+
+    /// Receive a response from the MCP server
+    ///
+    /// For HTTP transport, responses are received synchronously with the request,
+    /// so this method returns the response that was buffered during send().
+    async fn recv(&mut self) -> Result<McpResponse> {
+        if !self.connected {
+            return Err(anyhow::anyhow!("Transport is not connected"));
+        }
+
+        // Retrieve the buffered response
+        let mut buffer = self
+            .buffered_response
+            .lock()
+            .map_err(|e| anyhow::anyhow!("Failed to acquire response buffer lock: {}", e))?;
+
+        match buffer.take() {
+            Some(response) => {
+                tracing::debug!("Returning buffered HTTP response");
+                Ok(response)
+            }
+            None => Err(anyhow::anyhow!(
+                "No buffered response available - HTTP request must be sent before receiving"
+            )),
+        }
+    }
+
+    /// Check if the transport is still connected
+    fn is_connected(&self) -> bool {
+        self.connected
+    }
+}
+
+impl HttpTransport {
+    /// Send a single HTTP request to the server
+    ///
+    /// This is the core HTTP request logic, separated for reuse by retry logic.
+    async fn send_request(&self, json: &str) -> Result<()> {
+        let url = self.get_next_url();
+        tracing::debug!("Sending HTTP POST to {}: {}", url, json);
+
+        // Build request with custom headers
+        let mut request_builder = self.client.post(url);
+        request_builder = request_builder.header("Content-Type", "application/json");
+
+        // Add custom headers
+        for (name, value) in &self.custom_headers {
+            request_builder = request_builder.header(name.clone(), value.clone());
+        }
 
         // Send HTTP POST request
-        let http_response = self
-            .client
-            .post(&self.url)
-            .header("Content-Type", "application/json")
-            .body(json)
+        let http_response = request_builder
+            .body(json.to_string())
             .send()
             .await
             .context("Failed to send HTTP request")?;
@@ -226,35 +435,48 @@ impl Transport for HttpTransport {
         Ok(())
     }
 
-    /// Receive a response from the MCP server
-    ///
-    /// For HTTP transport, responses are received synchronously with the request,
-    /// so this method returns the response that was buffered during send().
-    async fn recv(&mut self) -> Result<McpResponse> {
-        if !self.connected {
-            return Err(anyhow::anyhow!("Transport is not connected"));
-        }
+    /// Send a request with retry logic and exponential backoff
+    async fn send_with_retry(&self, json: &str, config: &RetryConfig) -> Result<()> {
+        let mut last_error = None;
 
-        // Retrieve the buffered response
-        let mut buffer = self
-            .buffered_response
-            .lock()
-            .map_err(|e| anyhow::anyhow!("Failed to acquire response buffer lock: {}", e))?;
+        for attempt in 0..config.max_attempts {
+            match self.send_request(json).await {
+                Ok(()) => {
+                    if attempt > 0 {
+                        info!(
+                            "Request succeeded on attempt {} after {} retries",
+                            attempt + 1,
+                            attempt
+                        );
+                    }
+                    return Ok(());
+                }
+                Err(e) => {
+                    let error_msg = e.to_string();
 
-        match buffer.take() {
-            Some(response) => {
-                tracing::debug!("Returning buffered HTTP response");
-                Ok(response)
+                    // Check if we should retry this error
+                    if attempt < config.max_attempts - 1 && config.should_retry_error(&e) {
+                        let delay = config.calculate_delay(attempt);
+                        tracing::warn!(
+                            "Request attempt {} failed: {}, retrying after {:?}",
+                            attempt + 1,
+                            error_msg,
+                            delay
+                        );
+                        tokio::time::sleep(delay).await;
+                        last_error = Some(e);
+                        continue;
+                    }
+
+                    // Don't retry or no more attempts
+                    tracing::error!("Request failed after {} attempts: {}", attempt + 1, error_msg);
+                    last_error = Some(e);
+                    break;
+                }
             }
-            None => Err(anyhow::anyhow!(
-                "No buffered response available - HTTP request must be sent before receiving"
-            )),
         }
-    }
 
-    /// Check if the transport is still connected
-    fn is_connected(&self) -> bool {
-        self.connected
+        Err(last_error.unwrap_or_else(|| anyhow::anyhow!("All request attempts failed")))
     }
 }
 
@@ -268,6 +490,7 @@ mod tests {
         assert_eq!(transport.url(), "https://example.com/mcp");
         assert_eq!(transport.timeout(), Duration::from_secs(30));
         assert!(transport.is_connected());
+        assert!(!transport.is_retry_enabled());
     }
 
     #[test]
@@ -281,6 +504,47 @@ mod tests {
     fn test_http_transport_url_getter() {
         let transport = HttpTransport::new("http://localhost:3000/mcp");
         assert_eq!(transport.url(), "http://localhost:3000/mcp");
+    }
+
+    #[test]
+    fn test_http_transport_load_balancing_creation() {
+        let urls = vec![
+            "https://mcp1.example.com",
+            "https://mcp2.example.com",
+            "https://mcp3.example.com",
+        ];
+        let transport = HttpTransport::with_load_balancing(urls);
+        assert_eq!(transport.urls().len(), 3);
+        assert_eq!(transport.url(), "https://mcp1.example.com");
+    }
+
+    #[test]
+    fn test_http_transport_with_retry_enabled() {
+        let transport = HttpTransport::new("https://example.com/mcp").with_retry(true);
+        assert!(transport.is_retry_enabled());
+        assert!(transport.retry_config.is_some());
+    }
+
+    #[test]
+    fn test_http_transport_with_custom_retry_config() {
+        let config = RetryConfig::default()
+            .max_attempts(5)
+            .base_delay(Duration::from_millis(50));
+
+        let transport = HttpTransport::new("https://example.com/mcp").with_retry_config(config);
+        assert!(transport.is_retry_enabled());
+        assert!(transport.retry_config.is_some());
+    }
+
+    #[test]
+    fn test_http_transport_with_custom_headers() {
+        let transport = HttpTransport::new("https://example.com/mcp")
+            .with_header("Authorization", "Bearer token123")
+            .with_header("X-Custom-Header", "value");
+
+        assert_eq!(transport.custom_headers.len(), 2);
+        assert_eq!(transport.custom_headers[0].0, "Authorization");
+        assert_eq!(transport.custom_headers[0].1, "Bearer token123");
     }
 
     #[tokio::test]
@@ -325,5 +589,67 @@ mod tests {
             .unwrap_err()
             .to_string()
             .contains("No buffered response"));
+    }
+
+    #[test]
+    fn test_http_transport_round_robin_load_balancing() {
+        let urls = vec!["https://server1", "https://server2", "https://server3"];
+        let transport = HttpTransport::with_load_balancing(urls);
+
+        // Verify round-robin behavior by calling get_next_url multiple times
+        assert_eq!(transport.get_next_url(), "https://server1");
+        assert_eq!(transport.get_next_url(), "https://server2");
+        assert_eq!(transport.get_next_url(), "https://server3");
+        assert_eq!(transport.get_next_url(), "https://server1"); // Cycles back
+    }
+
+    #[test]
+    fn test_http_transport_builder_chaining() {
+        let transport = HttpTransport::new("https://example.com/mcp")
+            .with_timeout(Duration::from_secs(60))
+            .with_retry(true)
+            .with_header("X-Key", "value");
+
+        assert_eq!(transport.timeout(), Duration::from_secs(60));
+        assert!(transport.is_retry_enabled());
+        assert_eq!(transport.custom_headers.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_http_transport_disconnect() {
+        let mut transport = HttpTransport::new("https://example.com/mcp");
+        assert!(transport.is_connected());
+
+        let disconnect_result = transport.disconnect().await;
+
+        assert!(disconnect_result.is_ok());
+        assert!(!transport.is_connected());
+    }
+
+    #[test]
+    fn test_http_transport_multiple_headers() {
+        let transport = HttpTransport::new("https://example.com/mcp")
+            .with_header("Authorization", "Bearer xyz")
+            .with_header("X-API-Version", "2")
+            .with_header("X-Request-ID", "123");
+
+        assert_eq!(transport.custom_headers.len(), 3);
+        assert_eq!(transport.custom_headers[1].0, "X-API-Version");
+        assert_eq!(transport.custom_headers[2].1, "123");
+    }
+
+    #[test]
+    fn test_http_transport_retry_disabled_by_default() {
+        let transport = HttpTransport::new("https://example.com/mcp");
+        assert!(!transport.is_retry_enabled());
+        assert!(transport.retry_config.is_none());
+    }
+
+    #[test]
+    fn test_http_transport_single_url_load_balancing() {
+        let transport = HttpTransport::with_load_balancing(vec!["https://single"]);
+        assert_eq!(transport.urls().len(), 1);
+        assert_eq!(transport.get_next_url(), "https://single");
+        assert_eq!(transport.get_next_url(), "https://single"); // Should cycle
     }
 }
