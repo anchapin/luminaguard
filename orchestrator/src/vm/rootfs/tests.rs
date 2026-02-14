@@ -48,6 +48,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(unix)]
     fn test_rootfs_validate_requires_readonly() {
         let mut config = RootfsConfig::default();
         config.read_only = false;
@@ -62,6 +63,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(unix)]
     fn test_rootfs_validate_ext4_requires_path() {
         let mut config = RootfsConfig::default();
         config.overlay_type = OverlayType::Ext4;
@@ -74,6 +76,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(unix)]
     fn test_rootfs_validate_ext4_min_size() {
         let config = RootfsConfig::with_persistent_overlay(
             "/tmp/rootfs.ext4".to_string(),
