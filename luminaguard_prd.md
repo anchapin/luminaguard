@@ -1,8 +1,8 @@
-This is a Product Requirements Document (PRD) for **IronClaw**, the hypothetical tool proposed in our previous analysis. It is designed to solve the critical "usability vs. security" gap identified in the 2026 Agentic AI landscape.
+This is a Product Requirements Document (PRD) for **LuminaGuard**, the hypothetical tool proposed in our previous analysis. It is designed to solve the critical "usability vs. security" gap identified in the 2026 Agentic AI landscape.
 
 ---
 
-# Product Requirements Document: IronClaw
+# Product Requirements Document: LuminaGuard
 
 **Version:** 1.0 (Draft)
 **Status:** Proposal
@@ -10,9 +10,9 @@ This is a Product Requirements Document (PRD) for **IronClaw**, the hypothetical
 
 ## 1. Executive Summary
 
-**IronClaw** is a local-first Agentic AI runtime designed to replace the insecure "vibe coding" paradigm of OpenClaw with a rigorous "Agentic Engineering" approach.
+**LuminaGuard** is a local-first Agentic AI runtime designed to replace the insecure "vibe coding" paradigm of OpenClaw with a rigorous "Agentic Engineering" approach.
 
-It combines the **usability of OpenClaw** (easy setup, vast ecosystem) with the **security of Nanoclaw** (strict isolation). By utilizing Just-in-Time (JIT) Micro-VMs and the standard Model Context Protocol (MCP), IronClaw provides a secure, efficient, and auditable foundation for personal AI automation.
+It combines the **usability of OpenClaw** (easy setup, vast ecosystem) with the **security of Nanoclaw** (strict isolation). By utilizing Just-in-Time (JIT) Micro-VMs and the standard Model Context Protocol (MCP), LuminaGuard provides a secure, efficient, and auditable foundation for personal AI automation.
 
 ## 2. Problem Statement
 
@@ -28,7 +28,7 @@ The current landscape is polarized and dangerous:
 
 1. **Invisible Security:** The user should never see a Dockerfile. Isolation must happen automatically via JIT Micro-VMs.
 2. **Trust, Don't Hope:** High-stakes actions (file deletion, financial transfers) require explicit human approval via the "Approval Cliff."
-3. **Standardization over Proprietary:** No custom "AgentSkills." IronClaw is a native Model Context Protocol (MCP) client .
+3. **Standardization over Proprietary:** No custom "AgentSkills." LuminaGuard is a native Model Context Protocol (MCP) client .
 4. **Agentic Engineering:** The codebase is small, auditable, and deterministic.
 
 ## 4. Technical Architecture
@@ -40,18 +40,18 @@ The current landscape is polarized and dangerous:
 
 ### 4.2 Just-in-Time (JIT) Micro-VMs
 
-Instead of running on the host or requiring a permanent Docker daemon, IronClaw uses Firecracker-like Micro-VMs.
+Instead of running on the host or requiring a permanent Docker daemon, LuminaGuard uses Firecracker-like Micro-VMs.
 
-* **Session Lifecycle:** When a user asks, "Download this invoice," IronClaw spins up a stripped-down Linux VM in <200ms.
+* **Session Lifecycle:** When a user asks, "Download this invoice," LuminaGuard spins up a stripped-down Linux VM in <200ms.
 * **Execution:** The browser/tool runs *inside* this VM.
 * **Disposal:** Once the task is done and the file is extracted, the VM is vaporized. Malware cannot persist because the computer it "infected" no longer exists.
 
 ### 4.3 Native MCP Support
 
-IronClaw acts as a universal **MCP Client**.
+LuminaGuard acts as a universal **MCP Client**.
 
 * **Connectors:** It connects to any standard MCP Server (Google Drive, Slack, GitHub, Postgres).
-* **Advantage:** This instantly gives IronClaw access to the thousands of enterprise connectors being built by the industry (Anthropic, Replit, etc.) without relying on a dangerous community plugin registry .
+* **Advantage:** This instantly gives LuminaGuard access to the thousands of enterprise connectors being built by the industry (Anthropic, Replit, etc.) without relying on a dangerous community plugin registry .
 
 ## 5. Key Features
 
@@ -67,12 +67,12 @@ A dashboard that visualizes the agent's intent before execution.
 
 A secure alternative to the failed "Moltbook" social network.
 
-* **Function:** Allows multiple local IronClaw instances to communicate over an encrypted local mesh network (e.g., WireGuard).
+* **Function:** Allows multiple local LuminaGuard instances to communicate over an encrypted local mesh network (e.g., WireGuard).
 * **Use Case:** A "Researcher" agent on a user's Mac Mini can securely pass data to a "Coder" agent on their MacBook Pro without the data ever touching the public internet.
 
 ## 6. Competitive Comparison
 
-| Feature | OpenClaw | Nanoclaw | **IronClaw (Proposed)** |
+| Feature | OpenClaw | Nanoclaw | **LuminaGuard (Proposed)** |
 | --- | --- | --- | --- |
 | **Execution Env** | Host OS (Unsafe) | Docker Container | **JIT Micro-VM** |
 | **Plugin System** | Proprietary "Skills" | Custom Code | **Native MCP** |
@@ -97,7 +97,7 @@ A secure alternative to the failed "Moltbook" social network.
 ### Phase 3: The Swarm (Months 5-6)
 
 * Develop the **Private Mesh** protocol for multi-agent collaboration.
-* Release "IronClaw Desktop" (Electron-free, Rust-based GUI).
+* Release "LuminaGuard Desktop" (Electron-free, Rust-based GUI).
 
 ## 8. Success Metrics
 

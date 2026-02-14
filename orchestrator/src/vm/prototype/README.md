@@ -2,7 +2,7 @@
 
 ## Overview
 
-This is a **Quick 1-week prototype** to determine if Firecracker is viable for JIT Micro-VMs in IronClaw.
+This is a **Quick 1-week prototype** to determine if Firecracker is viable for JIT Micro-VMs in LuminaGuard.
 
 ### GOAL
 Test if Firecracker can actually boot VMs on the target system.
@@ -13,7 +13,7 @@ Test if Firecracker can actually boot VMs on the target system.
 
 ## Background
 
-IronClaw's JIT Micro-VM feature requires:
+LuminaGuard's JIT Micro-VM feature requires:
 - Spawn time: **<200ms** (target)
 - Ephemeral: VM destroyed after task completion
 - Security: Full isolation from host
@@ -32,7 +32,7 @@ cargo build --features vm-prototype
 ### 2. Run Feasibility Test
 
 ```bash
-./target/debug/ironclaw test-vm-prototype
+./target/debug/luminaguard test-vm-prototype
 ```
 
 ### 3. Read the Report
@@ -74,8 +74,8 @@ Partial success - needs more work.
 ## Test Assets
 
 The prototype expects kernel and rootfs files at:
-- Kernel: `/tmp/ironclaw-fc-test/vmlinux.bin`
-- Rootfs: `/tmp/ironclaw-fc-test/rootfs.ext4`
+- Kernel: `/tmp/luminaguard-fc-test/vmlinux.bin`
+- Rootfs: `/tmp/luminaguard-fc-test/rootfs.ext4`
 
 These assets are **not** automatically downloaded (prototype limitation).
 
@@ -83,8 +83,8 @@ These assets are **not** automatically downloaded (prototype limitation).
 
 1. **Download kernel:**
    ```bash
-   mkdir -p /tmp/ironclaw-fc-test
-   cd /tmp/ironclaw-fc-test
+   mkdir -p /tmp/luminaguard-fc-test
+   cd /tmp/luminaguard-fc-test
 
    # Automated download (recommended)
    ARCH="$(uname -m)"

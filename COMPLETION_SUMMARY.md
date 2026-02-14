@@ -7,7 +7,7 @@
 
 ## Executive Summary
 
-The Firecracker feasibility prototype has been successfully completed. Tests show that Firecracker can spawn VMs in **114.48ms**, beating the 200ms target by 43%. This validates the technical feasibility of using Firecracker for JIT Micro-VMs in IronClaw.
+The Firecracker feasibility prototype has been successfully completed. Tests show that Firecracker can spawn VMs in **114.48ms**, beating the 200ms target by 43%. This validates the technical feasibility of using Firecracker for JIT Micro-VMs in LuminaGuard.
 
 ## Deliverables
 
@@ -86,7 +86,7 @@ Added conditional compilation for prototype command.
 
 ### 2. Automated Testing
 ```bash
-./target/debug/ironclaw test-vm-prototype
+./target/debug/luminaguard test-vm-prototype
 ```
 One-command test execution with detailed report output.
 
@@ -112,7 +112,7 @@ Precise timing from Firecracker spawn to VM boot (114.48ms).
    - Next steps for Phase 3
 
 ### Test Assets
-- **Location:** `/tmp/ironclaw-fc-test/`
+- **Location:** `/tmp/luminaguard-fc-test/`
 - **Kernel:** `vmlinux-6.1.155` (43MB)
 - **Rootfs:** `rootfs.ext4` (64MB)
 
@@ -120,7 +120,7 @@ Precise timing from Firecracker spawn to VM boot (114.48ms).
 
 **PR #142:** feat: Complete Firecracker Feasibility Prototype (Issue #16)
 - **Status:** Open
-- **URL:** https://github.com/anchapin/ironclaw/pull/142
+URL: https://github.com/anchapin/LuminaGuard/pull/142
 - **Changes:** +303 lines, -7 lines
 - **Files Changed:**
   - orchestrator/src/main.rs
@@ -171,9 +171,9 @@ Based on successful prototype test:
 
 ## Conclusion
 
-**Issue #16 is COMPLETE. Firecracker is VIABLE for JIT Micro-VMs in IronClaw.**
+**Issue #16 is COMPLETE. Firecracker is VIABLE for JIT Micro-VMs in LuminaGuard.**
 
-The prototype successfully demonstrated that Firecracker meets IronClaw's performance requirements for JIT Micro-VM spawning. The next phase will implement snapshot pooling to achieve even faster startup times (10-50ms target).
+The prototype successfully demonstrated that Firecracker meets LuminaGuard's performance requirements for JIT Micro-VM spawning. The next phase will implement snapshot pooling to achieve even faster startup times (10-50ms target).
 
 ---
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-IronClaw Agent - Reasoning Loop
+LuminaGuard Agent - Reasoning Loop
 ================================
 
 This module implements the agent decision-making logic.
@@ -200,7 +200,7 @@ def think(state: AgentState) -> Optional[ToolCall]:
     """
     Main reasoning loop - decides next action based on state.
 
-    This is the core "brain" of IronClaw. It analyzes:
+    This is the core "brain" of LuminaGuard. It analyzes:
     1. Current task and context
     2. Available tools
     3. Message history
@@ -353,7 +353,7 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         task = sys.argv[1]
     else:
-        task = "Hello, IronClaw!"
+        task = "Hello, LuminaGuard!"
 
     state = run_loop(task, ["read_file", "write_file", "search"])
     print(f"Final state: {len(state.messages)} messages")

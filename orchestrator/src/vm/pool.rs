@@ -5,9 +5,9 @@
 // in 10-50ms instead of 110ms for cold boot.
 //
 // Architecture:
-// - Pool size: 5 VMs (configurable via IRONCLAW_POOL_SIZE env var)
-// - Refresh interval: 1 hour (configurable via IRONCLAW_SNAPSHOT_REFRESH_SECS)
-// - Location: /var/lib/ironclaw/snapshots
+// - Pool size: 5 VMs (configurable via LUMINAGUARD_POOL_SIZE env var)
+// - Refresh interval: 1 hour (configurable via LUMINAGUARD_SNAPSHOT_REFRESH_SECS)
+// - Location: /var/lib/luminaguard/snapshots
 // - Allocation: Round-robin with automatic refresh
 
 use anyhow::{Context, Result};
@@ -48,7 +48,7 @@ impl Default for PoolConfig {
     fn default() -> Self {
         Self {
             pool_size: DEFAULT_POOL_SIZE,
-            snapshot_path: PathBuf::from("/var/lib/ironclaw/snapshots"),
+            snapshot_path: PathBuf::from("/var/lib/luminaguard/snapshots"),
             refresh_interval_secs: DEFAULT_REFRESH_INTERVAL_SECS,
             max_snapshot_age_secs: SNAPSHOT_MAX_AGE_SECS,
         }
@@ -60,7 +60,7 @@ impl PoolConfig {
     pub fn from_env() -> Self {
         let mut config = Self::default();
 
-        if let Ok(size_str) = std::env::var("IRONCLAW_POOL_SIZE") {
+        if let Ok(size_str) = std::env::var("LUMINAGUARD_POOL_SIZE") {
             if let Ok(size) = size_str.parse::<usize>() {
                 if size > 0 && size <= 20 {
                     config.pool_size = size;
@@ -68,7 +68,7 @@ impl PoolConfig {
             }
         }
 
-        if let Ok(refresh_str) = std::env::var("IRONCLAW_SNAPSHOT_REFRESH_SECS") {
+        if let Ok(refresh_str) = std::env::var("LUMINAGUARD_SNAPSHOT_REFRESH_SECS") {
             if let Ok(refresh) = refresh_str.parse::<u64>() {
                 if refresh >= 60 {
                     config.refresh_interval_secs = refresh;
@@ -76,7 +76,7 @@ impl PoolConfig {
             }
         }
 
-        if let Ok(path_str) = std::env::var("IRONCLAW_SNAPSHOT_PATH") {
+        if let Ok(path_str) = std::env::var("LUMINAGUARD_SNAPSHOT_PATH") {
             config.snapshot_path = PathBuf::from(path_str);
         }
 
@@ -357,16 +357,16 @@ mod tests {
 
     #[tokio::test]
     async fn test_pool_config_from_env() {
-        std::env::set_var("IRONCLAW_POOL_SIZE", "10");
-        std::env::set_var("IRONCLAW_SNAPSHOT_REFRESH_SECS", "1800");
+        std::env::set_var("LUMINAGUARD_POOL_SIZE", "10");
+        std::env::set_var("LUMINAGUARD_SNAPSHOT_REFRESH_SECS", "1800");
 
         let config = PoolConfig::from_env();
 
         assert_eq!(config.pool_size, 10);
         assert_eq!(config.refresh_interval_secs, 1800);
 
-        std::env::remove_var("IRONCLAW_POOL_SIZE");
-        std::env::remove_var("IRONCLAW_SNAPSHOT_REFRESH_SECS");
+        std::env::remove_var("LUMINAGUARD_POOL_SIZE");
+        std::env::remove_var("LUMINAGUARD_SNAPSHOT_REFRESH_SECS");
     }
 
     #[tokio::test]
@@ -395,16 +395,16 @@ mod tests {
         config.pool_size = 2;
 
         // Set env var for the pool to pick up
-        std::env::set_var("IRONCLAW_SNAPSHOT_PATH", snapshot_path.to_str().unwrap());
-        std::env::set_var("IRONCLAW_POOL_SIZE", "2");
+        std::env::set_var("LUMINAGUARD_SNAPSHOT_PATH", snapshot_path.to_str().unwrap());
+        std::env::set_var("LUMINAGUARD_POOL_SIZE", "2");
 
         // Note: This test verifies the config is properly set
         // Actual pool initialization would require more setup
         assert_eq!(config.snapshot_path, snapshot_path);
         assert_eq!(config.pool_size, 2);
 
-        std::env::remove_var("IRONCLAW_SNAPSHOT_PATH");
-        std::env::remove_var("IRONCLAW_POOL_SIZE");
+        std::env::remove_var("LUMINAGUARD_SNAPSHOT_PATH");
+        std::env::remove_var("LUMINAGUARD_POOL_SIZE");
     }
 
     // Property-based test: pool size is always within bounds

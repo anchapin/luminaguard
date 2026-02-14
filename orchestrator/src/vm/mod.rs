@@ -107,7 +107,7 @@ impl VmHandle {
 /// # Example
 ///
 /// ```no_run
-/// use ironclaw_orchestrator::vm::spawn_vm;
+/// use luminaguard_orchestrator::vm::spawn_vm;
 ///
 /// #[tokio::main]
 /// async fn main() -> anyhow::Result<()> {
@@ -154,8 +154,8 @@ pub async fn spawn_vm(task_id: &str) -> Result<VmHandle> {
 /// # Example
 ///
 /// ```no_run
-/// use ironclaw_orchestrator::vm::{spawn_vm_with_config, config::VmConfig};
-/// use ironclaw_orchestrator::vm::seccomp::{SeccompFilter, SeccompLevel};
+/// use luminaguard_orchestrator::vm::{spawn_vm_with_config, config::VmConfig};
+/// use luminaguard_orchestrator::vm::seccomp::{SeccompFilter, SeccompLevel};
 ///
 /// #[tokio::main]
 /// async fn main() -> anyhow::Result<()> {
@@ -260,7 +260,7 @@ fn get_hypervisor() -> Box<dyn Hypervisor> {
 /// # Example
 ///
 /// ```no_run
-/// use ironclaw_orchestrator::vm::{spawn_vm, destroy_vm};
+/// use luminaguard_orchestrator::vm::{spawn_vm, destroy_vm};
 ///
 /// #[tokio::main]
 /// async fn main() -> anyhow::Result<()> {
@@ -294,7 +294,7 @@ pub async fn destroy_vm(handle: VmHandle) -> Result<()> {
 /// # Example
 ///
 /// ```no_run
-/// use ironclaw_orchestrator::vm;
+/// use luminaguard_orchestrator::vm;
 ///
 /// #[tokio::main]
 /// async fn main() -> anyhow::Result<()> {
@@ -316,7 +316,7 @@ pub async fn pool_stats() -> Result<crate::vm::pool::PoolStats> {
 /// # Example
 ///
 /// ```no_run
-/// use ironclaw_orchestrator::vm;
+/// use luminaguard_orchestrator::vm;
 ///
 /// #[tokio::main]
 /// async fn main() -> anyhow::Result<()> {
@@ -359,21 +359,21 @@ mod inline_tests {
         }
 
         // Check if Firecracker resources exist
-        let kernel_path = if std::path::Path::new("/tmp/ironclaw-fc-test/vmlinux.bin").exists() {
-            "/tmp/ironclaw-fc-test/vmlinux.bin".to_string()
+        let kernel_path = if std::path::Path::new("/tmp/luminaguard-fc-test/vmlinux.bin").exists() {
+            "/tmp/luminaguard-fc-test/vmlinux.bin".to_string()
         } else {
-            tracing::warn!("Skipping test: Firecracker kernel not available at /tmp/ironclaw-fc-test/vmlinux.bin. Run: ./scripts/download-firecracker-assets.sh");
+            tracing::warn!("Skipping test: Firecracker kernel not available at /tmp/luminaguard-fc-test/vmlinux.bin. Run: ./scripts/download-firecracker-assets.sh");
             return;
         };
-        let rootfs_path = if std::path::Path::new("/tmp/ironclaw-fc-test/rootfs.ext4").exists() {
-            "/tmp/ironclaw-fc-test/rootfs.ext4".to_string()
+        let rootfs_path = if std::path::Path::new("/tmp/luminaguard-fc-test/rootfs.ext4").exists() {
+            "/tmp/luminaguard-fc-test/rootfs.ext4".to_string()
         } else {
-            tracing::warn!("Skipping test: Firecracker rootfs not available at /tmp/ironclaw-fc-test/rootfs.ext4. Run: ./scripts/download-firecracker-assets.sh");
+            tracing::warn!("Skipping test: Firecracker rootfs not available at /tmp/luminaguard-fc-test/rootfs.ext4. Run: ./scripts/download-firecracker-assets.sh");
             return;
         };
 
         // Ensure test assets exist
-        let _ = std::fs::create_dir_all("/tmp/ironclaw-fc-test");
+        let _ = std::fs::create_dir_all("/tmp/luminaguard-fc-test");
 
         use config::VmConfig;
         let config = VmConfig {
@@ -458,8 +458,8 @@ pub fn verify_network_isolation(handle: &VmHandle) -> Result<bool> {
 /// # Example
 ///
 /// ```no_run
-/// use ironclaw_orchestrator::vm::{spawn_vm_jailed, config::VmConfig};
-/// use ironclaw_orchestrator::vm::jailer::JailerConfig;
+/// use luminaguard_orchestrator::vm::{spawn_vm_jailed, config::VmConfig};
+/// use luminaguard_orchestrator::vm::jailer::JailerConfig;
 ///
 /// #[tokio::main]
 /// async fn main() -> anyhow::Result<()> {
@@ -544,8 +544,8 @@ pub async fn spawn_vm_jailed(
 /// # Example
 ///
 /// ```no_run
-/// use ironclaw_orchestrator::vm::{spawn_vm_jailed, destroy_vm_jailed, config::VmConfig};
-/// use ironclaw_orchestrator::vm::jailer::JailerConfig;
+/// use luminaguard_orchestrator::vm::{spawn_vm_jailed, destroy_vm_jailed, config::VmConfig};
+/// use luminaguard_orchestrator::vm::jailer::JailerConfig;
 ///
 /// #[tokio::main]
 /// async fn main() -> anyhow::Result<()> {

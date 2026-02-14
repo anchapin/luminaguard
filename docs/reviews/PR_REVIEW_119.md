@@ -31,7 +31,7 @@ The commit message mentions adding `orchestrator/src/vm/prototype.rs` (and the l
 ## Verification
 I created a reproduction script `orchestrator/src/bin/repro_check.rs` that attempts to use the `vm` module. Running `cargo check --bin repro_check` failed with:
 ```
-error[E0433]: failed to resolve: could not find `vm` in `ironclaw_orchestrator`
+error[E0433]: failed to resolve: could not find `vm` in `luminaguard_orchestrator`
 ```
 This confirms the module is not exposed in the current build.
 

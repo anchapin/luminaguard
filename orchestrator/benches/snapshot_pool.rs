@@ -9,7 +9,7 @@
 // - Pool acquisition overhead
 
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
-use ironclaw_orchestrator::vm;
+use luminaguard_orchestrator::vm;
 use tempfile::TempDir;
 use tokio::runtime::Runtime;
 
@@ -18,7 +18,7 @@ fn bench_vm_spawn_from_pool(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
 
     let temp_dir = TempDir::new().unwrap();
-    std::env::set_var("IRONCLAW_SNAPSHOT_PATH", temp_dir.path().to_str().unwrap());
+    std::env::set_var("LUMINAGUARD_SNAPSHOT_PATH", temp_dir.path().to_str().unwrap());
 
     // Warm up pool first
     rt.block_on(async {
@@ -32,7 +32,7 @@ fn bench_vm_spawn_from_pool(c: &mut Criterion) {
         });
     });
 
-    std::env::remove_var("IRONCLAW_SNAPSHOT_PATH");
+    std::env::remove_var("LUMINAGUARD_SNAPSHOT_PATH");
 }
 
 /// Benchmark: Cold boot VM (fallback)
@@ -55,7 +55,7 @@ fn bench_concurrent_spawns(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
 
     let temp_dir = TempDir::new().unwrap();
-    std::env::set_var("IRONCLAW_SNAPSHOT_PATH", temp_dir.path().to_str().unwrap());
+    std::env::set_var("LUMINAGUARD_SNAPSHOT_PATH", temp_dir.path().to_str().unwrap());
 
     // Warm up pool first
     rt.block_on(async {
@@ -86,7 +86,7 @@ fn bench_concurrent_spawns(c: &mut Criterion) {
 
     group.finish();
 
-    std::env::remove_var("IRONCLAW_SNAPSHOT_PATH");
+    std::env::remove_var("LUMINAGUARD_SNAPSHOT_PATH");
 }
 
 /// Benchmark: Pool statistics
@@ -94,7 +94,7 @@ fn bench_pool_stats(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
 
     let temp_dir = TempDir::new().unwrap();
-    std::env::set_var("IRONCLAW_SNAPSHOT_PATH", temp_dir.path().to_str().unwrap());
+    std::env::set_var("LUMINAGUARD_SNAPSHOT_PATH", temp_dir.path().to_str().unwrap());
 
     // Warm up pool first
     rt.block_on(async {
@@ -108,7 +108,7 @@ fn bench_pool_stats(c: &mut Criterion) {
         });
     });
 
-    std::env::remove_var("IRONCLAW_SNAPSHOT_PATH");
+    std::env::remove_var("LUMINAGUARD_SNAPSHOT_PATH");
 }
 
 criterion_group!(

@@ -3,15 +3,15 @@
 ## Context
 - **Issue:** 19
 - **Feature:** network-isolation
-- **Working Directory:** ../ironclaw-network-isolation
+- **Working Directory:** ../luminaguard-network-isolation
 - **Branch:** feature/ISSUE_NUM-network-isolation
 
 ## Your Mission
-You are implementing the **network-isolation** feature for IronClaw Phase 3.
+You are implementing the **network-isolation** feature for LuminaGuard Phase 3.
 
-## IronClaw Context
+## LuminaGuard Context
 
-IronClaw is a local-first Agentic AI runtime with JIT Micro-VMs using Firecracker.
+LuminaGuard is a local-first Agentic AI runtime with JIT Micro-VMs using Firecracker.
 - Current spawn time: 110ms (45% better than 200ms target)
 - Architecture: Rust orchestrator + Python agent
 - Goal: Production-ready secure agent execution
@@ -42,7 +42,7 @@ TASK_SPECIFIC
 Before creating a PR, ensure:
 
 ```bash
-cd ../ironclaw-network-isolation/orchestrator
+cd ../luminaguard-network-isolation/orchestrator
 
 # Run all tests
 cargo test
@@ -94,7 +94,7 @@ Add/update:
 
 ## Working Instructions
 
-1. Work in: ../ironclaw-network-isolation
+1. Work in: ../luminaguard-network-isolation
 2. Review existing code in `orchestrator/src/vm/`
 3. Implement feature incrementally
 4. Test frequently (cargo test)
@@ -104,7 +104,7 @@ Add/update:
 ## Git Workflow
 
 ```bash
-cd ../ironclaw-network-isolation
+cd ../luminaguard-network-isolation
 
 # Make changes
 # ... code ...
@@ -133,7 +133,7 @@ When ready:
 ```bash
 gh pr create \\
   --title "feat: network-isolation (Issue 19)" \\
-  --body "Implements network-isolation for IronClaw.
+  --body "Implements network-isolation for LuminaGuard.
 
 - Summary of changes
 - Tests added
@@ -148,10 +148,10 @@ Closes 19"
 
 **Agent Instructions:**
 - Work autonomously
-- Follow IronClaw coding standards
+- Follow LuminaGuard coding standards
 - Test frequently
 - Ask for help only if blocked
 - Focus on quality over speed
 
-**Created by:** IronClaw Swarm Development
+**Created by:** LuminaGuard Swarm Development
 **Date:** 2026-02-10

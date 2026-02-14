@@ -1,4 +1,4 @@
-# IronClaw Makefile
+# LuminaGuard Makefile
 # Unified development automation for Rust + Python monorepo
 
 .PHONY: all install test fmt clean dev help docs lint branch-protection
@@ -6,7 +6,7 @@
 all: test
 
 install:
-	@echo "🔧 Installing IronClaw development dependencies..."
+	@echo "🔧 Installing LuminaGuard development dependencies..."
 	@echo ""
 	@echo "[Rust] Checking Cargo..."
 	@cargo --version 2>/dev/null || (echo "❌ Cargo not found. Install from https://rustup.rs/" && exit 1)
@@ -29,7 +29,7 @@ install:
 
 test:
 	@echo ""
-	@echo "🧪 Running IronClaw test suite..."
+	@echo "🧪 Running LuminaGuard test suite..."
 	@echo ""
 	@echo "[Rust] Running orchestrator tests..."
 	@cd orchestrator && cargo test --quiet 2>/dev/null || echo "  ℹ️  No Rust tests yet - expected for initial setup"
@@ -78,7 +78,7 @@ clean:
 	@echo "✅ Clean complete!"
 
 dev:
-	@echo "🚀 Starting IronClaw development environment..."
+	@echo "🚀 Starting LuminaGuard development environment..."
 	@echo ""
 	@echo "Terminal 1: Run orchestrator"
 	@echo "  cd orchestrator && cargo run"
@@ -101,7 +101,7 @@ branch-protection:
 	@./scripts/setup-branch-protection.sh
 
 help:
-	@echo "IronClaw Development Commands"
+	@echo "LuminaGuard Development Commands"
 	@echo ""
 	@echo "Setup:"
 	@echo "  make install            Install development dependencies"

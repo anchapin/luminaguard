@@ -1,12 +1,12 @@
 [project]
-name = "ironclaw-agent"
+name = "luminaguard-agent"
 version = "0.1.0"
-description = "IronClaw Agent - Python Reasoning Loop"
+description = "LuminaGuard Agent - Python Reasoning Loop"
 readme = "../README.md"
 requires-python = ">=3.11"
 license = {text = "MIT"}
 authors = [
-    {name = "IronClaw Contributors"}
+    {name = "LuminaGuard Contributors"}
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",

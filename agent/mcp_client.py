@@ -3,7 +3,7 @@
 MCP Client - Python Interface to Rust Orchestrator
 ================================================
 
-This module provides a Python client for communicating with the IronClaw
+This module provides a Python client for communicating with the LuminaGuard
 Rust Orchestrator's MCP (Model Context Protocol) client.
 
 It handles:
@@ -64,7 +64,7 @@ class Tool:
 
 class McpClient:
     """
-    Python client for IronClaw MCP Orchestrator
+    Python client for LuminaGuard MCP Orchestrator
 
     Manages communication with the Rust orchestrator's MCP client
     via JSON-RPC 2.0 over stdin/stdout.
@@ -111,7 +111,13 @@ class McpClient:
         self.server_name = server_name
         self.root_dir = root_dir
         self.args = args or []
-        self.orchestrator_command = orchestrator_command or ["cargo", "run", "--", "mcp", "stdio"]
+        self.orchestrator_command = orchestrator_command or [
+            "cargo",
+            "run",
+            "--",
+            "mcp",
+            "stdio",
+        ]
 
         # Validate basic type first
         if not command or not isinstance(command, list):
@@ -161,7 +167,7 @@ class McpClient:
             raise McpError("All command arguments must be strings")
 
         # Check for shell metacharacters that could enable injection
-        shell_metachars = [';', '&', '|', '$', '`', '(', ')', '<', '>', '\n', '\r']
+        shell_metachars = [";", "&", "|", "$", "`", "(", ")", "<", ">", "\n", "\r"]
         for arg in command:
             if any(char in arg for char in shell_metachars):
                 raise McpError(
@@ -173,13 +179,14 @@ class McpClient:
         # This is not a security boundary (the subprocess runs locally as the user),
         # but prevents accidental mistakes and documents expected commands.
         safe_commands = {
-            'npx',           # Node.js package runner
-            'python', 'python3',  # Python interpreters
-            'node',          # Node.js runtime
-            'cargo',         # Rust toolchain (for testing)
-            'echo',          # Testing (benign)
-            'true',          # Testing (benign)
-            'cat',           # File operations (for trusted input)
+            "npx",  # Node.js package runner
+            "python",
+            "python3",  # Python interpreters
+            "node",  # Node.js runtime
+            "cargo",  # Rust toolchain (for testing)
+            "echo",  # Testing (benign)
+            "true",  # Testing (benign)
+            "cat",  # File operations (for trusted input)
         }
 
         base_cmd = command[0]
@@ -191,7 +198,7 @@ class McpClient:
             print(
                 f"Warning: Command '{base_name}' not in known-safe list. "
                 f"Ensure this command is trusted and does not accept untrusted input.",
-                file=sys.stderr
+                file=sys.stderr,
             )
 
         return command
@@ -262,7 +269,7 @@ class McpClient:
         """
         Spawn the orchestrator MCP client process.
 
-        This starts the ironclaw CLI with the `mcp stdio` subcommand,
+        This starts the luminaguard CLI with the `mcp stdio` subcommand,
         which will spawn the MCP server and communicate with it.
 
         Security Note:
@@ -296,7 +303,9 @@ class McpClient:
                 bufsize=1,  # Line buffered
             )
         except FileNotFoundError:
-            raise McpError(f"Command not found: {orch_cmd[0]}. Ensure it is installed and in PATH.")
+            raise McpError(
+                f"Command not found: {orch_cmd[0]}. Ensure it is installed and in PATH."
+            )
         except OSError as e:
             raise McpError(f"Failed to spawn orchestrator: {e}") from e
 
@@ -323,7 +332,7 @@ class McpClient:
             "protocolVersion": "2024-11-05",
             "capabilities": {},
             "clientInfo": {
-                "name": "ironclaw-py",
+                "name": luminaguard,
                 "version": "0.1.0",
             },
         }
@@ -441,7 +450,7 @@ class McpClient:
         self,
         exc_type: Optional[type],
         exc_val: Optional[BaseException],
-        exc_tb: Optional[Any]
+        exc_tb: Optional[Any],
     ) -> bool:
         """Context manager exit"""
         self.shutdown()

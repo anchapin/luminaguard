@@ -1076,6 +1076,16 @@ mod tests {
         println!("Action serialization test passed");
     }
 
+    /// Helper to create a secure rootfs drive configuration
+    fn create_rootfs_drive(path: &str) -> Drive {
+        Drive {
+            drive_id: "rootfs".to_string(),
+            path_on_host: path.to_string(),
+            is_root_device: true,
+            is_read_only: true,
+        }
+    }
+
     /// Security Test: Verify rootfs drive is always read-only
     ///
     /// This test ensures that the `create_rootfs_drive` helper function

@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document analyzes hypervisor options for macOS and Windows to enable IronClaw's expansion beyond Linux/Firecracker. The goal is to identify backends that can achieve <200ms spawn times with high security isolation.
+This document analyzes hypervisor options for macOS and Windows to enable LuminaGuard's expansion beyond Linux/Firecracker. The goal is to identify backends that can achieve <200ms spawn times with high security isolation.
 
 ## Comparison Matrix
 

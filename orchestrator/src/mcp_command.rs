@@ -55,7 +55,7 @@ pub struct McpTestResult {
 /// # Example
 ///
 /// ```ignore
-/// use ironclaw_orchestrator::mcp_command::execute_mcp_test;
+/// use luminaguard_orchestrator::mcp_command::execute_mcp_test;
 ///
 /// #[tokio::main]
 /// async fn main() -> Result<()> {
@@ -137,7 +137,7 @@ async fn test_write_file(client: &mut McpClient<StdioTransport>) -> Result<Value
     let timestamp = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)?
         .as_secs();
-    let test_path = format!("/tmp/ironclaw_test_{}.txt", timestamp);
+    let test_path = format!("/tmp/luminaguard_test_{}.txt", timestamp);
 
     info!("📝 Writing test file to: {}", test_path);
 
@@ -146,7 +146,7 @@ async fn test_write_file(client: &mut McpClient<StdioTransport>) -> Result<Value
             "write_file",
             serde_json::json!({
                 "path": test_path,
-                "content": "IronClaw MCP test\n"
+                "content": "LuminaGuard MCP test\n"
             }),
         )
         .await

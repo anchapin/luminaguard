@@ -1,5 +1,5 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
-use ironclaw_orchestrator::mcp::{McpClient, StdioTransport};
+use luminaguard_orchestrator::mcp::{McpClient, StdioTransport};
 use std::env;
 
 fn bench_startup(c: &mut Criterion) {
