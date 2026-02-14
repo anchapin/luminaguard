@@ -13,7 +13,7 @@
 //! # Example
 //!
 //! ```ignore
-//! use ironclaw_orchestrator::mcp::retry::{RetryConfig, retry_with_backoff};
+//! use luminaguard_orchestrator::mcp::retry::{RetryConfig, retry_with_backoff};
 //!
 //! let config = RetryConfig::default()
 //!     .max_attempts(3)

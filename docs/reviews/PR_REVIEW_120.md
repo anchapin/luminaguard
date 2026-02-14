@@ -2,7 +2,7 @@
 
 **PR Context:**
 - Title: Add review for PR #43
-- URL: https://github.com/anchapin/ironclaw/pull/120
+- URL: https://github.com/anchapin/luminaguard/pull/120
 
 **Review Decision: ✅ Approved**
 

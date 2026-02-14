@@ -27,9 +27,9 @@ This PR merges critical security features (seccomp filters, firewall isolation) 
 
 2.  **Firewall Rules are Ineffective (Detached Chain)**
     *   **File:** `orchestrator/src/vm/firewall.rs`
-    *   **Issue:** `configure_isolation` creates a custom chain (e.g., `IRONCLAW_...`) and adds DROP rules to it, but it **never links** this chain to the main `INPUT`, `OUTPUT`, or `FORWARD` chains.
+    *   **Issue:** `configure_isolation` creates a custom chain (e.g., `LUMINAGUARD_...`) and adds DROP rules to it, but it **never links** this chain to the main `INPUT`, `OUTPUT`, or `FORWARD` chains.
     *   **Impact:** Traffic never traverses the custom chain. The firewall does absolutely nothing. The VM is NOT isolated.
-    *   **Suggestion:** You must add a jump rule from the main chains to the custom chain (e.g., `iptables -I FORWARD -m physdev --physdev-is-bridged -j IRONCLAW_...` or similar depending on network backend).
+    *   **Suggestion:** You must add a jump rule from the main chains to the custom chain (e.g., `iptables -I FORWARD -m physdev --physdev-is-bridged -j LUMINAGUARD_...` or similar depending on network backend).
 
 3.  **Seccomp Filter Blocks VSOCK (Self-DoS)**
     *   **File:** `orchestrator/src/vm/seccomp.rs`

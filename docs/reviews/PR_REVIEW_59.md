@@ -14,8 +14,8 @@ I have reviewed PR 59 and identified several critical issues which I have fixed 
 - **Fix:** Replaced calls with `config.validate()` and updated `orchestrator/src/vm/config.rs` to actually perform the validation (it was missing the networking check).
 
 ### 3. 🔴 **Runtime Panic: Firewall Chain Name Length**
-- **Issue:** `iptables` chain names are limited to 28 characters. `FirewallManager` created names like `IRONCLAW_{vm_id}` without truncation. Long VM IDs caused panics/errors.
-- **Fix:** Updated `FirewallManager::new` in `orchestrator/src/vm/firewall.rs` to truncate the sanitized ID to 19 characters (`IRONCLAW_` is 9 chars).
+- **Issue:** `iptables` chain names are limited to 28 characters. `FirewallManager` created names like `LUMINAGUARD_{vm_id}` without truncation. Long VM IDs caused panics/errors.
+- **Fix:** Updated `FirewallManager::new` in `orchestrator/src/vm/firewall.rs` to truncate the sanitized ID to 19 characters (`LUMINAGUARD_` is 9 chars).
 
 ### 4. 🔴 **Functional Bug: Seccomp Blocking Vsock**
 - **Issue:** `SeccompLevel::Basic` blocked `socket` and `connect` syscalls. These are required for the guest agent to connect to the host via AF_VSOCK.

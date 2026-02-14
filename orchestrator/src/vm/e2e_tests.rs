@@ -390,7 +390,7 @@ async fn e2e_agent_resource_cleanup() {
     if let Ok(entries) = std::fs::read_dir("/tmp") {
         for entry in entries.flatten() {
             if let Ok(name) = entry.file_name().into_string() {
-                if name.starts_with("firecracker-") || name.contains("ironclaw") {
+                if name.starts_with("firecracker-") || name.contains("luminaguard") {
                     sockets_before.push(name);
                 }
             }
@@ -416,7 +416,7 @@ async fn e2e_agent_resource_cleanup() {
     if let Ok(entries) = std::fs::read_dir("/tmp") {
         for entry in entries.flatten() {
             if let Ok(name) = entry.file_name().into_string() {
-                if name.starts_with("firecracker-") || name.contains("ironclaw") {
+                if name.starts_with("firecracker-") || name.contains("luminaguard") {
                     sockets_after.push(name);
                 }
             }

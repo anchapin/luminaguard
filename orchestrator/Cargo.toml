@@ -1,11 +1,11 @@
 [package]
-name = "ironclaw-orchestrator"
+name = "luminaguard-orchestrator"
 version = "0.1.0"
 edition = "2021"
-authors = ["IronClaw Contributors"]
-description = "Local-first Agentic AI Runtime - Rust Orchestrator"
+authors = ["LuminaGuard Contributors"]
+description = "Local-first Agentic AI Runtime - Rust LuminaGuard Orchestrator"
 license = "MIT"
-repository = "https://github.com/your-username/ironclaw"
+repository = "https://github.com/anchapin/luminaguard"
 readme = "../README.md"
 
 [dependencies]
@@ -51,6 +51,9 @@ uuid = { version = "1.0", features = ["v4"] }
 [target.'cfg(target_os = "macos")'.dependencies]
 vz = { git = "https://github.com/neowu/vz.git", branch = "main" }
 
+[target.'cfg(windows)'.dependencies]
+libwhp = { git = "https://github.com/insula-rs/libwhp", rev = "5a378c4" }
+
 [dev-dependencies]
 # Property-based testing
 proptest = "1.4"
@@ -62,11 +65,11 @@ criterion = "0.8"
 tempfile = "3.10"
 
 [lib]
-name = "ironclaw_orchestrator"
+name = "luminaguard_orchestrator"
 path = "src/lib.rs"
 
 [[bin]]
-name = "ironclaw"
+name = "luminaguard"
 path = "src/main.rs"
 
 [profile.dev]

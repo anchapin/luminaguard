@@ -61,7 +61,7 @@ impl VmConfig {
         };
 
         // Generate vsock path using UUID to ensure uniqueness and prevent path traversal
-        config.vsock_path = Some(format!("/tmp/ironclaw/vsock/{}.sock", Uuid::new_v4()));
+        config.vsock_path = Some(format!("/tmp/luminaguard/vsock/{}.sock", Uuid::new_v4()));
 
         config
     }

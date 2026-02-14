@@ -67,10 +67,10 @@ This validates:
 
 ### Test 3: Dependency Count ✅ PASS
 
-**Command**: `cargo tree --package ironclaw-orchestrator --depth 1`
+**Command**: `cargo tree --package luminaguard-orchestrator --depth 1`
 
 **Results**:
-- **Direct Dependencies**: 14 (excluding ironclaw-orchestrator itself)
+- **Direct Dependencies**: 14 (excluding luminaguard-orchestrator itself)
 - **Transitive Dependencies**: 402 total lines in tree
 
 **Direct Dependencies**:
@@ -222,7 +222,7 @@ R_eff = 0.85 (85%)
 ```rust
 // orchestrator/benches/mcp_startup.rs
 use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
-use ironclaw_orchestrator::mcp::{McpClient, StdioTransport};
+use luminaguard_orchestrator::mcp::{McpClient, StdioTransport};
 
 use tokio::runtime::Runtime;
 

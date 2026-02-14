@@ -230,7 +230,7 @@ The custom MCP client is **production-ready** and exceeds all success criteria.
 
 ## Sign-Off
 
-**Decision Maker**: IronClaw Architecture Team
+**Decision Maker**: LuminaGuard Architecture Team
 **Approver**: [To be assigned]
 **Date**: 2026-02-10
 **Status**: ✅ **APPROVED**

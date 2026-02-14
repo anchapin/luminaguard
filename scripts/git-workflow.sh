@@ -1,5 +1,5 @@
 #!/bin/bash
-# IronClaw Git Workflow Helper
+# LuminaGuard Git Workflow Helper
 # Automates feature branch workflow with issue tracking
 
 set -e
@@ -22,7 +22,7 @@ success() { echo -e "${GREEN}✅${NC} $1"; }
 # Show help
 show_help() {
   cat << EOF
-${BLUE}IronClaw Git Workflow Helper${NC}
+${BLUE}LuminaGuard Git Workflow Helper${NC}
 
 ${GREEN}Usage:${NC}
   $0 <command> [arguments]

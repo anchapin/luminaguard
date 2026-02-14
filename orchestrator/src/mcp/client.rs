@@ -12,7 +12,7 @@
 //! # Usage
 //!
 //! ```ignore
-//! use ironclaw_orchestrator::mcp::{McpClient, StdioTransport};
+//! use luminaguard_orchestrator::mcp::{McpClient, StdioTransport};
 //!
 //! // Create a stdio transport
 //! let transport = StdioTransport::spawn("npx", &["-y", "@modelcontextprotocol/server-filesystem"]).await?;
@@ -267,7 +267,7 @@ where
 
         // Prepare initialize parameters
         let client_info = ClientInfo {
-            name: "ironclaw-orchestrator".to_string(),
+            name: "luminaguard-orchestrator".to_string(),
             version: env!("CARGO_PKG_VERSION", "0.1.0").to_string(),
         };
 

@@ -4,7 +4,7 @@
 // to enable fast VM spawning (10-50ms vs 110ms cold boot).
 //
 // Architecture:
-// - Snapshots stored at: /var/lib/ironclaw/snapshots/{snapshot_id}/
+// - Snapshots stored at: /var/lib/luminaguard/snapshots/{snapshot_id}/
 // - Each snapshot contains: memory state, microVM state, and metadata
 // - Snapshot load time target: <20ms
 
@@ -108,7 +108,7 @@ pub async fn create_snapshot(vm_id: &str, snapshot_id: &str) -> Result<Snapshot>
     // 4. Resume VM (if needed)
     // 5. Save snapshot to disk
 
-    let base_path = PathBuf::from("/var/lib/ironclaw/snapshots");
+    let base_path = PathBuf::from("/var/lib/luminaguard/snapshots");
     let snapshot_dir = base_path.join(snapshot_id);
 
     // Create snapshot directory
@@ -164,7 +164,7 @@ pub async fn load_snapshot(snapshot_id: &str) -> Result<String> {
 
     let start = std::time::Instant::now();
 
-    let base_path = PathBuf::from("/var/lib/ironclaw/snapshots");
+    let base_path = PathBuf::from("/var/lib/luminaguard/snapshots");
     let snapshot_dir = base_path.join(snapshot_id);
     let state_path = snapshot_dir.join("vmstate.json");
 
@@ -206,7 +206,7 @@ pub async fn load_snapshot(snapshot_id: &str) -> Result<String> {
 pub async fn delete_snapshot(snapshot_id: &str) -> Result<()> {
     tracing::info!("Deleting snapshot {}", snapshot_id);
 
-    let base_path = PathBuf::from("/var/lib/ironclaw/snapshots");
+    let base_path = PathBuf::from("/var/lib/luminaguard/snapshots");
     let snapshot_dir = base_path.join(snapshot_id);
 
     if snapshot_dir.exists() {
@@ -224,7 +224,7 @@ pub async fn delete_snapshot(snapshot_id: &str) -> Result<()> {
 ///
 /// * `Vec<SnapshotMetadata>` - List of snapshot metadata
 pub async fn list_snapshots() -> Result<Vec<SnapshotMetadata>> {
-    let base_path = PathBuf::from("/var/lib/ironclaw/snapshots");
+    let base_path = PathBuf::from("/var/lib/luminaguard/snapshots");
 
     if !base_path.exists() {
         return Ok(Vec::new());

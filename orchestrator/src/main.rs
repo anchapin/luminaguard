@@ -1,4 +1,4 @@
-// IronClaw Orchestrator - Main Entry Point
+// LuminaGuard Orchestrator - Main Entry Point
 //
 // This is the Rust Orchestrator that manages:
 // - CLI interface
@@ -10,16 +10,16 @@
 
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
-use ironclaw_orchestrator::mcp::{McpClient, StdioTransport};
-use ironclaw_orchestrator::vm::{self, destroy_vm};
+use luminaguard_orchestrator::mcp::{McpClient, StdioTransport};
+use luminaguard_orchestrator::vm::{self, destroy_vm};
 use serde_json::json;
 use tracing::{error, info, Level};
 use tracing_subscriber::EnvFilter;
 
-/// IronClaw: Local-first Agentic AI Runtime
+/// LuminaGuard: Local-first Agentic AI Runtime
 #[derive(Parser, Debug)]
-#[command(name = "ironclaw")]
-#[command(author = "IronClaw Contributors")]
+#[command(name = "luminaguard)]
+#[command(author = "LuminaGuard Contributors")]
 #[command(version = "0.1.0")]
 #[command(about = "Secure agentic AI runtime with JIT Micro-VMs", long_about = None)]
 struct Args {
@@ -80,7 +80,7 @@ async fn main() -> Result<()> {
         )
         .init();
 
-    info!("🦊 IronClaw Orchestrator v0.1.0 starting...");
+    info!("🦊 LuminaGuard Orchestrator v0.1.0 starting...");
 
     // Match commands
     match args.command {
@@ -106,7 +106,7 @@ async fn main() -> Result<()> {
             test_vm_prototype().await?;
         }
         None => {
-            info!("No command specified. Use 'ironclaw --help' for usage.");
+            info!("No command specified. Use 'luminaguard --help' for usage.");
         }
     }
 
@@ -261,7 +261,7 @@ async fn test_mcp(command: Option<String>, args: Vec<String>, list_tools_only: b
 /// Test Firecracker feasibility prototype
 #[cfg(feature = "vm-prototype")]
 async fn test_vm_prototype() -> Result<()> {
-    use ironclaw_orchestrator::vm::prototype::{self, Recommendation};
+    use luminaguard_orchestrator::vm::prototype::{self, Recommendation};
 
     // Run the feasibility test
     let result = prototype::run_feasibility_test().await;
@@ -293,7 +293,7 @@ mod tests {
 
     #[test]
     fn test_args_parsing() {
-        let args = Args::parse_from(["ironclaw", "run", "test task"]);
+        let args = Args::parse_from(["luminaguard, "run", "test task"]);
         assert!(matches!(args.command, Some(Commands::Run { .. })));
     }
 

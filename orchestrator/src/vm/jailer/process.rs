@@ -1,3 +1,4 @@
+#![cfg(unix)]
 // Jailer Process Management
 //
 // Handles spawning and managing Firecracker processes via Jailer

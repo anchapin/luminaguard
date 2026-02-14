@@ -1,10 +1,10 @@
 #!/bin/bash
-# IronClaw Code Formatter
+# LuminaGuard Code Formatter
 # Formats all code (Rust + Python)
 
 set -e
 
-echo "🎨 Formatting IronClaw code..."
+echo "🎨 Formatting LuminaGuard code..."
 echo ""
 
 # Format Rust code

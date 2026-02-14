@@ -24,7 +24,7 @@ impl FirecrackerAssets {
     /// For PROTOTYPE: We'll check if assets exist in /tmp first
     /// For PRODUCTION: Would download from official sources
     pub async fn prepare() -> Result<Self> {
-        let temp_dir = PathBuf::from("/tmp/ironclaw-fc-test");
+        let temp_dir = PathBuf::from("/tmp/luminaguard-fc-test");
 
         // Create temp directory
         fs::create_dir_all(&temp_dir)

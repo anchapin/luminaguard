@@ -37,7 +37,7 @@ class TestMcpFilesystemServer:
         with tempfile.TemporaryDirectory() as tmpdir:
             # Create test file
             test_file = Path(tmpdir) / "test.txt"
-            test_file.write_text("Hello from IronClaw MCP integration test!")
+            test_file.write_text("Hello from LuminaGuard MCP integration test!")
 
             # Create MCP client for filesystem server
             client = McpClient(
@@ -69,7 +69,7 @@ class TestMcpFilesystemServer:
                 if isinstance(result["content"], list)
                 else result["content"]
             )
-            assert "Hello from IronClaw" in str(content)
+            assert "Hello from LuminaGuard in str(content)
 
             # Test call_tool - write file
             write_result = client.call_tool(

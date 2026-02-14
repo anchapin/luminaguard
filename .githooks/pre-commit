@@ -1,5 +1,5 @@
 #!/bin/bash
-# IronClaw Pre-commit Hook
+# LuminaGuard Pre-commit Hook
 # Blocks commits to protected branches (main, master, develop)
 
 set -e
@@ -19,7 +19,7 @@ PROTECTED_BRANCHES="^(main|master|develop)$"
 if [[ "$CURRENT_BRANCH" =~ $PROTECTED_BRANCHES ]]; then
   echo -e "${RED}❌ BLOCKED: Cannot commit directly to $CURRENT_BRANCH${NC}"
   echo ""
-  echo "IronClaw requires all changes to go through pull requests."
+  echo "LuminaGuard requires all changes to go through pull requests."
   echo ""
   echo "Required workflow:"
   echo "  1. Create GitHub issue:"
