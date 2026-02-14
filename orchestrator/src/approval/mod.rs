@@ -1,119 +1,155 @@
-// Approval Cliff Module
-//
-// Security boundary separating autonomous "Green Actions" from
-// "Red Actions" requiring human approval.
-//
-// Green Actions (Autonomous):
-// - Reading files
-// - Searching the web
-// - Checking logs
-// - Any read-only operations
-//
-// Red Actions (Require Approval):
-// - Editing code
-// - Deleting files
-// - Sending emails
-// - Transferring crypto/assets
-// - Any destructive or external communication
+//! Approval Cliff Module
+//!
+//! Security boundary separating autonomous "Green Actions" from
+//! "Red Actions" requiring human approval.
+//!
+//! Architecture:
+//! - `action.rs`: Classify actions as Green (safe) or Red (requires approval)
+//! - `diff.rs`: Generate human-readable Diff Cards showing exact changes
+//! - `history.rs`: Record all approval decisions for audit trails
+//! - `ui.rs`: CLI/interactive prompts for user approval
+//! - `mod.rs`: ApprovalManager - main entry point
+//!
+//! Green Actions (Autonomous):
+//! - Reading files
+//! - Searching the web
+//! - Checking logs
+//! - Any read-only operations
+//!
+//! Red Actions (Require Approval):
+//! - Editing code
+//! - Deleting files
+//! - Sending emails
+//! - Transferring crypto/assets
+//! - Any destructive or external communication
 
-use serde::{Deserialize, Serialize};
+pub mod action;
+pub mod diff;
+pub mod history;
+pub mod ui;
 
-/// Action type (Green or Red)
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub enum ActionKind {
-    /// Green Action: Autonomous (read-only, safe)
-    Green,
+pub use action::{ActionType, RiskLevel};
+pub use diff::{Change, DiffCard};
+pub use history::{ApprovalDecision, ApprovalHistory, ApprovalRecord};
+pub use ui::{ApprovalPrompt, ApprovalPromptConfig};
 
-    /// Red Action: Requires approval (destructive, external)
-    Red,
+use tracing::info;
+
+/// Main Approval Manager - entry point for approval cliff workflow
+///
+/// Handles the complete approval workflow:
+/// 1. Classify action (Green or Red)
+/// 2. Auto-approve Green actions
+/// 3. Present Diff Card for Red actions
+/// 4. Record decision in audit trail
+/// 5. Return decision for execution
+#[derive(Debug)]
+pub struct ApprovalManager {
+    /// Approval history (audit trail)
+    history: ApprovalHistory,
+
+    /// Enable approval cliff (can be disabled for testing)
+    enable_approval_cliff: bool,
+
+    /// UI configuration
+    prompt_config: ApprovalPromptConfig,
 }
 
-/// Action that requires approval check
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Action {
-    /// Action type
-    pub kind: ActionKind,
-
-    /// Action description (shown to user in Diff Card)
-    pub description: String,
-
-    /// Expected changes (for Diff Card visualization)
-    pub changes: ActionChanges,
-}
-
-/// Changes that will be made by the action
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum ActionChanges {
-    /// File write: show diff
-    FileWrite { path: String, old_content: String, new_content: String },
-
-    /// File deletion: show path
-    FileDelete { path: String },
-
-    /// External communication: show recipient and content
-    ExternalMessage { recipient: String, content: String },
-
-    /// Custom: show description
-    Custom { description: String },
-}
-
-/// Approval decision
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub enum ApprovalDecision {
-    /// Allow action to proceed
-    Approve,
-
-    /// Reject action
-    Reject,
-}
-
-/// Approval Cliff UI - manages the approval workflow
-pub struct ApprovalCliff;
-
-impl ApprovalCliff {
-    /// Check if an action requires approval
-    pub fn requires_approval(action: &Action) -> bool {
-        action.kind == ActionKind::Red
-    }
-
-    /// Present the Diff Card UI to the user
-    ///
-    /// # TODO (Phase 2)
-    ///
-    /// This will be implemented in Phase 2 as a TUI or GUI.
-    /// For now, it returns a placeholder decision.
-    pub async fn present_diff_card(action: &Action) -> ApprovalDecision {
-        tracing::info!("Presenting Diff Card for action: {}", action.description);
-
-        // TODO: Phase 2 implementation
-        // 1. Render Diff Card UI (TUI or GUI)
-        // 2. Show action description
-        // 3. Show changes (file diff, message content, etc.)
-        // 4. Wait for user input (approve/reject)
-        // 5. Return decision
-
-        // Placeholder: Auto-approve Green actions, reject Red for now
-        match action.kind {
-            ActionKind::Green => ApprovalDecision::Approve,
-            ActionKind::Red => ApprovalDecision::Reject, // Safe default
+impl ApprovalManager {
+    /// Create a new approval manager
+    pub fn new() -> Self {
+        Self {
+            history: ApprovalHistory::new(),
+            enable_approval_cliff: true,
+            prompt_config: ApprovalPromptConfig::default(),
         }
     }
 
-    /// Execute action with approval check
-    pub async fn execute_with_approval(
-        action: Action,
-        executor: impl FnOnce() -> anyhow::Result<()>,
-    ) -> anyhow::Result<()> {
-        if Self::requires_approval(&action) {
-            let decision = Self::present_diff_card(&action).await;
-            if decision == ApprovalDecision::Reject {
-                tracing::warn!("Action rejected by user: {}", action.description);
-                return Err(anyhow::anyhow!("Action rejected by user"));
-            }
+    /// Create with custom prompt configuration
+    pub fn with_prompt_config(config: ApprovalPromptConfig) -> Self {
+        Self {
+            history: ApprovalHistory::new(),
+            enable_approval_cliff: true,
+            prompt_config: config,
+        }
+    }
+
+    /// Check if an action requires approval and get user decision
+    ///
+    /// Flow:
+    /// 1. If approval cliff disabled, return Approved
+    /// 2. If Green action, return Approved (auto-safe)
+    /// 3. If Red action, present Diff Card and ask user
+    /// 4. Record decision in audit trail
+    /// 5. Return decision
+    pub async fn check_and_approve(
+        &mut self,
+        action_type: ActionType,
+        description: String,
+        changes: Vec<Change>,
+    ) -> anyhow::Result<ApprovalDecision> {
+        // If approval cliff disabled, auto-approve
+        if !self.enable_approval_cliff {
+            info!(
+                "Approval cliff disabled, auto-approving action: {}",
+                description
+            );
+            return Ok(ApprovalDecision::Approved);
         }
 
-        // Execute the action
-        executor()
+        // Green actions skip approval
+        if !action_type.requires_approval() {
+            info!("Green action, auto-approving: {}", description);
+            return Ok(ApprovalDecision::Approved);
+        }
+
+        // Generate Diff Card for Red action
+        let diff_card = DiffCard::new(action_type, description.clone(), changes);
+
+        // Ask user for approval
+        let prompt = ApprovalPrompt::with_config(self.prompt_config.clone());
+        let decision = prompt.ask_for_approval(&diff_card).await?;
+
+        // Record decision in history
+        let record = ApprovalRecord {
+            id: uuid::Uuid::new_v4().to_string(),
+            timestamp: chrono::Utc::now(),
+            action_description: description,
+            decision,
+            approved_by: std::env::var("USER").unwrap_or_else(|_| "unknown".to_string()),
+            justification: None,
+            execution_result: None,
+        };
+
+        self.history.record_decision(record)?;
+
+        Ok(decision)
+    }
+
+    /// Disable approval cliff (for testing only)
+    pub fn disable_for_testing(&mut self) {
+        self.enable_approval_cliff = false;
+    }
+
+    /// Get approval history
+    pub fn get_history(&self) -> Vec<&ApprovalRecord> {
+        self.history.get_history(None)
+    }
+
+    /// Get recent approval decisions (limited)
+    pub fn get_recent_approvals(&self, limit: usize) -> Vec<&ApprovalRecord> {
+        self.history.get_history(Some(limit))
+    }
+
+    /// Export audit log as JSON
+    pub fn export_audit_log(&self) -> anyhow::Result<String> {
+        self.history.export_audit_log()
+    }
+}
+
+impl Default for ApprovalManager {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -122,52 +158,98 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_green_action_no_approval() {
-        let action = Action {
-            kind: ActionKind::Green,
-            description: "Read file".to_string(),
-            changes: ActionChanges::Custom {
-                description: "Reading /tmp/file.txt".to_string(),
-            },
-        };
-        assert!(!ApprovalCliff::requires_approval(&action));
-    }
-
-    #[test]
-    fn test_red_action_requires_approval() {
-        let action = Action {
-            kind: ActionKind::Red,
-            description: "Delete file".to_string(),
-            changes: ActionChanges::FileDelete {
-                path: "/tmp/file.txt".to_string(),
-            },
-        };
-        assert!(ApprovalCliff::requires_approval(&action));
+    fn test_approval_manager_new() {
+        let manager = ApprovalManager::new();
+        assert!(manager.enable_approval_cliff);
+        assert_eq!(manager.get_history().len(), 0);
     }
 
     #[tokio::test]
     async fn test_green_action_auto_approved() {
-        let action = Action {
-            kind: ActionKind::Green,
-            description: "Read file".to_string(),
-            changes: ActionChanges::Custom {
-                description: "Reading file".to_string(),
-            },
-        };
-        let decision = ApprovalCliff::present_diff_card(&action).await;
-        assert_eq!(decision, ApprovalDecision::Approve);
+        let mut manager = ApprovalManager::new();
+
+        let decision = manager
+            .check_and_approve(ActionType::ReadFile, "Read test.txt".to_string(), vec![])
+            .await
+            .unwrap();
+
+        assert_eq!(decision, ApprovalDecision::Approved);
     }
 
     #[tokio::test]
-    async fn test_red_action_rejected_by_default() {
-        let action = Action {
-            kind: ActionKind::Red,
-            description: "Delete file".to_string(),
-            changes: ActionChanges::FileDelete {
-                path: "/tmp/file.txt".to_string(),
-            },
+    async fn test_red_action_needs_approval() {
+        let config = ApprovalPromptConfig {
+            interactive: false,
+            auto_approve_green: true,
+            default_decision: ApprovalDecision::Approved,
         };
-        let decision = ApprovalCliff::present_diff_card(&action).await;
-        assert_eq!(decision, ApprovalDecision::Reject);
+
+        let mut manager = ApprovalManager::with_prompt_config(config);
+
+        let decision = manager
+            .check_and_approve(
+                ActionType::DeleteFile,
+                "Delete test.txt".to_string(),
+                vec![Change::FileDelete {
+                    path: "test.txt".to_string(),
+                    size_bytes: 100,
+                }],
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(decision, ApprovalDecision::Approved);
+        assert_eq!(manager.get_history().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_disabled_approval_cliff() {
+        let mut manager = ApprovalManager::new();
+        manager.disable_for_testing();
+
+        let decision = manager
+            .check_and_approve(
+                ActionType::DeleteFile,
+                "Delete critical file".to_string(),
+                vec![],
+            )
+            .await
+            .unwrap();
+
+        // Even dangerous actions are auto-approved when disabled
+        assert_eq!(decision, ApprovalDecision::Approved);
+    }
+
+    #[tokio::test]
+    async fn test_audit_trail_recording() {
+        let config = ApprovalPromptConfig {
+            interactive: false,
+            auto_approve_green: true,
+            default_decision: ApprovalDecision::Denied,
+        };
+
+        let mut manager = ApprovalManager::with_prompt_config(config);
+
+        let _ = manager
+            .check_and_approve(
+                ActionType::DeleteFile,
+                "Delete test.txt".to_string(),
+                vec![Change::FileDelete {
+                    path: "test.txt".to_string(),
+                    size_bytes: 100,
+                }],
+            )
+            .await;
+
+        let history = manager.get_history();
+        assert_eq!(history.len(), 1);
+        assert_eq!(history[0].decision, ApprovalDecision::Denied);
+    }
+
+    #[test]
+    fn test_export_audit_log() {
+        let manager = ApprovalManager::new();
+        let log = manager.export_audit_log().unwrap();
+        assert!(log.contains("[]")); // Empty array
     }
 }
