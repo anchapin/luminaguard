@@ -1,6 +1,6 @@
-# IronClaw Agent - Examples
+# LuminaGuard Agent - Examples
 
-This directory contains example scripts demonstrating IronClaw's agent capabilities.
+This directory contains example scripts demonstrating LuminaGuard's agent capabilities.
 
 ## Examples
 
@@ -8,7 +8,7 @@ This directory contains example scripts demonstrating IronClaw's agent capabilit
 
 **mcp_filesystem_demo.py** - Demonstrates MCP filesystem operations
 
-Shows how to use IronClaw's MCP client to:
+Shows how to use LuminaGuard's MCP client to:
 - Connect to MCP servers (e.g., @modelcontextprotocol/server-filesystem)
 - List available tools
 - Read/write files through MCP
@@ -25,7 +25,7 @@ python agent/examples/mcp_filesystem_demo.py --mode context-manager
 
 **Requirements**:
 - Node.js and npm (for @modelcontextprotocol/server-filesystem)
-- IronClaw Rust Orchestrator compiled (`cargo build --release`)
+- LuminaGuard Rust Orchestrator compiled (`cargo build --release`)
 - Python 3.11+
 
 ## How It Works
@@ -119,7 +119,7 @@ cd agent
 python mcp_client.py
 
 # Run agent loop (basic)
-python loop.py "Hello, IronClaw!"
+python loop.py "Hello, LuminaGuard!"
 
 # Run filesystem demo
 python examples/mcp_filesystem_demo.py
@@ -137,5 +137,5 @@ To add a new example:
 ## See Also
 
 - **MCP Protocol**: https://modelcontextprotocol.io/
-- **IronClaw Documentation**: See `CLAUDE.md` and `README.md`
+- **LuminaGuard Documentation**: See `CLAUDE.md` and `README.md`
 - **Rust MCP Implementation**: See `orchestrator/src/mcp/` modules

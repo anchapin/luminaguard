@@ -1,6 +1,6 @@
 # Jules GitHub Integration Setup Guide
 
-This guide walks through configuring Jules AI agent to work with the IronClaw repository for PR reviews and auto-fixing CI failures.
+This guide walks through configuring Jules AI agent to work with the LuminaGuard repository for PR reviews and auto-fixing CI failures.
 
 ## Overview
 
@@ -22,7 +22,7 @@ Created workflows:
    ```
 5. Click **"Run and Snapshot"**
 
-This ensures Jules understands how to set up the IronClaw development environment.
+This ensures Jules understands how to set up the LuminaGuard development environment.
 
 ---
 
@@ -53,12 +53,12 @@ The following workflow files have been created in `.github/workflows/`:
 - Reviews PRs for code quality, security, and adherence to project standards
 - Checks for potential bugs and issues
 - Provides constructive feedback as PR comments
-- Verifies adherence to IronClaw constraints (loop.py line limit, coverage, etc.)
+- Verifies adherence to LuminaGuard constraints (loop.py line limit, coverage, etc.)
 
 **No manual action needed** - runs automatically on PRs.
 
 ### jules-ci-fix.yml
-**Trigger:** When "IronClaw CI" or "quality-gates" workflows fail
+**Trigger:** When "LuminaGuard CI" or "quality-gates" workflows fail
 
 **What it does:**
 - Analyzes the CI failure

@@ -1,8 +1,8 @@
 #!/bin/sh
-# overlay-init - Root Filesystem Hardening for IronClaw
+# overlay-init - Root Filesystem LuminaGuard
 #
 # Copyright Amazon.com, Inc. or its affiliates. Licensed under Apache-2.0.
-# Modified for IronClaw Agentic AI Runtime
+# Modified for luminaguard Agentic AI Runtime
 #
 # This script sets up an OverlayFS to provide a read-only root filesystem
 # with a writable overlay layer for agent operations.
@@ -47,7 +47,7 @@ do_overlay() {
 
     # Check overlay_root type (passed as kernel boot parameter)
     if [ "$overlay_root" = ram ] || [ -z "$overlay_root" ]; then
-        # Use tmpfs for ephemeral overlay (default for IronClaw)
+        # Use tmpfs for ephemeral overlay (default for luminaguard)
         # - Fast, in-memory
         # - Data lost on VM shutdown (ephemeral by design)
         # - Perfect for agent tasks (no persistence needed)

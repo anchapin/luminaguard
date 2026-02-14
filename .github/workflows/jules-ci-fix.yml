@@ -7,7 +7,7 @@ name: Jules - Auto-Fix CI Failures
 
 on:
   workflow_run:
-    workflows: ["IronClaw CI", "quality-gates"]  # Add your CI workflow names
+    workflows: ["LuminaGuard CI", "quality-gates"]  # Add your CI workflow names
     types: [completed]
 
 jobs:
@@ -48,7 +48,7 @@ jobs:
             2. Identify the root cause
             3. Implement a fix
 
-            **IronClaw Context:**
+            **LuminaGuard Context:**
             - This is a Rust + Python monorepo
             - Rust code is in `orchestrator/`
             - Python code is in `agent/`

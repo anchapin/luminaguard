@@ -1,5 +1,5 @@
 #!/bin/bash
-# IronClaw Branch Protection Setup
+LuminaGuard
 # Configures GitHub branch protection rules to enforce PR workflow
 
 set -e

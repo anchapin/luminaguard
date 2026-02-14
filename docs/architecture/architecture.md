@@ -1,4 +1,4 @@
-# IronClaw Architecture
+# LuminaGuard Architecture
 
 **Version:** 0.1.0 (Phase 1 - Foundation)
 **Last Updated:** 2026-02-10
@@ -7,7 +7,7 @@
 
 ## Overview
 
-IronClaw follows a **"Rust Wrapper, Python Brain"** architecture that splits responsibilities between a lightweight Rust orchestrator and a Python-based reasoning loop.
+LuminaGuard follows a **"Rust Wrapper, Python Brain"** architecture that splits responsibilities between a lightweight Rust orchestrator and a Python-based reasoning loop.
 
 ### Design Philosophy
 

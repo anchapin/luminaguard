@@ -1,7 +1,7 @@
-# GEMINI.md - IronClaw Project Context
+# GEMINI.md - LuminaGuard Project Context
 
 ## Project Overview
-**IronClaw** is a local-first Agentic AI runtime designed for secure agent execution through Just-in-Time (JIT) Micro-VMs. It combines a high-performance Rust orchestrator with a Python-based reasoning loop, emphasizing security, auditability, and minimal code.
+**LuminaGuard** is a local-first Agentic AI runtime designed for secure agent execution through Just-in-Time (JIT) Micro-VMs. It combines a high-performance Rust orchestrator with a Python-based reasoning loop, emphasizing security, auditability, and minimal code.
 
 ### Core Vision
 Replace "vibe coding" with "Agentic Engineering" by enforcing rigorous security boundaries (Firecracker Micro-VMs) and human-in-the-loop approvals for high-stakes actions.
@@ -10,7 +10,7 @@ Replace "vibe coding" with "Agentic Engineering" by enforcing rigorous security 
 
 ## Architecture
 
-IronClaw follows a **"Rust Wrapper, Python Brain"** design:
+LuminaGuard follows a **"Rust Wrapper, Python Brain"** design:
 
 1.  **Orchestrator (Rust)** (`/orchestrator`):
     *   **Purpose**: Lightweight binary for CLI, memory management, VM spawning, and MCP client connections.
@@ -87,6 +87,6 @@ Direct commits to `main` are blocked. All work must follow:
 *   `README.md`: High-level project summary.
 *   `CLAUDE.md`: Comprehensive architecture and development guide (Highly recommended reading).
 *   `Makefile`: Centralized automation for build, test, and linting.
-*   `ironclaw_prd.md`: Product Requirements Document.
+*   `luminaguard_prd.md`: Product Requirements Document.
 *   `docs/`: Detailed architectural and testing documentation.
 *   `.quint/`: Formal Proof Framework (FPF) reasoning trace.

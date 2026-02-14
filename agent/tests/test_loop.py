@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Tests for IronClaw Agent reasoning loop
+Tests for LuminaGuard Agent reasoning loop
 
 This test suite validates:
 - Core reasoning logic

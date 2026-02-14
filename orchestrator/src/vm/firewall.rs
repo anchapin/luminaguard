@@ -1,7 +1,7 @@
 // Network Isolation Firewall Configuration
 //
 // This module configures and manages firewall rules to ensure complete
-// network isolation for IronClaw VMs. Only vsock communication is allowed.
+// network isolation for LuminaGuard VMs. Only vsock communication is allowed.
 //
 // Key invariants:
 // - ALL external network traffic is BLOCKED
@@ -30,14 +30,14 @@ impl FirewallManager {
         // Create a unique chain name for this VM
         // Sanitize vm_id to only contain alphanumeric characters
         // and truncate to ensure chain name <= 28 chars (kernel limit)
-        // IRONCLAW_ is 9 chars, so we have 19 chars for the ID
+        // LUMINAGUARD_ is 9 chars, so we have 19 chars for the ID
         let sanitized_id: String = vm_id
             .chars()
             .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
             .take(19)
             .collect();
 
-        let chain_name = format!("IRONCLAW_{}", sanitized_id);
+        let chain_name = format!("LUMINAGUARD_{}", sanitized_id);
 
         Self {
             vm_id,
@@ -376,8 +376,8 @@ mod tests {
         let manager = FirewallManager::new("my-vm".to_string());
         let chain = manager.chain_name();
 
-        // Chain name should start with IRONCLAW_
-        assert!(chain.starts_with("IRONCLAW_"));
+        // Chain name should start with LUMINAGUARD_
+        assert!(chain.starts_with("LUMINAGUARD_"));
 
         // Chain name should only contain alphanumeric and underscore
         assert!(chain.chars().all(|c| c.is_alphanumeric() || c == '_'));
@@ -416,7 +416,7 @@ mod tests {
             // (max 28 characters, alphanumeric and underscore only)
             assert!(chain.len() <= 28);
             assert!(chain.chars().all(|c| c.is_alphanumeric() || c == '_'));
-            assert!(chain.starts_with("IRONCLAW_"));
+            assert!(chain.starts_with("LUMINAGUARD_"));
         }
     }
 

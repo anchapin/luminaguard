@@ -2,7 +2,7 @@
 
 ## Overview
 
-The IronClaw vsock protocol provides a secure, low-latency communication channel between the host orchestrator and guest VMs. It uses Unix domain sockets for communication and is the only permitted communication method for network-isolated VMs.
+The LuminaGuard vsock protocol provides a secure, low-latency communication channel between the host orchestrator and guest VMs. It uses Unix domain sockets for communication and is the only permitted communication method for network-isolated VMs.
 
 ## Design Goals
 
@@ -146,7 +146,7 @@ Sent from either host or guest without expecting a response:
 #### Creating a Listener
 
 ```rust
-use ironclaw_orchestrator::vm::vsock::{VsockHostListener, VsockMessageHandler};
+use luminaguard_orchestrator::vm::vsock::{VsockHostListener, VsockMessageHandler};
 
 #[derive(Clone)]
 struct MyHandler;
@@ -201,11 +201,11 @@ conn.handle_messages(MyHandler).await?;
 #### Connecting to Host
 
 ```rust
-use ironclaw_orchestrator::vm::vsock::{VsockClient, VsockMessage};
+use luminaguard_orchestrator::vm::vsock::{VsockClient, VsockMessage};
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let client = VsockClient::new("/tmp/ironclaw/vsock/vm-123.sock".into());
+    let client = VsockClient::new("/tmp/luminaguard/vsock/vm-123.sock".into());
     let mut conn = client.connect().await?;
 
     // Send request
@@ -511,13 +511,13 @@ cargo test --lib vm::tests::test_vsock_message_size_limit
 
 ```bash
 # Start host listener
-nc -l /tmp/ironclaw/vsock/test.sock
+nc -l /tmp/luminaguard/vsock/test.sock
 
 # Connect from guest
-nc -U /tmp/ironclaw/vsock/test.sock
+nc -U /tmp/luminaguard/vsock/test.sock
 
 # Send message (manual format)
-echo -ne '\x00\x00\x00\x2C{"Request":{"id":"1","method":"test","params":{}}}' | nc -U /tmp/ironclaw/vsock/test.sock
+echo -ne '\x00\x00\x00\x2C{"Request":{"id":"1","method":"test","params":{}}}' | nc -U /tmp/luminaguard/vsock/test.sock
 ```
 
 ## Troubleshooting

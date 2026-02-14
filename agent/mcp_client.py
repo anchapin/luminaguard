@@ -3,7 +3,7 @@
 MCP Client - Python Interface to Rust Orchestrator
 ================================================
 
-This module provides a Python client for communicating with the IronClaw
+This module provides a Python client for communicating with the LuminaGuard
 Rust Orchestrator's MCP (Model Context Protocol) client.
 
 It handles:
@@ -64,7 +64,7 @@ class Tool:
 
 class McpClient:
     """
-    Python client for IronClaw MCP Orchestrator
+    Python client for LuminaGuard MCP Orchestrator
 
     Manages communication with the Rust orchestrator's MCP client
     via JSON-RPC 2.0 over stdin/stdout.
@@ -323,7 +323,7 @@ class McpClient:
             "protocolVersion": "2024-11-05",
             "capabilities": {},
             "clientInfo": {
-                "name": "ironclaw-py",
+                "name": luminaguard,
                 "version": "0.1.0",
             },
         }

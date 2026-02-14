@@ -69,7 +69,7 @@ class TestMcpFilesystemServer:
                 if isinstance(result["content"], list)
                 else result["content"]
             )
-            assert "Hello from IronClaw" in str(content)
+            assert "Hello from LuminaGuard in str(content)
 
             # Test call_tool - write file
             write_result = client.call_tool(
