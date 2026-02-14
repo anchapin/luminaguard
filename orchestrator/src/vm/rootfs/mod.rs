@@ -380,10 +380,10 @@ mod tests {
     fn test_rootfs_validate_requires_readonly() {
         let mut config = RootfsConfig::default();
         config.read_only = false;
-        // Skip file existence check by creating a temp file
-        let temp_file = "/tmp/test-rootfs-readonly.ext4";
-        std::fs::write(temp_file, b"test").unwrap();
-        config.rootfs_path = temp_file.to_string();
+        // Skip file existence check by creating a temp file (cross-platform)
+        let temp_file = std::env::temp_dir().join("test-rootfs-readonly.ext4");
+        std::fs::write(&temp_file, b"test").unwrap();
+        config.rootfs_path = temp_file.to_string_lossy().to_string();
         let result = config.validate();
         assert!(result.is_err());
         assert!(result
@@ -397,10 +397,10 @@ mod tests {
     fn test_rootfs_validate_ext4_requires_path() {
         let mut config = RootfsConfig::default();
         config.overlay_type = OverlayType::Ext4;
-        // Skip file existence check by creating a temp file
-        let temp_file = "/tmp/test-rootfs-overlay.ext4";
-        std::fs::write(temp_file, b"test").unwrap();
-        config.rootfs_path = temp_file.to_string();
+        // Skip file existence check by creating a temp file (cross-platform)
+        let temp_file = std::env::temp_dir().join("test-rootfs-overlay.ext4");
+        std::fs::write(&temp_file, b"test").unwrap();
+        config.rootfs_path = temp_file.to_string_lossy().to_string();
         let result = config.validate();
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("overlay_path"));
@@ -414,11 +414,11 @@ mod tests {
             "/tmp/overlay.ext4".to_string(),
             32, // Too small
         );
-        // Skip file existence check by creating a temp file
-        let temp_file = "/tmp/test-rootfs-size.ext4";
-        std::fs::write(temp_file, b"test").unwrap();
+        // Skip file existence check by creating a temp file (cross-platform)
+        let temp_file = std::env::temp_dir().join("test-rootfs-size.ext4");
+        std::fs::write(&temp_file, b"test").unwrap();
         let mut config_with_file = config.clone();
-        config_with_file.rootfs_path = temp_file.to_string();
+        config_with_file.rootfs_path = temp_file.to_string_lossy().to_string();
         let result = config_with_file.validate();
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("at least 64 MB"));
