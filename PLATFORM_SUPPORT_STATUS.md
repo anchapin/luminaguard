@@ -8,13 +8,19 @@ This document consolidates the platform-specific VM implementations following th
 
 #### 1. Windows (Hyper-V) ✅
 - **Module**: `orchestrator/src/vm/hyperv.rs`
-- **Status**: Production-ready (Actor pattern for thread safety)
-- **Architecture**: Uses `libwhp` for Hyper-V API access
+- **Status**: Production-ready (Phase 2 completion)
+- **Architecture**: Uses `libwhp` for Windows Hypervisor Platform (WHPX)
 - **Key Features**:
-  - Send + Sync trait implementation via Actor pattern
-  - Isolated thread ownership of `Partition` handle
-  - MPSC channel communication for commands
-  - No unsafe code required
+  - Real VM lifecycle implementation (spawn, configure, attach, start, stop)
+  - Virtual processor configuration and management
+  - Virtual disk attachment via libwhp for root filesystem
+  - Virtual network device configuration (optional)
+  - Graceful partition lifecycle with cleanup
+  - Thread-safe partition management (Arc<Mutex>)
+  - PID tracking for process monitoring
+  - <200ms spawn time target
+  - Comprehensive error handling and validation
+  - Cross-platform compilation (gates Windows-specific code)
 
 #### 2. Linux (Firecracker/KVM) ✅
 - **Module**: `orchestrator/src/vm/firecracker.rs`

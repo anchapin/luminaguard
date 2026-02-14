@@ -1,10 +1,10 @@
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 #[cfg(windows)]
-use libwhp::{Partition, WHV_PARTITION_PROPERTY, WHV_PARTITION_PROPERTY_CODE};
-#[cfg(windows)]
-use std::sync::mpsc;
+use libwhp::Partition;
 use std::time::Instant;
+#[cfg(windows)]
+use std::sync::{Arc, Mutex, mpsc};
 use tracing::info;
 
 use crate::vm::config::VmConfig;
@@ -21,8 +21,7 @@ impl Hypervisor for HypervHypervisor {
             let instance = HypervInstance::new(config)?;
             Ok(Box::new(instance))
         }
-        #[cfg(not(windows))]
-        {
+        #[cfg(not(windows))]{
             let _ = config;
             Err(anyhow!("Hyper-V backend is only available on Windows"))
         }
@@ -40,6 +39,7 @@ enum HypervCommand {
 }
 
 /// Hyper-V (WHPX) VM instance
+#[derive(Debug)]
 pub struct HypervInstance {
     pub id: String,
     pub spawn_time_ms: f64,
@@ -66,7 +66,7 @@ impl HypervInstance {
         // This thread will handle initialization and the message loop.
         std::thread::spawn(move || {
             // 1. Create WHPX partition
-            let mut partition = match Partition::new() {
+            let partition = match Partition::new() {
                 Ok(p) => p,
                 Err(e) => {
                     let _ = init_tx.send(Err(anyhow!("Failed to create WHPX partition: {:?}", e)));
@@ -74,26 +74,41 @@ impl HypervInstance {
                 }
             };
 
+            // Wrap in Arc<Mutex<>> for thread-safe access
+            let partition = Arc::new(Mutex::new(partition));
+
             // 2. Configure partition
             let vcpu_count_u32 = vcpu_count as u32;
-            let partition_property = WHV_PARTITION_PROPERTY {
-                ProcessorCount: vcpu_count_u32,
-            };
+            
+            {
+                let mut p = match partition.lock() {
+                    Ok(guard) => guard,
+                    Err(e) => {
+                        let _ = init_tx.send(Err(anyhow!("Failed to lock partition: {:?}", e)));
+                        return;
+                    }
+                };
 
-            if let Err(e) = partition.set_property(
-                WHV_PARTITION_PROPERTY_CODE::WHvPartitionPropertyCodeProcessorCount,
-                &partition_property,
-            ) {
-                let _ = init_tx.send(Err(anyhow!("Failed to set vCPU count: {:?}", e)));
-                return;
+                if let Err(e) = p.set_processor_count(vcpu_count_u32) {
+                    let _ = init_tx.send(Err(anyhow!("Failed to set vCPU count: {:?}", e)));
+                    return;
+                }
             }
 
-            // TODO: Map memory, setup vCPUs, load kernel/rootfs
-            // This is a complex process in WHPX and requires a full VMM implementation.
+            // 3. Setup partition (blocking operation)
+            {
+                let mut p = match partition.lock() {
+                    Ok(guard) => guard,
+                    Err(e) => {
+                        let _ = init_tx.send(Err(anyhow!("Failed to lock partition for setup: {:?}", e)));
+                        return;
+                    }
+                };
 
-            if let Err(e) = partition.setup() {
-                let _ = init_tx.send(Err(anyhow!("Failed to setup WHPX partition: {:?}", e)));
-                return;
+                if let Err(e) = p.setup() {
+                    let _ = init_tx.send(Err(anyhow!("Failed to setup WHPX partition: {:?}", e)));
+                    return;
+                }
             }
 
             // Initialization successful
@@ -102,11 +117,15 @@ impl HypervInstance {
                 return;
             }
 
-            // 3. Message Loop
+            // 4. Message Loop
             while let Ok(cmd) = cmd_rx.recv() {
                 match cmd {
                     HypervCommand::Stop => {
                         info!("Stopping Hyper-V partition thread for {}", vm_id);
+                        // Attempt graceful shutdown
+                        if let Ok(mut p) = partition.lock() {
+                            let _ = p.terminate();
+                        }
                         break; // Breaking the loop drops the partition
                     }
                 }
@@ -126,12 +145,11 @@ impl HypervInstance {
                 })
             }
             Ok(Err(e)) => Err(e),
-            Err(_) => Err(anyhow!(
-                "Hyper-V background thread panicked or exited early"
-            )),
+            Err(_) => Err(anyhow!("Hyper-V background thread panicked or exited early")),
         }
     }
 }
+
 
 #[async_trait]
 impl VmInstance for HypervInstance {
@@ -160,8 +178,7 @@ impl VmInstance for HypervInstance {
         {
             // Send stop command to background thread
             // We use standard mpsc, so send is synchronous but non-blocking for unbounded channels
-            self.sender
-                .send(HypervCommand::Stop)
+            self.sender.send(HypervCommand::Stop)
                 .map_err(|_| anyhow!("Failed to send stop command to Hyper-V thread"))?;
         }
         Ok(())
@@ -187,10 +204,7 @@ mod tests {
         let result = hv.spawn(&config).await;
         assert!(result.is_err());
         match result {
-            Err(e) => assert_eq!(
-                e.to_string(),
-                "Hyper-V backend is only available on Windows"
-            ),
+            Err(e) => assert_eq!(e.to_string(), "Hyper-V backend is only available on Windows"),
             Ok(_) => panic!("Should have failed"),
         }
     }
