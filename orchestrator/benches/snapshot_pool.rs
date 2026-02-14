@@ -18,7 +18,10 @@ fn bench_vm_spawn_from_pool(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
 
     let temp_dir = TempDir::new().unwrap();
-    std::env::set_var("LUMINAGUARD_SNAPSHOT_PATH", temp_dir.path().to_str().unwrap());
+    std::env::set_var(
+        "LUMINAGUARD_SNAPSHOT_PATH",
+        temp_dir.path().to_str().unwrap(),
+    );
 
     // Warm up pool first
     rt.block_on(async {
@@ -55,7 +58,10 @@ fn bench_concurrent_spawns(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
 
     let temp_dir = TempDir::new().unwrap();
-    std::env::set_var("LUMINAGUARD_SNAPSHOT_PATH", temp_dir.path().to_str().unwrap());
+    std::env::set_var(
+        "LUMINAGUARD_SNAPSHOT_PATH",
+        temp_dir.path().to_str().unwrap(),
+    );
 
     // Warm up pool first
     rt.block_on(async {
@@ -94,7 +100,10 @@ fn bench_pool_stats(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
 
     let temp_dir = TempDir::new().unwrap();
-    std::env::set_var("LUMINAGUARD_SNAPSHOT_PATH", temp_dir.path().to_str().unwrap());
+    std::env::set_var(
+        "LUMINAGUARD_SNAPSHOT_PATH",
+        temp_dir.path().to_str().unwrap(),
+    );
 
     // Warm up pool first
     rt.block_on(async {
