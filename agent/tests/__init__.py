@@ -1,1 +1,1 @@
-"""Test suite for IronClaw Agent"""
+"""Test suite for LuminaGuard Agent"""

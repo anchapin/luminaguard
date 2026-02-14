@@ -5,9 +5,9 @@
       "args": [
         "serve"
       ],
-      "cwd": "/home/alexc/Projects/ironclaw",
+      "cwd": "/home/alexc/Projects/luminaguard",
       "env": {
-        "QUINT_PROJECT_ROOT": "/home/alexc/Projects/ironclaw"
+        "QUINT_PROJECT_ROOT": "/home/alexc/Projects/luminaguard"
       }
     }
   }

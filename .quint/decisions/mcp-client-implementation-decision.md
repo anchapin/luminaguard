@@ -141,7 +141,7 @@ H3 (Custom):      ██████████████████░░�
 - **Mitigation**: Prototype both stdio and HTTP transports first
 
 **H2 Weakest Link**: Custom HTTP code (R: 0.49, CL3)
-- **Impact**: Major - untested IronClaw-specific code
+- **Impact**: Major - untested LuminaGuard-specific code
 - **Reason for rejection**: Too risky without evidence
 
 **H3 Weakest Link**: No production evidence (R: 0.35, CL3)
@@ -191,7 +191,7 @@ H3 (Custom):      ██████████████████░░�
 **4. Lowest Maintenance Burden**
 - SDK maintainers handle protocol updates
 - Bug fixes come from upstream
-- Small team can focus on IronClaw-specific logic
+- Small team can focus on LuminaGuard-specific logic
 
 ### Acceptable Trade-offs
 
@@ -296,7 +296,7 @@ import subprocess
 class McpClient:
     def __init__(self):
         self.orchestrator = subprocess.Popen(
-            ["ironclaw", "mcp", "stdio"],
+            ["luminaguard", "mcp", "stdio"],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             text=True
@@ -440,7 +440,7 @@ cargo tree | wc -l  # Should be <15 transitive deps
 
 ## Sign-Off
 
-**Decision Maker**: IronClaw Architecture Team
+**Decision Maker**: LuminaGuard Architecture Team
 **Approver**: [To be assigned]
 **Date**: 2026-02-10
 **Status**: ✅ **APPROVED**

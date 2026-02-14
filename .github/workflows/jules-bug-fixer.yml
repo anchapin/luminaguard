@@ -27,7 +27,7 @@ jobs:
         uses: google-labs-code/jules-action@v1.0.0
         with:
           prompt: |
-            Please diagnose and fix the following bug in IronClaw:
+            Please diagnose and fix the following bug in LuminaGuard:
 
             ## Issue: ${{ github.event.issue.title }}
             ${{ github.event.issue.body }}
@@ -49,7 +49,7 @@ jobs:
             5. **Documentation** - Add comments explaining the fix
 
             **Project Context:**
-            - IronClaw is a local-first Agentic AI runtime
+            - LuminaGuard is a local-first Agentic AI runtime
             - Rust Orchestrator handles: CLI, VM spawning, MCP connections
             - Python Agent handles: reasoning loop, tool use
             - See CLAUDE.md for full architecture details

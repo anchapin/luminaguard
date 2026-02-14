@@ -2,7 +2,7 @@
 
 ## Overview
 
-This guide provides step-by-step instructions for verifying that IronClaw VMs are properly network-isolated. Follow these procedures to ensure your deployment meets security requirements.
+This guide provides step-by-step instructions for verifying that LuminaGuard are properly network-isolated. Follow these procedures to ensure your deployment meets security requirements.
 
 ## Pre-Verification Checklist
 
@@ -20,7 +20,7 @@ Before verifying network isolation, ensure:
 Use the built-in verification function:
 
 ```rust
-use ironclaw_orchestrator::vm::{spawn_vm, verify_network_isolation};
+use luminaguard_orchestrator::vm::{spawn_vm, verify_network_isolation};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -48,19 +48,19 @@ async fn main() -> Result<()> {
 Inspect iptables rules directly:
 
 ```bash
-# List all IronClaw firewall chains
-sudo iptables -L | grep IRONCLAW
+# List all LuminaGuard firewall chains
+sudo iptables -L | grep LUMINAGUARD
 
 # Inspect specific VM chain
-sudo iptables -L IRONCLAW_vm_test_task -n -v
+sudo iptables -L LUMINAGUARD_vm_test_task -n -v
 
 # Verify DROP rule exists
-sudo iptables -L IRONCLAW_vm_test_task | grep DROP
+sudo iptables -L LUMINAGUARD_vm_test_task | grep DROP
 ```
 
 **Expected Output**:
 ```
-Chain IRONCLAW_vm_test_task (0 references)
+Chain LUMINAGUARD_vm_test_task (0 references)
 target     prot opt source               destination
 DROP       all  --  0.0.0.0/0            0.0.0.0/0
 ```
@@ -70,7 +70,7 @@ DROP       all  --  0.0.0.0/0            0.0.0.0/0
 Verify that VM configuration has networking disabled:
 
 ```rust
-use ironclaw_orchestrator::vm::config::VmConfig;
+use luminaguard_orchestrator::vm::config::VmConfig;
 
 let config = VmConfig::new("test-vm".to_string());
 
@@ -105,7 +105,7 @@ ping -c 1 192.168.1.1
 # Expected: Network is unreachable
 
 # Test vsock communication (should work)
-echo "test" | nc -U /tmp/ironclaw/vsock/vm-test.sock
+echo "test" | nc -U /tmp/luminaguard/vsock/vm-test.sock
 # Expected: Connection succeeds
 ```
 
@@ -131,7 +131,7 @@ Verify that firewall chains are created for each VM:
 cargo test test_multiple_vms_isolation
 
 # Check that unique chains exist
-sudo iptables -L | grep IRONCLAW | wc -l
+sudo iptables -L | grep LUMINAGUARD | wc -l
 # Expected: 2 or more chains
 ```
 
@@ -144,11 +144,11 @@ Verify that firewall rules persist across VM lifecycle:
 cargo test test_vm_spawn_and_destroy
 
 # Verify firewall exists before destruction
-sudo iptables -L | grep IRONCLAW_vm_test_task
+sudo iptables -L | grep LUMINAGUARD_vm_test_task
 
 # Destroy VM
 # Verify firewall is cleaned up
-sudo iptables -L | grep IRONCLAW_vm_test_task
+sudo iptables -L | grep LUMINAGUARD_vm_test_task
 # Expected: Chain no longer exists
 ```
 
@@ -182,13 +182,13 @@ Monitor orchestrator logs for security events:
 
 ```bash
 # View firewall configuration events
-journalctl -u ironclaw-orchestrator | grep -i firewall
+journalctl -u luminaguard-orchestrator | grep -i firewall
 
 # View VM spawn events
-journalctl -u ironclaw-orchestrator | grep -i "spawning vm"
+journalctl -u luminaguard-orchestrator | grep -i "spawning vm"
 
 # View network isolation verification
-journalctl -u ironclaw-orchestrator | grep -i "network isolation"
+journalctl -u luminaguard-orchestrator | grep -i "network isolation"
 ```
 
 ### Audit Checklist
@@ -219,10 +219,10 @@ iptables --version
 **Solution**:
 ```bash
 # Option 1: Run with sudo
-sudo ironclaw-orchestrator
+sudo luminaguard-orchestrator
 
 # Option 2: Grant capabilities
-sudo setcap cap_net_admin+ep ironclaw-orchestrator
+sudo setcap cap_net_admin+ep luminaguard-orchestrator
 ```
 
 ### Issue 2: Firewall chain not found
@@ -232,10 +232,10 @@ sudo setcap cap_net_admin+ep ironclaw-orchestrator
 **Diagnosis**:
 ```bash
 # Check if chain exists
-sudo iptables -L | grep IRONCLAW
+sudo iptables -L | grep LUMINAGUARD
 
 # Check orchestrator logs
-journalctl -u ironclaw-orchestrator | grep -i firewall
+journalctl -u luminaguard-orchestrator | grep -i firewall
 ```
 
 **Solution**:
@@ -253,10 +253,10 @@ journalctl -u ironclaw-orchestrator | grep -i firewall
 # (From orchestrator code or logs)
 
 # Check firewall rules
-sudo iptables -L IRONCLAW_vm_<id> -n -v
+sudo iptables -L LUMINAGUARD_vm_<id> -n -v
 
 # Check packet counters
-sudo iptables -L IRONCLAW_vm_<id> -n -v -Z
+sudo iptables -L LUMINAGUARD_vm_<id> -n -v -Z
 ```
 
 **Solution**:
@@ -272,7 +272,7 @@ In production, always run the orchestrator with `CAP_NET_ADMIN` capability:
 
 ```bash
 # Grant capabilities
-sudo setcap cap_net_admin,cap_net_raw+ep /path/to/ironclaw-orchestrator
+sudo setcap cap_net_admin,cap_net_raw+ep luminaguard-orchestrator
 ```
 
 ### 2. Monitor Firewall Rules
@@ -280,8 +280,8 @@ sudo setcap cap_net_admin,cap_net_raw+ep /path/to/ironclaw-orchestrator
 Regularly audit firewall rules:
 
 ```bash
-# List all IronClaw rules
-sudo iptables -L | grep -A 5 IRONCLAW
+# List all LuminaGuard rules
+sudo iptables -L | grep -A 5 LUMINAGUARD
 ```
 
 ### 3. Validate Configuration
@@ -315,7 +315,7 @@ destroy_vm(handle).await?; // Cleanup happens automatically
 If you discover a security vulnerability:
 
 1. **Do not** create a public issue
-2. Email details to: security@ironclaw.dev
+2. Email details to: security@luminaguard.dev
 3. Include:
    - Steps to reproduce
    - Expected vs actual behavior
@@ -330,4 +330,4 @@ This network isolation implementation is designed to meet:
 - **PCI DSS**: Network segmentation requirements
 - **NIST 800-53**: System and communications protection (SC-7)
 
-For specific compliance requirements, contact: compliance@ironclaw.dev
+For specific compliance requirements, contact: compliance@luminaguard.dev

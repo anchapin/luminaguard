@@ -1,4 +1,4 @@
-# IronClaw Testing Strategy
+# LuminaGuard Testing Strategy
 
 **Version:** 0.1.0
 **Last Updated:** 2026-02-10
@@ -7,7 +7,7 @@
 
 ## Overview
 
-IronClaw follows **Test-Driven Development (TDD)** with comprehensive coverage targets and property-based testing. Quality gates are enforced via CI/CD to prevent technical debt accumulation.
+LuminaGuard follows **Test-Driven Development (TDD)** with comprehensive coverage targets and property-based testing. Quality gates are enforced via CI/CD to prevent technical debt accumulation.
 
 ---
 

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-IronClaw MCP Client - Filesystem Server Demo
+LuminaGuard MCP Client - Filesystem Server Demo
 =============================================
 
-Demonstrates IronClaw's MCP client integration with the
+Demonstrates LuminaGuard's MCP client integration with the
 @modelcontextprotocol/server-filesystem server.
 
 This example shows:
@@ -23,7 +23,9 @@ import tempfile
 from pathlib import Path
 
 # Add repo root to path for imports
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+sys.path.insert(
+    0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+)
 
 from agent.mcp_client import McpClient, McpError
 
@@ -45,7 +47,7 @@ def demo_filesystem_operations():
     3. List directory
     4. Get file info
     """
-    print_section("IronClaw MCP Client - Filesystem Demo")
+    print_section("LuminaGuard MCP Client - Filesystem Demo")
 
     # Create temporary directory for testing
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -75,12 +77,12 @@ def demo_filesystem_operations():
 
             # Step 4: Write a file
             print("\n✍️  Step 4: Writing file...")
-            test_file = Path(tmpdir) / "ironclaw_demo.txt"
+            test_file = Path(tmpdir) / "luminaguard_demo.txt"
             write_result = client.call_tool(
                 "write_file",
                 {
                     "path": str(test_file),
-                    "content": "Hello from IronClaw MCP!\nThis is a test file created via MCP.",
+                    "content": "Hello from LuminaGuard MCP!\nThis is a test file created via MCP.",
                 },
             )
             print(f"   ✓ Written: {test_file.name}")
@@ -169,7 +171,7 @@ def main():
     import argparse
 
     parser = argparse.ArgumentParser(
-        description="IronClaw MCP Client - Filesystem Demo"
+        description="LuminaGuard MCP Client - Filesystem Demo"
     )
     parser.add_argument(
         "--mode",

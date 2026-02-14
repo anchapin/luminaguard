@@ -20,7 +20,7 @@ This PR addresses critical stability and security issues in the orchestrator's V
 - All Rust tests passed in the review environment (150 passed).
 
 **Security: ⚠️**
-- **Collision Risk:** As noted in `PR_REVIEW.md`, truncating VM IDs to 19 characters (`IRONCLAW_<19_chars>`) creates a collision risk for tasks with long, identical prefixes (e.g., `project-alpha-task-1` vs `project-alpha-task-2`).
+- **Collision Risk:** As noted in `PR_REVIEW.md`, truncating VM IDs to 19 characters (`LUMINAGUARD_<19_chars>`) creates a collision risk for tasks with long, identical prefixes (e.g., `project-alpha-task-1` vs `project-alpha-task-2`).
   - **Recommendation:** In a future PR, consider appending a short hash or using a UUID to guarantee uniqueness within the 28-character limit.
 
 **Configuration: ⚠️**

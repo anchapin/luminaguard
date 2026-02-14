@@ -19,9 +19,9 @@ This PR merges changes from PR #63 which introduce network isolation and vsock c
 
 2.  **Firewall Rules are Ineffective (Detached Chain)**
     *   **File:** `orchestrator/src/vm/firewall.rs`
-    *   **Issue:** `configure_isolation` creates a custom chain (e.g., `IRONCLAW_...`) and adds DROP rules to it, but it **never links** this chain to the main `INPUT`, `OUTPUT`, or `FORWARD` chains.
+    *   **Issue:** `configure_isolation` creates a custom chain (e.g., `LUMINAGUARD_...`) and adds DROP rules to it, but it **never links** this chain to the main `INPUT`, `OUTPUT`, or `FORWARD` chains.
     *   **Impact:** Traffic never traverses the custom chain. The firewall does absolutely nothing.
-    *   **Suggestion:** Add jump rules from main chains to the custom chain (e.g., `iptables -I OUTPUT -j IRONCLAW_...`).
+    *   **Suggestion:** Add jump rules from main chains to the custom chain (e.g., `iptables -I OUTPUT -j LUMINAGUARD_...`).
 
 3.  **Firecracker Not Configured for VSOCK**
     *   **File:** `orchestrator/src/vm/firecracker.rs`

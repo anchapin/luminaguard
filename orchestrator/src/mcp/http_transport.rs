@@ -25,7 +25,7 @@
 //! # Example
 //!
 //! ```ignore
-//! use ironclaw_orchestrator::mcp::{McpClient, HttpTransport};
+//! use luminaguard_orchestrator::mcp::{McpClient, HttpTransport};
 //!
 //! // Create HTTP transport
 //! let transport = HttpTransport::new("https://api.example.com/mcp");

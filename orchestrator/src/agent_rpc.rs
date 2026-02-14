@@ -24,7 +24,7 @@
 //!
 //! Start orchestrator in agent mode:
 //! ```bash
-//! ironclaw agent-mode --server filesystem --command "npx -y @modelcontextprotocol/server-filesystem /tmp"
+//! luminaguard agent-mode --server filesystem --command "npx -y @modelcontextprotocol/server-filesystem /tmp"
 //! ```
 
 use crate::mcp::{McpClient, ServerCapabilities, ServerInfo, StdioTransport};
@@ -309,7 +309,7 @@ pub fn run_agent_rpc_server_sync(config: AgentConfig) -> Result<()> {
 /// - JSON parsing fails
 /// - MCP operations fail
 pub async fn run_agent_rpc_server(config: AgentConfig) -> Result<()> {
-    info!("🤖 IronClaw Agent RPC Server starting...");
+    info!("🤖 LuminaGuard Agent RPC Server starting...");
     info!("📦 MCP server: {}", config.server_name);
     info!("🔧 Command: {:?}", config.command);
 

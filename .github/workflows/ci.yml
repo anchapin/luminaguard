@@ -1,4 +1,4 @@
-name: IronClaw CI
+name: LuminaGuard CI
 
 on:
   push:

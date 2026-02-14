@@ -1,10 +1,10 @@
 #!/bin/bash
-# IronClaw Test Runner
+# LuminaGuard Test Runner
 # Runs all tests (Rust + Python) with verbose output
 
 set -e
 
-echo "🧪 IronClaw Test Suite"
+echo "🧪 LuminaGuard Test Suite"
 echo "======================"
 echo ""
 

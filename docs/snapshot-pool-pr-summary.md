@@ -86,14 +86,14 @@ test result: ok. 23 passed; 0 failed; 0 ignored; 0 measured; 104 filtered out
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `IRONCLAW_POOL_SIZE` | `5` | Number of snapshots (1-20) |
-| `IRONCLAW_SNAPSHOT_REFRESH_SECS` | `3600` | Refresh interval (min: 60s) |
-| `IRONCLAW_SNAPSHOT_PATH` | `/var/lib/ironclaw/snapshots` | Storage location |
+| `LUMINAGUARD_POOL_SIZE` | `5` | Number of snapshots (1-20) |
+| `LUMINAGUARD_SNAPSHOT_REFRESH_SECS` | `3600` | Refresh interval (min: 60s) |
+| `LUMINAGUARD_SNAPSHOT_PATH` | `/var/lib/luminaguard/snapshots` | Storage location |
 
 ### Usage Example
 
 ```rust
-use ironclaw_orchestrator::vm;
+use luminaguard_orchestrator::vm;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -195,9 +195,9 @@ async fn main() -> anyhow::Result<()> {
   - Backward compatible API
 
 ✅ **Configuration**
-  - Pool size: 5 VMs (configurable via `IRONCLAW_POOL_SIZE`)
-  - Refresh interval: 1 hour (configurable via `IRONCLAW_SNAPSHOT_REFRESH_SECS`)
-  - Storage: `/var/lib/ironclaw/snapshots` (configurable)
+  - Pool size: 5 VMs (configurable via `LUMINAGUARD_POOL_SIZE`)
+  - Refresh interval: 1 hour (configurable via `LUMINAGUARD_SNAPSHOT_REFRESH_SECS`)
+  - Storage: `/var/lib/luminaguard/snapshots` (configurable)
 
 ✅ **Comprehensive tests**
   - Unit tests for snapshot save/load
@@ -249,7 +249,7 @@ async fn main() -> anyhow::Result<()> {
 
 3. **Test with custom config**:
    ```bash
-   IRONCLAW_POOL_SIZE=10 IRONCLAW_SNAPSHOT_PATH=/tmp/snapshots cargo test
+   LUMINAGUARD_POOL_SIZE=10 LUMINAGUARD_SNAPSHOT_PATH=/tmp/snapshots cargo test
    ```
 
 4. **Check clippy**:

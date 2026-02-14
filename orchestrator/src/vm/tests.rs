@@ -5,7 +5,7 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::vm::{destroy_vm, spawn_vm, verify_network_isolation};
+    use crate::vm::{destroy_vm, should_skip_hypervisor_tests, spawn_vm, verify_network_isolation};
 
     /// Test that VM cannot be created with networking enabled
     #[tokio::test]
@@ -26,17 +26,22 @@ mod tests {
     /// Test that multiple VMs can be spawned with unique firewall chains
     #[tokio::test]
     async fn test_multiple_vms_isolation() {
+        if should_skip_hypervisor_tests() {
+            tracing::warn!("Skipping hypervisor-dependent test");
+            return;
+        }
+
         // Check if Firecracker resources exist in either location
-        let kernel_path = if std::path::Path::new("/tmp/ironclaw-fc-test/vmlinux.bin").exists() {
-            "/tmp/ironclaw-fc-test/vmlinux.bin".to_string()
+        let kernel_path = if std::path::Path::new("/tmp/luminaguard-fc-test/vmlinux.bin").exists() {
+            "/tmp/luminaguard-fc-test/vmlinux.bin".to_string()
         } else {
-            tracing::warn!("Skipping test: Firecracker kernel not available at /tmp/ironclaw-fc-test/vmlinux.bin");
+            tracing::warn!("Skipping test: Firecracker kernel not available at /tmp/luminaguard-fc-test/vmlinux.bin");
             return;
         };
-        let rootfs_path = if std::path::Path::new("/tmp/ironclaw-fc-test/rootfs.ext4").exists() {
-            "/tmp/ironclaw-fc-test/rootfs.ext4".to_string()
+        let rootfs_path = if std::path::Path::new("/tmp/luminaguard-fc-test/rootfs.ext4").exists() {
+            "/tmp/luminaguard-fc-test/rootfs.ext4".to_string()
         } else {
-            tracing::warn!("Skipping test: Firecracker rootfs not available at /tmp/ironclaw-fc-test/rootfs.ext4");
+            tracing::warn!("Skipping test: Firecracker rootfs not available at /tmp/luminaguard-fc-test/rootfs.ext4");
             return;
         };
 
@@ -76,8 +81,8 @@ mod tests {
 
         // Verify vsock paths are different and valid
         assert_ne!(vsock1, vsock2);
-        assert!(vsock1.unwrap().contains("/tmp/ironclaw/vsock/"));
-        assert!(vsock2.unwrap().contains("/tmp/ironclaw/vsock/"));
+        assert!(vsock1.unwrap().contains("/tmp/luminaguard/vsock/"));
+        assert!(vsock2.unwrap().contains("/tmp/luminaguard/vsock/"));
 
         // Cleanup
         destroy_vm(handle1).await.unwrap();
@@ -87,17 +92,22 @@ mod tests {
     /// Test that firewall rules are verified correctly
     #[tokio::test]
     async fn test_firewall_verification() {
+        if should_skip_hypervisor_tests() {
+            tracing::warn!("Skipping hypervisor-dependent test");
+            return;
+        }
+
         // Check if Firecracker resources exist
-        let kernel_path = if std::path::Path::new("/tmp/ironclaw-fc-test/vmlinux.bin").exists() {
-            "/tmp/ironclaw-fc-test/vmlinux.bin"
+        let kernel_path = if std::path::Path::new("/tmp/luminaguard-fc-test/vmlinux.bin").exists() {
+            "/tmp/luminaguard-fc-test/vmlinux.bin"
         } else if std::path::Path::new("./resources/vmlinux").exists() {
             "./resources/vmlinux"
         } else {
             tracing::warn!("Skipping test: Firecracker assets not available");
             return;
         };
-        let rootfs_path = if std::path::Path::new("/tmp/ironclaw-fc-test/rootfs.ext4").exists() {
-            "/tmp/ironclaw-fc-test/rootfs.ext4"
+        let rootfs_path = if std::path::Path::new("/tmp/luminaguard-fc-test/rootfs.ext4").exists() {
+            "/tmp/luminaguard-fc-test/rootfs.ext4"
         } else if std::path::Path::new("./resources/rootfs.ext4").exists() {
             "./resources/rootfs.ext4"
         } else {
@@ -133,17 +143,22 @@ mod tests {
     /// Test that vsock paths are unique per VM
     #[tokio::test]
     async fn test_vsock_paths_are_unique() {
+        if should_skip_hypervisor_tests() {
+            tracing::warn!("Skipping hypervisor-dependent test");
+            return;
+        }
+
         // Check if Firecracker resources exist
-        let kernel_path = if std::path::Path::new("/tmp/ironclaw-fc-test/vmlinux.bin").exists() {
-            "/tmp/ironclaw-fc-test/vmlinux.bin"
+        let kernel_path = if std::path::Path::new("/tmp/luminaguard-fc-test/vmlinux.bin").exists() {
+            "/tmp/luminaguard-fc-test/vmlinux.bin"
         } else if std::path::Path::new("./resources/vmlinux").exists() {
             "./resources/vmlinux"
         } else {
             tracing::warn!("Skipping test: Firecracker assets not available");
             return;
         };
-        let rootfs_path = if std::path::Path::new("/tmp/ironclaw-fc-test/rootfs.ext4").exists() {
-            "/tmp/ironclaw-fc-test/rootfs.ext4"
+        let rootfs_path = if std::path::Path::new("/tmp/luminaguard-fc-test/rootfs.ext4").exists() {
+            "/tmp/luminaguard-fc-test/rootfs.ext4"
         } else if std::path::Path::new("./resources/rootfs.ext4").exists() {
             "./resources/rootfs.ext4"
         } else {
@@ -176,8 +191,8 @@ mod tests {
         assert_ne!(path1, path2);
         // Note: vsock paths use UUIDs, so they won't contain the VM ID
         // Just verify they're valid paths
-        assert!(path1.contains("/tmp/ironclaw/vsock/"));
-        assert!(path2.contains("/tmp/ironclaw/vsock/"));
+        assert!(path1.contains("/tmp/luminaguard/vsock/"));
+        assert!(path2.contains("/tmp/luminaguard/vsock/"));
 
         destroy_vm(handle1).await.unwrap();
         destroy_vm(handle2).await.unwrap();
@@ -222,12 +237,12 @@ mod tests {
         use crate::vm::firewall::FirewallManager;
 
         let test_cases = vec![
-            ("simple", "IRONCLAW_simple"),
-            ("with-dash", "IRONCLAW_with_dash"),
-            ("with@symbol", "IRONCLAW_with_symbol"),
-            ("with/slash", "IRONCLAW_with_slash"),
-            ("with space", "IRONCLAW_with_space"),
-            ("with.dot", "IRONCLAW_with_dot"),
+            ("simple", "LUMINAGUARD_simple"),
+            ("with-dash", "LUMINAGUARD_with_dash"),
+            ("with@symbol", "LUMINAGUARD_with_symbol"),
+            ("with/slash", "LUMINAGUARD_with_slash"),
+            ("with space", "LUMINAGUARD_with_space"),
+            ("with.dot", "LUMINAGUARD_with_dot"),
         ];
 
         for (vm_id, expected_chain) in test_cases {
@@ -312,17 +327,22 @@ mod tests {
     /// Test edge case: VM with very long ID
     #[tokio::test]
     async fn test_vm_with_long_id() {
+        if should_skip_hypervisor_tests() {
+            tracing::warn!("Skipping hypervisor-dependent test");
+            return;
+        }
+
         // Check if Firecracker resources exist
-        let kernel_path = if std::path::Path::new("/tmp/ironclaw-fc-test/vmlinux.bin").exists() {
-            "/tmp/ironclaw-fc-test/vmlinux.bin"
+        let kernel_path = if std::path::Path::new("/tmp/luminaguard-fc-test/vmlinux.bin").exists() {
+            "/tmp/luminaguard-fc-test/vmlinux.bin"
         } else if std::path::Path::new("./resources/vmlinux").exists() {
             "./resources/vmlinux"
         } else {
             tracing::warn!("Skipping test: Firecracker assets not available");
             return;
         };
-        let rootfs_path = if std::path::Path::new("/tmp/ironclaw-fc-test/rootfs.ext4").exists() {
-            "/tmp/ironclaw-fc-test/rootfs.ext4"
+        let rootfs_path = if std::path::Path::new("/tmp/luminaguard-fc-test/rootfs.ext4").exists() {
+            "/tmp/luminaguard-fc-test/rootfs.ext4"
         } else if std::path::Path::new("./resources/rootfs.ext4").exists() {
             "./resources/rootfs.ext4"
         } else {
@@ -348,7 +368,7 @@ mod tests {
 
         // Verify firewall chain name is valid (may be truncated)
         let chain = handle.firewall_manager.as_ref().unwrap().chain_name();
-        // Note: Chain name includes "IRONCLAW_" prefix + "vm-" + sanitized ID
+        // Note: Chain name includes "LUMINAGUARD_" prefix + "vm-" + sanitized ID
         // With 20 chars, total is 9 + 3 + 20 = 32 chars, which exceeds 28
         // So we just verify it contains valid characters
         assert!(chain.chars().all(|c| c.is_alphanumeric() || c == '_'));
@@ -359,17 +379,22 @@ mod tests {
     /// Test edge case: VM with special characters in ID
     #[tokio::test]
     async fn test_vm_with_special_chars() {
+        if should_skip_hypervisor_tests() {
+            tracing::warn!("Skipping hypervisor-dependent test");
+            return;
+        }
+
         // Check if Firecracker resources exist
-        let kernel_path = if std::path::Path::new("/tmp/ironclaw-fc-test/vmlinux.bin").exists() {
-            "/tmp/ironclaw-fc-test/vmlinux.bin"
+        let kernel_path = if std::path::Path::new("/tmp/luminaguard-fc-test/vmlinux.bin").exists() {
+            "/tmp/luminaguard-fc-test/vmlinux.bin"
         } else if std::path::Path::new("./resources/vmlinux").exists() {
             "./resources/vmlinux"
         } else {
             tracing::warn!("Skipping test: Firecracker assets not available");
             return;
         };
-        let rootfs_path = if std::path::Path::new("/tmp/ironclaw-fc-test/rootfs.ext4").exists() {
-            "/tmp/ironclaw-fc-test/rootfs.ext4"
+        let rootfs_path = if std::path::Path::new("/tmp/luminaguard-fc-test/rootfs.ext4").exists() {
+            "/tmp/luminaguard-fc-test/rootfs.ext4"
         } else if std::path::Path::new("./resources/rootfs.ext4").exists() {
             "./resources/rootfs.ext4"
         } else {
@@ -400,7 +425,7 @@ mod tests {
         // Verify vsock path exists and is safe
         let vsock_path = handle.vsock_path().unwrap();
         // Note: vsock paths use UUIDs, not VM IDs
-        assert!(vsock_path.contains("/tmp/ironclaw/vsock/"));
+        assert!(vsock_path.contains("/tmp/luminaguard/vsock/"));
         assert!(!vsock_path.is_empty());
 
         destroy_vm(handle).await.unwrap();
@@ -459,25 +484,30 @@ mod tests {
                 chain
             );
 
-            // Chain name must start with IRONCLAW_
-            assert!(chain.starts_with("IRONCLAW_"));
+            // Chain name must start with LUMINAGUARD_
+            assert!(chain.starts_with("LUMINAGUARD_"));
         }
     }
 
     /// Test: Verify cleanup happens on VM destruction
     #[tokio::test]
     async fn test_vm_cleanup_on_destruction() {
+        if should_skip_hypervisor_tests() {
+            tracing::warn!("Skipping hypervisor-dependent test");
+            return;
+        }
+
         // Check if Firecracker resources exist
-        let kernel_path = if std::path::Path::new("/tmp/ironclaw-fc-test/vmlinux.bin").exists() {
-            "/tmp/ironclaw-fc-test/vmlinux.bin"
+        let kernel_path = if std::path::Path::new("/tmp/luminaguard-fc-test/vmlinux.bin").exists() {
+            "/tmp/luminaguard-fc-test/vmlinux.bin"
         } else if std::path::Path::new("./resources/vmlinux").exists() {
             "./resources/vmlinux"
         } else {
             tracing::warn!("Skipping test: Firecracker assets not available");
             return;
         };
-        let rootfs_path = if std::path::Path::new("/tmp/ironclaw-fc-test/rootfs.ext4").exists() {
-            "/tmp/ironclaw-fc-test/rootfs.ext4"
+        let rootfs_path = if std::path::Path::new("/tmp/luminaguard-fc-test/rootfs.ext4").exists() {
+            "/tmp/luminaguard-fc-test/rootfs.ext4"
         } else if std::path::Path::new("./resources/rootfs.ext4").exists() {
             "./resources/rootfs.ext4"
         } else {
@@ -517,17 +547,22 @@ mod tests {
     /// Test: Multiple rapid VM spawns and destroys
     #[tokio::test]
     async fn test_rapid_vm_lifecycle() {
+        if should_skip_hypervisor_tests() {
+            tracing::warn!("Skipping hypervisor-dependent test");
+            return;
+        }
+
         // Check if Firecracker resources exist
-        let kernel_path = if std::path::Path::new("/tmp/ironclaw-fc-test/vmlinux.bin").exists() {
-            "/tmp/ironclaw-fc-test/vmlinux.bin"
+        let kernel_path = if std::path::Path::new("/tmp/luminaguard-fc-test/vmlinux.bin").exists() {
+            "/tmp/luminaguard-fc-test/vmlinux.bin"
         } else if std::path::Path::new("./resources/vmlinux").exists() {
             "./resources/vmlinux"
         } else {
             tracing::warn!("Skipping test: Firecracker assets not available");
             return;
         };
-        let rootfs_path = if std::path::Path::new("/tmp/ironclaw-fc-test/rootfs.ext4").exists() {
-            "/tmp/ironclaw-fc-test/rootfs.ext4"
+        let rootfs_path = if std::path::Path::new("/tmp/luminaguard-fc-test/rootfs.ext4").exists() {
+            "/tmp/luminaguard-fc-test/rootfs.ext4"
         } else if std::path::Path::new("./resources/rootfs.ext4").exists() {
             "./resources/rootfs.ext4"
         } else {
@@ -549,7 +584,7 @@ mod tests {
                 .unwrap();
             let vsock_path = handle.vsock_path();
             assert!(vsock_path.is_some());
-            assert!(vsock_path.unwrap().contains("/tmp/ironclaw/vsock/"));
+            assert!(vsock_path.unwrap().contains("/tmp/luminaguard/vsock/"));
             destroy_vm(handle).await.unwrap();
         }
         tracing::info!("Rapid VM lifecycle test completed successfully");
@@ -563,12 +598,17 @@ mod tests {
     /// 3. VM lifecycle completes successfully
     #[tokio::test]
     async fn test_real_firecracker_execution() {
+        if should_skip_hypervisor_tests() {
+            tracing::warn!("Skipping hypervisor-dependent test");
+            return;
+        }
+
         use crate::vm::config::VmConfig;
         use std::time::Instant;
 
         // Verify assets exist
-        let kernel_path = "/tmp/ironclaw-fc-test/vmlinux.bin";
-        let rootfs_path = "/tmp/ironclaw-fc-test/rootfs.ext4";
+        let kernel_path = "/tmp/luminaguard-fc-test/vmlinux.bin";
+        let rootfs_path = "/tmp/luminaguard-fc-test/rootfs.ext4";
 
         println!("Checking for assets...");
         println!("Kernel path: {}", kernel_path);

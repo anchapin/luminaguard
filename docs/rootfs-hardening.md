@@ -2,7 +2,7 @@
 
 ## Overview
 
-IronClaw implements **read-only root filesystem hardening** to prevent agents from modifying system files while providing a writable workspace for agent operations. This is a critical security feature that ensures:
+LuminaGuard implements **read-only root filesystem hardening** to prevent agents from modifying system files while providing a writable workspace for agent operations. This is a critical security feature that ensures:
 
 1. **System immutability**: Agents cannot modify system binaries, libraries, or configuration
 2. **Privilege escalation prevention**: No possibility of persistent backdoors or rootkits
@@ -52,7 +52,7 @@ IronClaw implements **read-only root filesystem hardening** to prevent agents fr
 ### Default: Ephemeral tmpfs Overlay
 
 ```rust
-use ironclaw_orchestrator::vm::{config::VmConfig, spawn_vm};
+use luminaguard_orchestrator::vm::{config::VmConfig, spawn_vm};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -78,8 +78,8 @@ async fn main() -> anyhow::Result<()> {
 ### Optional: Persistent ext4 Overlay
 
 ```rust
-use ironclaw_orchestrator::vm::config::VmConfig;
-use ironclaw_orchestrator::vm::rootfs::{RootfsConfig, OverlayType};
+use luminaguard_orchestrator::vm::config::VmConfig;
+use luminaguard_orchestrator::vm::rootfs::{RootfsConfig, OverlayType};
 
 let config = VmConfig {
     rootfs_config: Some(RootfsConfig::with_persistent_overlay(
@@ -112,7 +112,7 @@ The `overlay-init` script is placed in the root filesystem at `/sbin/overlay-ini
 5. Pivot root to make overlay the new filesystem root
 6. Execute real init process to continue boot
 
-**Source:** `/home/alexc/Projects/ironclaw/orchestrator/resources/overlay-init`
+Source: /home/alexc/Projects/luminaguard/orchestrator/resources/overlay-init
 
 ### Firecracker Drive Configuration
 

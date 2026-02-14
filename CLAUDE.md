@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**IronClaw** is a local-first Agentic AI runtime designed to provide secure agent execution through Just-in-Time (JIT) Micro-VMs. The project is in early planning/prototype phase.
+**LuminaGuard** is a local-first Agentic AI runtime designed to provide secure agent execution through Just-in-Time (JIT) Micro-VMs. The project is in early planning/prototype phase.
 
 **Core Vision:** Replace the insecure "vibe coding" paradigm with rigorous "Agentic Engineering" - combining OpenClaw's usability with Nanoclaw's security.
 
@@ -52,7 +52,7 @@ Instead of persistent containers or host execution, agents run in ephemeral Micr
 
 ### Native MCP Support
 
-IronClaw is a native Model Context Protocol (MCP) client:
+LuminaGuard is a native Model Context Protocol (MCP) client:
 - Connects to any standard MCP Server (Google Drive, Slack, GitHub, Postgres, etc.)
 - No proprietary "AgentSkills" or custom plugin systems
 - Leverages the growing enterprise MCP ecosystem
@@ -172,7 +172,7 @@ client.shutdown()
 
 **Rust MCP Client (Orchestrator):**
 ```rust
-use ironclaw_orchestrator::mcp::McpClient;
+use luminaguard_orchestrator::mcp::McpClient;
 
 // Create client (stdio transport)
 let mut client = McpClient::connect_stdio(
@@ -218,14 +218,12 @@ The Rust VM module (`orchestrator/src/vm/`) provides comprehensive Micro-VM mana
 
 **VM Spawn API:**
 ```rust
-use ironclaw_orchestrator::vm;
-
-// Basic spawn (auto-enables seccomp Basic filter)
+use luminaguard_orchestrator::vm;
 let handle = vm::spawn_vm("my-task").await?;
 println!("VM {} spawned in {:.2}ms", handle.id, handle.spawn_time_ms);
 
 // Custom config with seccomp
-use ironclaw_orchestrator::vm::{config::VmConfig, seccomp::{SeccompFilter, SeccompLevel}};
+use luminaguard_orchestrator::vm::{config::VmConfig, seccomp::{SeccompFilter, SeccompLevel}};
 
 let config = VmConfig::new("my-task".to_string());
 let config_with_seccomp = VmConfig {
@@ -235,7 +233,7 @@ let config_with_seccomp = VmConfig {
 let handle = vm::spawn_vm_with_config("my-task", &config_with_seccomp).await?;
 
 // Jailed spawn (enhanced security)
-use ironclaw_orchestrator::vm::jailer::JailerConfig;
+use luminaguard_orchestrator::vm::jailer::JailerConfig;
 
 let jailer_config = JailerConfig::new("my-task".to_string())
     .with_user(1000, 1000); // Run as non-root user
@@ -247,7 +245,7 @@ vm::destroy_vm(handle).await?;
 
 **Snapshot Pool API:**
 ```rust
-use ironclaw_orchestrator::vm;
+use luminaguard_orchestrator::vm;
 
 // Warm up pool on startup (pre-creates 5 snapshots)
 vm::warmup_pool().await?;
@@ -263,9 +261,9 @@ let handle = vm::spawn_vm("task").await?; // Uses pool if available
 **Environment Variables (VM Configuration):**
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `IRONCLAW_POOL_SIZE` | `5` | Number of snapshots to maintain (1-20) |
-| `IRONCLAW_SNAPSHOT_REFRESH_SECS` | `3600` | Refresh interval in seconds (min: 60) |
-| `IRONCLAW_SNAPSHOT_PATH` | `/var/lib/ironclaw/snapshots` | Snapshot storage location |
+| `LUMINAGUARD_POOL_SIZE` | `5` | Number of snapshots to maintain (1-20) |
+| `LUMINAGUARD_SNAPSHOT_REFRESH_SECS` | `3600` | Refresh interval in seconds (min: 60) |
+| `LUMINAGUARD_SNAPSHOT_PATH` | `/var/lib/luminaguard/snapshots` | Snapshot storage location |
 
 **VM Module Status:**
 - ✅ Basic Firecracker integration (~110ms spawn time)
@@ -298,7 +296,7 @@ make dev               # Show commands for running orchestrator + agent in separ
 
 ### Philosophy
 
-IronClaw requires disciplined git workflow to ensure code quality and traceability. **AI coding agents (Claude Code, GitHub Copilot, etc.) must follow the same workflow as human developers.**
+LuminaGuard requires disciplined git workflow to ensure code quality and traceability. **AI coding agents (Claude Code, GitHub Copilot, etc.) must follow the same workflow as human developers.**
 
 ### Core Principles
 
@@ -399,7 +397,7 @@ make branch-protection
 ```
 ❌ BLOCKED: Cannot commit directly to main
 
-IronClaw requires all changes to go through pull requests.
+LuminaGuard requires all changes to go through pull requests.
 
 Required workflow:
   1. Create GitHub issue:
@@ -562,7 +560,7 @@ GitHub Actions (`.github/workflows/quality-gates.yml`) enforces:
 
 ### TDD Workflow
 
-IronClaw follows strict Test-Driven Development:
+LuminaGuard follows strict Test-Driven Development:
 
 1. **Red**: Write failing test first
 2. **Green**: Implement minimal code to pass
@@ -590,14 +588,14 @@ IronClaw follows strict Test-Driven Development:
 
 ## Competitive Context
 
-IronClaw aims to position between:
+LuminaGuard aims to position between:
 - **OpenClaw**: Usable but insecure (host execution, CVE-2026-25253)
 - **Nanoclaw**: Secure but high friction (manual Docker management)
 - **Nanobot**: Minimalist codebase reference for the Python loop
 
 ## References
 
-- PRD: `ironclaw_prd.md` - Complete product specification
+- PRD: `luminaguard_prd.md` - Complete product specification
 - Nanobot core: Reference for the Python reasoning loop architecture
 - MCP Protocol: Standard for tool/server connections
 
@@ -611,7 +609,7 @@ IronClaw aims to position between:
 
 ## FPF (Formal Proof Framework) Integration
 
-IronClaw uses the Quint FPF system for rigorous architecture decision-making. Available skills:
+LuminaGuard uses the Quint FPF system for rigorous architecture decision-making. Available skills:
 
 - `q0-init` - Initialize FPF context (bounded context, vocabulary, invariants)
 - `q1-hypothesize` - Generate hypotheses via abduction

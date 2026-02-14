@@ -1,3 +1,4 @@
+#![cfg(unix)]
 // Jailer Process Management
 //
 // Handles spawning and managing Firecracker processes via Jailer
@@ -19,6 +20,7 @@
 // - UID/GID: Privilege separation
 
 use anyhow::{anyhow, Context, Result};
+use async_trait::async_trait;
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 use tokio::process::Child;
@@ -26,11 +28,31 @@ use tokio::process::Command;
 use tracing::{debug, info};
 
 use crate::vm::config::VmConfig;
+use crate::vm::hypervisor::{Hypervisor, VmInstance};
 use crate::vm::jailer::config::JailerConfig;
+
+/// Jailer Hypervisor implementation
+pub struct JailerHypervisor {
+    pub jailer_config_factory: Box<dyn Fn(&VmConfig) -> JailerConfig + Send + Sync>,
+}
+
+#[async_trait]
+impl Hypervisor for JailerHypervisor {
+    async fn spawn(&self, config: &VmConfig) -> Result<Box<dyn VmInstance>> {
+        let jailer_config = (self.jailer_config_factory)(config);
+        let process = start_jailed_firecracker(config, &jailer_config).await?;
+        Ok(Box::new(process))
+    }
+
+    fn name(&self) -> &str {
+        "jailer"
+    }
+}
 
 /// Jailer process handle
 #[derive(Debug)]
 pub struct JailerProcess {
+    pub id: String,
     pub pid: u32,
     pub socket_path: String,
     pub child_process: Option<Child>,
@@ -38,40 +60,54 @@ pub struct JailerProcess {
     pub chroot_dir: PathBuf,
 }
 
+#[async_trait]
+impl VmInstance for JailerProcess {
+    fn id(&self) -> &str {
+        &self.id
+    }
+
+    fn pid(&self) -> u32 {
+        self.pid
+    }
+
+    fn socket_path(&self) -> &str {
+        &self.socket_path
+    }
+
+    fn spawn_time_ms(&self) -> f64 {
+        self.spawn_time_ms
+    }
+
+    async fn stop(&mut self) -> Result<()> {
+        info!("Stopping jailed Firecracker VM (ID: {}, PID: {})", self.id, self.pid);
+
+        // Kill the jailer process (which will also kill Firecracker)
+        if let Some(mut child) = self.child_process.take() {
+            child
+                .kill()
+                .await
+                .context("Failed to kill jailer process")?;
+        }
+
+        // Cleanup socket
+        if Path::new(&self.socket_path).exists() {
+            let _ = tokio::fs::remove_file(&self.socket_path).await;
+        }
+
+        // Cleanup hard links to kernel and rootfs
+        let _ = tokio::fs::remove_file(self.chroot_dir.join("run").join("firecracker.socket")).await;
+        let _ = tokio::fs::remove_file(
+            self.chroot_dir
+                .join("run")
+                .join(format!("{}.json", self.pid)),
+        )
+        .await;
+
+        Ok(())
+    }
+}
+
 /// Start Firecracker via Jailer
-///
-/// This function performs real jailer binary execution, which requires:
-/// - Root privileges (CAP_SYS_ADMIN for namespace/cgroup operations)
-/// - Jailer binary at `/usr/local/bin/jailer`
-/// - Firecracker binary (path specified in jailer_config.exec_file)
-/// - Valid kernel and rootfs files
-/// - Proper cgroup setup (v1 or v2)
-///
-/// # Arguments
-///
-/// * `vm_config` - VM configuration (kernel, rootfs, memory, CPU)
-/// * `jailer_config` - Jailer sandbox configuration (chroot, cgroups, namespaces)
-///
-/// # Returns
-///
-/// * `JailerProcess` - Handle for managing the jailed Firecracker process
-///
-/// # Example
-///
-/// ```no_run
-/// use ironclaw_orchestrator::vm::{config::VmConfig, jailer::{JailerConfig, start_jailed_firecracker}};
-///
-/// #[tokio::main]
-/// async fn main() -> anyhow::Result<()> {
-///     let vm_config = VmConfig::new("my-vm".to_string());
-///     let jailer_config = JailerConfig::new("my-vm".to_string())
-///         .with_user(1000, 1000);
-///
-///     let jailer_process = start_jailed_firecracker(&vm_config, &jailer_config).await?;
-///     println!("Jailed VM spawned: PID={}, Socket={}", jailer_process.pid, jailer_process.socket_path);
-///     Ok(())
-/// }
-/// ```
 pub async fn start_jailed_firecracker(
     vm_config: &VmConfig,
     jailer_config: &JailerConfig,
@@ -119,9 +155,6 @@ pub async fn start_jailed_firecracker(
     }
 
     // 4. Prepare resources in chroot directory
-    // The jailer will copy the Firecracker binary, but we need to prepare
-    // the kernel and rootfs as hard links or copies
-
     let jailed_kernel_path = chroot_dir.join(
         kernel_path
             .file_name()
@@ -134,80 +167,26 @@ pub async fn start_jailed_firecracker(
             .ok_or_else(|| anyhow!("Invalid rootfs path"))?,
     );
 
-    // Create hard links to kernel and rootfs in chroot
-    // Hard links are preferred over copies to avoid duplicating large files
-    // This requires both source and destination to be on the same filesystem
+    // Create hard links or copies
     match tokio::fs::hard_link(&kernel_path, &jailed_kernel_path).await {
-        Ok(_) => {
-            debug!(
-                "Created hard link to kernel in chroot: {:?}",
-                jailed_kernel_path
-            );
-        }
-        Err(e) => {
-            // If hard link fails, fall back to copy
-            debug!(
-                "Hard link failed (different filesystems?), copying kernel: {:?}",
-                e
-            );
-            tokio::fs::copy(&kernel_path, &jailed_kernel_path)
-                .await
-                .with_context(|| {
-                    format!(
-                        "Failed to copy kernel to chroot: {:?} -> {:?}",
-                        kernel_path, jailed_kernel_path
-                    )
-                })?;
-            debug!(
-                "Copied kernel to chroot: {:?} ({} bytes)",
-                jailed_kernel_path,
-                kernel_path.metadata().map(|m| m.len()).unwrap_or(0)
-            );
+        Ok(_) => { debug!("Created hard link to kernel in chroot"); }
+        Err(_) => {
+            tokio::fs::copy(&kernel_path, &jailed_kernel_path).await?;
+            debug!("Copied kernel to chroot");
         }
     }
 
     match tokio::fs::hard_link(&rootfs_path, &jailed_rootfs_path).await {
-        Ok(_) => {
-            debug!(
-                "Created hard link to rootfs in chroot: {:?}",
-                jailed_rootfs_path
-            );
-        }
-        Err(e) => {
-            // If hard link fails, fall back to copy
-            debug!(
-                "Hard link failed (different filesystems?), copying rootfs: {:?}",
-                e
-            );
-            tokio::fs::copy(&rootfs_path, &jailed_rootfs_path)
-                .await
-                .with_context(|| {
-                    format!(
-                        "Failed to copy rootfs to chroot: {:?} -> {:?}",
-                        rootfs_path, jailed_rootfs_path
-                    )
-                })?;
-            debug!(
-                "Copied rootfs to chroot: {:?} ({} bytes)",
-                jailed_rootfs_path,
-                rootfs_path.metadata().map(|m| m.len()).unwrap_or(0)
-            );
+        Ok(_) => { debug!("Created hard link to rootfs in chroot"); }
+        Err(_) => {
+            tokio::fs::copy(&rootfs_path, &jailed_rootfs_path).await?;
+            debug!("Copied rootfs to chroot");
         }
     }
 
-    debug!(
-        "VM resources prepared in chroot directory: {:?}",
-        chroot_dir
-    );
-
     // 5. Build jailer command
     let mut jailer_cmd = Command::new("jailer");
-
-    // Add jailer arguments
     let mut args = jailer_config.build_args();
-
-    // Add Firecracker arguments after the separator
-    // The API socket path will be relative to chroot
     let socket_name = "firecracker.socket";
     args.extend(vec![
         format!("--api-sock=/run/{}", socket_name),
@@ -216,31 +195,17 @@ pub async fn start_jailed_firecracker(
     ]);
 
     jailer_cmd.args(&args);
-
-    // Redirect stdout/stderr (capture stderr for debugging errors)
     jailer_cmd.stdout(std::process::Stdio::piped());
     jailer_cmd.stderr(std::process::Stdio::piped());
 
-    debug!("Jailer command: jailer {}", args.join(" "));
-
     // 6. Spawn jailer process
-    let mut child = jailer_cmd
-        .spawn()
-        .context("Failed to spawn jailer process. Ensure jailer is installed at /usr/local/bin/jailer and is executable.")?;
+    let mut child = jailer_cmd.spawn().context("Failed to spawn jailer process")?;
+    let pid = child.id().ok_or_else(|| anyhow!("Failed to get jailer PID"))?;
 
-    let pid = child
-        .id()
-        .ok_or_else(|| anyhow!("Failed to get jailer PID"))?;
-
-    debug!("Jailer process started with PID: {}", pid);
-
-    // 7. Wait for socket to be ready (retry loop)
-    // The socket will be created inside the chroot at /run/firecracker.socket
-    // But we access it via the chroot path
+    // 7. Wait for socket to be ready
     let jailed_socket_path = chroot_dir.join("run").join(socket_name);
-
     let mut retries = 0;
-    let max_retries = 50; // 50 * 10ms = 500ms
+    let max_retries = 50;
     let mut socket_ready = false;
 
     while retries < max_retries {
@@ -253,46 +218,13 @@ pub async fn start_jailed_firecracker(
     }
 
     if !socket_ready {
-        // Kill the process if socket never appeared
         let _ = child.kill().await;
-
-        // Try to read stderr for error details
-        if let Some(mut stderr) = child.stderr.take() {
-            use tokio::io::AsyncReadExt;
-            let mut error_buf = vec![];
-            if stderr.read_to_end(&mut error_buf).await.is_ok() {
-                let error_output = String::from_utf8_lossy(&error_buf);
-                if !error_output.trim().is_empty() {
-                    return Err(anyhow!(
-                        "Jailed Firecracker API socket did not appear in time: {:?}\n\
-                        Jailer stderr output: {}",
-                        jailed_socket_path,
-                        error_output
-                    ));
-                }
-            }
-        }
-
-        return Err(anyhow!(
-            "Jailed Firecracker API socket did not appear in time: {:?}\n\
-            This may indicate:\n\
-            1. Kernel or rootfs resources are missing or inaccessible\n\
-            2. Insufficient permissions (need CAP_SYS_ADMIN for namespaces)\n\
-            3. Cgroup v2 not configured properly\n\
-            4. Firewall or security policies blocking execution",
-            jailed_socket_path
-        ));
+        return Err(anyhow!("Jailed Firecracker API socket did not appear in time"));
     }
 
-    let socket_path = jailed_socket_path
-        .to_str()
-        .ok_or_else(|| anyhow!("Invalid socket path"))?
-        .to_string();
-
-    info!("Jailed Firecracker API socket ready at: {}", socket_path);
+    let socket_path = jailed_socket_path.to_str().unwrap().to_string();
 
     // 8. Configure VM via API
-    // Note: We need to use paths relative to chroot in the API calls
     let config_for_api = VmConfig {
         kernel_path: format!("/{}", kernel_path.file_name().unwrap().to_str().unwrap()),
         rootfs_path: format!("/{}", rootfs_path.file_name().unwrap().to_str().unwrap()),
@@ -313,12 +245,8 @@ pub async fn start_jailed_firecracker(
     let elapsed = start_time.elapsed();
     let spawn_time_ms = elapsed.as_secs_f64() * 1000.0;
 
-    info!(
-        "Jailed VM {} started in {:.2}ms (PID: {})",
-        jailer_config.id, spawn_time_ms, pid
-    );
-
     Ok(JailerProcess {
+        id: vm_config.vm_id.clone(),
         pid,
         socket_path,
         child_process: Some(child),
@@ -329,37 +257,7 @@ pub async fn start_jailed_firecracker(
 
 /// Stop a jailed Firecracker VM process
 pub async fn stop_jailed_firecracker(mut process: JailerProcess) -> Result<()> {
-    info!("Stopping jailed Firecracker VM (PID: {})", process.pid);
-
-    // Kill the jailer process (which will also kill Firecracker)
-    if let Some(mut child) = process.child_process.take() {
-        child
-            .kill()
-            .await
-            .context("Failed to kill jailer process")?;
-    }
-
-    // Cleanup socket
-    if Path::new(&process.socket_path).exists() {
-        let _ = tokio::fs::remove_file(&process.socket_path).await;
-    }
-
-    // Cleanup hard links to kernel and rootfs
-    // Note: We should be careful not to delete the original files
-    let _ = tokio::fs::remove_file(process.chroot_dir.join("run").join("firecracker.socket")).await;
-    let _ = tokio::fs::remove_file(
-        process
-            .chroot_dir
-            .join("run")
-            .join(format!("{}.json", process.pid)),
-    )
-    .await;
-
-    // Optionally cleanup entire chroot directory
-    // This should be done carefully to avoid race conditions
-    // let _ = tokio::fs::remove_dir_all(&process.chroot_dir).await;
-
-    Ok(())
+    process.stop().await
 }
 
 // Helper functions for API interaction
@@ -369,9 +267,6 @@ async fn configure_jailed_vm(socket_path: &str, config: &VmConfig) -> Result<()>
     use http_body_util::Full;
     use hyper::{Request, StatusCode};
     use hyper_util::rt::TokioIo;
-
-    // Reuse API helpers from firecracker module
-    // For now, we'll duplicate the minimal logic here
 
     #[derive(serde::Serialize)]
     struct BootSource {
@@ -394,118 +289,49 @@ async fn configure_jailed_vm(socket_path: &str, config: &VmConfig) -> Result<()>
         mem_size_mib: u32,
     }
 
-    let stream = tokio::net::UnixStream::connect(socket_path)
-        .await
-        .context("Failed to connect to jailed Firecracker socket")?;
-
+    let stream = tokio::net::UnixStream::connect(socket_path).await?;
     let io = TokioIo::new(stream);
-    let (mut sender, conn) = hyper::client::conn::http1::handshake(io)
-        .await
-        .context("Handshake failed")?;
+    let (mut sender, conn) = hyper::client::conn::http1::handshake(io).await?;
+    tokio::task::spawn(async move { let _ = conn.await; });
 
-    tokio::task::spawn(async move {
-        if let Err(err) = conn.await {
-            debug!("Connection closed: {:?}", err);
-        }
-    });
-
-    // Configure boot source
     let boot_source = BootSource {
         kernel_image_path: config.kernel_path.clone(),
         boot_args: Some("console=ttyS0 reboot=k panic=1 pci=off".to_string()),
     };
-
     let json = serde_json::to_string(&boot_source)?;
-    let req_body = Full::new(Bytes::from(json));
-
-    let req = Request::builder()
-        .method(hyper::Method::PUT)
-        .uri("http://localhost/boot-source")
-        .header("Content-Type", "application/json")
-        .header("Accept", "application/json")
-        .body(req_body)
-        .context("Failed to build request")?;
-
+    let req = Request::builder().method(hyper::Method::PUT).uri("http://localhost/boot-source")
+        .header("Content-Type", "application/json").body(Full::new(Bytes::from(json)))?;
     let res = sender.send_request(req).await?;
+    if !res.status().is_success() && res.status() != StatusCode::NO_CONTENT { return Err(anyhow!("Failed to configure boot source")); }
 
-    if !res.status().is_success() && res.status() != StatusCode::NO_CONTENT {
-        return Err(anyhow!("Failed to configure boot source"));
-    }
+    let stream = tokio::net::UnixStream::connect(socket_path).await?;
+    let io = TokioIo::new(stream);
+    let (mut sender, conn) = hyper::client::conn::http1::handshake(io).await?;
+    tokio::task::spawn(async move { let _ = conn.await; });
 
-    // Configure rootfs
     let rootfs = Drive {
         drive_id: "rootfs".to_string(),
         path_on_host: config.rootfs_path.clone(),
         is_root_device: true,
         is_read_only: false,
     };
-
-    // Need to reconnect for second request (simplified)
-    let stream = tokio::net::UnixStream::connect(socket_path)
-        .await
-        .context("Failed to reconnect to socket")?;
-    let io = TokioIo::new(stream);
-    let (mut sender, conn) = hyper::client::conn::http1::handshake(io)
-        .await
-        .context("Handshake failed")?;
-
-    tokio::task::spawn(async move {
-        if let Err(err) = conn.await {
-            debug!("Connection closed: {:?}", err);
-        }
-    });
-
     let json = serde_json::to_string(&rootfs)?;
-    let req_body = Full::new(Bytes::from(json));
-
-    let req = Request::builder()
-        .method(hyper::Method::PUT)
-        .uri("http://localhost/drives/rootfs")
-        .header("Content-Type", "application/json")
-        .body(req_body)
-        .context("Failed to build request")?;
-
+    let req = Request::builder().method(hyper::Method::PUT).uri("http://localhost/drives/rootfs")
+        .header("Content-Type", "application/json").body(Full::new(Bytes::from(json)))?;
     let res = sender.send_request(req).await?;
+    if !res.status().is_success() && res.status() != StatusCode::NO_CONTENT { return Err(anyhow!("Failed to configure rootfs")); }
 
-    if !res.status().is_success() && res.status() != StatusCode::NO_CONTENT {
-        return Err(anyhow!("Failed to configure rootfs"));
-    }
-
-    // Configure machine
-    let machine_config = MachineConfiguration {
-        vcpu_count: config.vcpu_count,
-        mem_size_mib: config.memory_mb,
-    };
-
-    let stream = tokio::net::UnixStream::connect(socket_path)
-        .await
-        .context("Failed to reconnect to socket")?;
+    let stream = tokio::net::UnixStream::connect(socket_path).await?;
     let io = TokioIo::new(stream);
-    let (mut sender, conn) = hyper::client::conn::http1::handshake(io)
-        .await
-        .context("Handshake failed")?;
+    let (mut sender, conn) = hyper::client::conn::http1::handshake(io).await?;
+    tokio::task::spawn(async move { let _ = conn.await; });
 
-    tokio::task::spawn(async move {
-        if let Err(err) = conn.await {
-            debug!("Connection closed: {:?}", err);
-        }
-    });
-
+    let machine_config = MachineConfiguration { vcpu_count: config.vcpu_count, mem_size_mib: config.memory_mb };
     let json = serde_json::to_string(&machine_config)?;
-    let req_body = Full::new(Bytes::from(json));
-
-    let req = Request::builder()
-        .method(hyper::Method::PUT)
-        .uri("http://localhost/machine-config")
-        .header("Content-Type", "application/json")
-        .body(req_body)
-        .context("Failed to build request")?;
-
+    let req = Request::builder().method(hyper::Method::PUT).uri("http://localhost/machine-config")
+        .header("Content-Type", "application/json").body(Full::new(Bytes::from(json)))?;
     let res = sender.send_request(req).await?;
-
-    if !res.status().is_success() && res.status() != StatusCode::NO_CONTENT {
-        return Err(anyhow!("Failed to configure machine"));
-    }
+    if !res.status().is_success() && res.status() != StatusCode::NO_CONTENT { return Err(anyhow!("Failed to configure machine")); }
 
     Ok(())
 }
@@ -517,124 +343,29 @@ async fn start_instance(socket_path: &str) -> Result<()> {
     use hyper_util::rt::TokioIo;
 
     #[derive(serde::Serialize)]
-    struct Action {
-        action_type: String,
-    }
+    struct Action { action_type: String }
 
-    let stream = tokio::net::UnixStream::connect(socket_path)
-        .await
-        .context("Failed to connect to socket")?;
+    let stream = tokio::net::UnixStream::connect(socket_path).await?;
     let io = TokioIo::new(stream);
-    let (mut sender, conn) = hyper::client::conn::http1::handshake(io)
-        .await
-        .context("Handshake failed")?;
+    let (mut sender, conn) = hyper::client::conn::http1::handshake(io).await?;
+    tokio::task::spawn(async move { let _ = conn.await; });
 
-    tokio::task::spawn(async move {
-        if let Err(err) = conn.await {
-            debug!("Connection closed: {:?}", err);
-        }
-    });
-
-    let action = Action {
-        action_type: "InstanceStart".to_string(),
-    };
-
+    let action = Action { action_type: "InstanceStart".to_string() };
     let json = serde_json::to_string(&action)?;
-    let req_body = Full::new(Bytes::from(json));
-
-    let req = Request::builder()
-        .method(hyper::Method::PUT)
-        .uri("http://localhost/actions")
-        .header("Content-Type", "application/json")
-        .body(req_body)
-        .context("Failed to build request")?;
-
+    let req = Request::builder().method(hyper::Method::PUT).uri("http://localhost/actions")
+        .header("Content-Type", "application/json").body(Full::new(Bytes::from(json)))?;
     let res = sender.send_request(req).await?;
-
-    if !res.status().is_success() && res.status() != StatusCode::NO_CONTENT {
-        return Err(anyhow!("Failed to start instance"));
-    }
+    if !res.status().is_success() && res.status() != StatusCode::NO_CONTENT { return Err(anyhow!("Failed to start instance")); }
 
     Ok(())
 }
 
-/// Verify that the jailer binary is executable
-///
-/// This function checks that:
-/// 1. The jailer binary exists at the expected path
-/// 2. The binary has execute permissions
-/// 3. Can be executed (basic sanity check)
-///
-/// # Returns
-///
-/// * `Ok(())` - Jailer binary is executable
-/// * `Err(_)` - Jailer binary is missing or not executable
 fn verify_jailer_executable() -> Result<()> {
     use std::os::unix::fs::PermissionsExt;
-    use std::path::Path;
-    use std::process::Command;
-
     let jailer_path = Path::new("/usr/local/bin/jailer");
-
-    if !jailer_path.exists() {
-        anyhow::bail!(
-            "Jailer binary not found at {:?}. \
-            \nTo install Firecracker, follow the official guide: \
-            \nhttps://github.com/firecracker-microvm/firecracker/blob/main/docs/getting-started.md \
-            \n\nOr download pre-built binaries: \
-            \nhttps://github.com/firecracker-microvm/firecracker/releases",
-            jailer_path
-        );
-    }
-
-    // Check if file is executable
-    let metadata = jailer_path
-        .metadata()
-        .context("Failed to read jailer binary metadata")?;
-    let permissions = metadata.permissions();
-    let mode = permissions.mode();
-
-    if mode & 0o111 == 0 {
-        anyhow::bail!(
-            "Jailer binary is not executable: {:?}. \
-            \nRun: chmod +x /usr/local/bin/jailer",
-            jailer_path
-        );
-    }
-
-    // Verify the binary can actually execute by checking --version
-    let version_check = Command::new("jailer")
-        .arg("--version")
-        .output()
-        .context("Failed to execute jailer binary");
-
-    match version_check {
-        Ok(output) => {
-            if !output.status.success() {
-                anyhow::bail!(
-                    "Jailer binary exists but --version check failed. \
-                    \nStderr: {}",
-                    String::from_utf8_lossy(&output.stderr)
-                );
-            }
-            debug!(
-                "Jailer binary verified: {}",
-                String::from_utf8_lossy(&output.stdout).trim()
-            );
-        }
-        Err(e) => {
-            anyhow::bail!(
-                "Jailer binary exists but cannot be executed: {}. \
-                \nThis may indicate a corrupted binary or missing dependencies.",
-                e
-            );
-        }
-    }
-
-    debug!(
-        "Jailer binary verified as executable and functional: {:?}",
-        jailer_path
-    );
+    if !jailer_path.exists() { anyhow::bail!("Jailer binary not found"); }
+    let metadata = jailer_path.metadata()?;
+    if metadata.permissions().mode() & 0o111 == 0 { anyhow::bail!("Jailer binary is not executable"); }
     Ok(())
 }
 
@@ -645,13 +376,13 @@ mod tests {
     #[test]
     fn test_jailer_process_struct() {
         let process = JailerProcess {
+            id: "test".to_string(),
             pid: 1234,
             socket_path: "/tmp/test.socket".to_string(),
             child_process: None,
             spawn_time_ms: 100.0,
             chroot_dir: PathBuf::from("/srv/jailer/firecracker/test/root"),
         };
-
         assert_eq!(process.pid, 1234);
         assert_eq!(process.socket_path, "/tmp/test.socket");
     }

@@ -6,7 +6,7 @@
 
 ## Executive Summary
 
-Firecracker is **viable** for JIT Micro-VMs in IronClaw. The feasibility prototype successfully spawned a VM in **114.48ms**, beating the 200ms target by 43%.
+Firecracker is **viable** for JIT Micro-VMs in LuminaGuard. The feasibility prototype successfully spawned a VM in **114.48ms**, beating the 200ms target by 43%.
 
 ## Test Environment
 
@@ -146,7 +146,7 @@ If Firecracker had failed, alternatives would have been:
    - Pros: Fastest, simplest
    - Cons: No isolation, malware can persist on host
 
-**Conclusion:** Firecracker provides the best balance of security and performance for IronClaw's requirements.
+**Conclusion:** Firecracker provides the best balance of security and performance for LuminaGuard's requirements.
 
 ## Performance Projection
 
@@ -197,7 +197,7 @@ async fn test_vm_prototype() -> Result<()> {
 
 ### Test Assets Location
 
-- **Directory:** `/tmp/ironclaw-fc-test/`
+- **Directory:** `/tmp/luminaguard-fc-test/`
 - **Kernel:** `vmlinux-6.1.155` (symlink: `vmlinux.bin`)
 - **Rootfs:** `rootfs.ext4` (64MB)
 
@@ -205,8 +205,8 @@ async fn test_vm_prototype() -> Result<()> {
 
 ```bash
 # 1. Download kernel
-mkdir -p /tmp/ironclaw-fc-test
-cd /tmp/ironclaw-fc-test
+mkdir -p /tmp/luminaguard-fc-test
+cd /tmp/luminaguard-fc-test
 wget https://s3.amazonaws.com/spec.ccfc.min/firecracker-ci/v1.14/x86_64/vmlinux-6.1.155
 ln -s vmlinux-6.1.155 vmlinux.bin
 
@@ -215,14 +215,14 @@ dd if=/dev/zero of=rootfs.ext4 bs=1M count=64
 mkfs.ext4 -F rootfs.ext4
 
 # 3. Run test
-cd /path/to/ironclaw/orchestrator
+cd /path/to/luminaguard/orchestrator
 cargo build --features vm-prototype
-./target/debug/ironclaw test-vm-prototype
+./target/debug/luminaguard test-vm-prototype
 ```
 
 ## Conclusion
 
-**Firecracker is viable for JIT Micro-VMs in IronClaw.**
+**Firecracker is viable for JIT Micro-VMs in LuminaGuard.**
 
 The prototype successfully demonstrated:
 - ✅ Spawn time well below 200ms target (114ms = 0.57x target)

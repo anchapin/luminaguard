@@ -2,7 +2,7 @@
 
 ## Overview
 
-IronClaw implements comprehensive network isolation for all VMs to ensure that malware or malicious code cannot communicate with external networks. All network traffic is blocked by default, with only vsock communication allowed for host-guest interaction.
+LuminaGuard implements comprehensive network isolation for all VMs to ensure that malware or malicious code cannot communicate with external networks. All network traffic is blocked by default, with only vsock communication allowed for host-guest interaction.
 
 ## Security Model
 
@@ -54,7 +54,7 @@ pub struct FirewallManager {
 ```
 
 **Key Features**:
-- Creates unique iptables chain per VM: `IRONCLAW_<sanitized_vm_id>`
+- Creates unique iptables chain per VM: `LUMINAGUARD_<sanitized_vm_id>`
 - Drops all inbound and outbound traffic
 - Automatic cleanup via Drop trait
 - Graceful handling when not running as root
@@ -62,10 +62,10 @@ pub struct FirewallManager {
 **Firewall Rules**:
 ```bash
 # Create chain
-iptables -N IRONCLAW_vm_123
+iptables -N LUMINAGUARD_vm_123
 
 # Drop all traffic
-iptables -A IRONCLAW_vm_123 -j DROP
+iptables -A LUMINAGUARD_vm_123 -j DROP
 ```
 
 ### 3. vsock Communication (`vm/vsock.rs`)
@@ -169,7 +169,7 @@ id -u  # Should return 0
 ### Spawning a Network-Isolated VM
 
 ```rust
-use ironclaw_orchestrator::vm::{spawn_vm, destroy_vm};
+use luminaguard_orchestrator::vm::{spawn_vm, destroy_vm};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -196,7 +196,7 @@ async fn main() -> Result<()> {
 
 **Host Side**:
 ```rust
-use ironclaw_orchestrator::vm::vsock::{VsockHostListener, VsockMessage};
+use luminaguard_orchestrator::vm::vsock::{VsockHostListener, VsockMessage};
 
 let listener = VsockHostListener::new("vm-123".to_string()).await?;
 
@@ -209,9 +209,9 @@ conn.handle_messages(handler).await?;
 
 **Guest Side**:
 ```rust
-use ironclaw_orchestrator::vm::vsock::{VsockClient, VsockMessage};
+use luminaguard_orchestrator::vm::vsock::{VsockClient, VsockMessage};
 
-let client = VsockClient::new("/tmp/ironclaw/vsock/vm-123.sock".into());
+let client = VsockClient::new("/tmp/luminaguard/vsock/vm-123.sock".into());
 let mut conn = client.connect().await?;
 
 // Send request to host
@@ -260,10 +260,10 @@ The following security properties are tested:
 **Solution**:
 ```bash
 # Run with sudo
-sudo ironclaw-orchestrator
+sudo luminaguard-orchestrator
 
 # Or give binary capabilities
-sudo setcap cap_net_admin,cap_net_raw+ep ironclaw-orchestrator
+sudo setcap cap_net_admin,cap_net_raw+ep luminaguard-orchestrator
 ```
 
 ### iptables Not Installed

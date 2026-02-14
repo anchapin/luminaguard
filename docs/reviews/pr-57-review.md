@@ -5,7 +5,7 @@
 - Reviewer: Jules (AI Agent)
 
 ## Summary of Changes
-This PR introduces several security-critical modules for the IronClaw orchestrator:
+This PR introduces several security-critical modules for the LuminaGuard orchestrator:
 - `orchestrator/src/vm/firewall.rs`: Implements `FirewallManager` for network isolation using `iptables`.
 - `orchestrator/src/vm/vsock.rs`: Implements `VsockHostListener` and `VsockClient` for secure host-guest communication.
 - `orchestrator/src/vm/seccomp.rs`: Implements `SeccompFilter` for syscall filtering.
@@ -26,7 +26,7 @@ This PR introduces several security-critical modules for the IronClaw orchestrat
             .map(|c| if c.is_alphanumeric() { c } else { '_' })
             .collect();
   ```
-  This creates a collision vulnerability where distinct VM IDs map to the same chain name. For example, `vm-1` and `vm_1` both map to `IRONCLAW_vm_1`. An attacker could potentially manipulate firewall rules of another VM if they can guess or influence the ID generation.
+  This creates a collision vulnerability where distinct VM IDs map to the same chain name. For example, `vm-1` and `vm_1` both map to `LUMINAGUARD_vm_1`. An attacker could potentially manipulate firewall rules of another VM if they can guess or influence the ID generation.
 - **Suggestion:** Use a cryptographic hash (e.g., SHA256 truncated to a safe length) of the `vm_id` as part of the chain name to ensure uniqueness. Alternatively, enforce stricter validation on `vm_id` creation to disallow characters that would be replaced.
 
 #### 2. Missing Security Validation in VmConfig
@@ -53,7 +53,7 @@ This PR introduces several security-critical modules for the IronClaw orchestrat
 - **Line:** 61
 - **Issue:** The `VmConfig::new` method constructs the `vsock_path` using `vm_id` directly without sufficient validation.
   ```rust
-  config.vsock_path = Some(format!("/tmp/ironclaw/vsock/{}.sock", config.vm_id));
+  config.vsock_path = Some(format!("/tmp/luminaguard/vsock/{}.sock", config.vm_id));
   ```
   If `vm_id` contains path traversal characters (e.g., `../`), it could allow writing the socket file to an arbitrary location.
 - **Suggestion:** Validate `vm_id` to ensure it contains only safe characters (alphanumeric, hyphens, underscores) and definitely no path separators.
@@ -76,7 +76,7 @@ This PR introduces several security-critical modules for the IronClaw orchestrat
 #### 1. Hardcoded Paths
 - **File:** `orchestrator/src/vm/vsock.rs`
 - **Line:** 137
-- **Issue:** The socket directory `/tmp/ironclaw/vsock` is hardcoded. This may not be appropriate for all environments (e.g., where `/tmp` is mounted noexec or is shared).
+- **Issue:** The socket directory `/tmp/luminaguard/vsock` is hardcoded. This may not be appropriate for all environments (e.g., where `/tmp` is mounted noexec or is shared).
 - **Suggestion:** Make the socket directory configurable or respect the `TMPDIR` environment variable.
 
 #### 2. Python Agent Code Quality
@@ -88,7 +88,7 @@ This PR introduces several security-critical modules for the IronClaw orchestrat
 #### 3. Testing of Collisions
 - **File:** `orchestrator/src/vm/tests.rs`
 - **Line:** 114 (`test_firewall_sanitizes_vm_ids`)
-- **Issue:** This test currently validates that the sanitization logic produces the collided names (e.g., expects `IRONCLAW_with_dash` for `with-dash`).
+- **Issue:** This test currently validates that the sanitization logic produces the collided names (e.g., expects LUMINAGUARD_with_dash for with-dash).
 - **Suggestion:** Update this test to verify *uniqueness* or correct hashing once the collision fix is implemented.
 
 ### Decision

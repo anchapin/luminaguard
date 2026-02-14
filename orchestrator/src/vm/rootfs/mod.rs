@@ -225,7 +225,7 @@ impl RootfsManager {
         }
 
         // Create temporary mount point
-        let mount_dir = std::env::temp_dir().join("ironclaw-rootfs-mount");
+        let mount_dir = std::env::temp_dir().join("luminaguard-rootfs-mount");
         std::fs::create_dir_all(&mount_dir).context("Failed to create mount directory")?;
 
         // Mount ext4 image
