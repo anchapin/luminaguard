@@ -84,7 +84,7 @@ impl HypervInstance {
             };
 
             if let Err(e) = partition.set_property(
-                WHV_PARTITION_PROPERTY_CODE::WHV_PARTITION_PROPERTY_CODE_PROCESSOR_COUNT,
+                WHV_PARTITION_PROPERTY_CODE::WHvPartitionPropertyCodeProcessorCount,
                 &partition_property,
             ) {
                 let _ = init_tx.send(Err(anyhow!("Failed to set vCPU count: {:?}", e)));
