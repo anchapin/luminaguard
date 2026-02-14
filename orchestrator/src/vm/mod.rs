@@ -472,10 +472,10 @@ pub fn verify_network_isolation(handle: &VmHandle) -> Result<bool> {
 ///     Ok(())
 /// }
 /// ```
+#[cfg(unix)]
 pub async fn spawn_vm_jailed(
     task_id: &str,
     vm_config: &VmConfig,
-    #[cfg(unix)]
     jailer_config: &JailerConfig,
 ) -> Result<VmHandle> {
     tracing::info!("Spawning JAILED VM for task: {}", task_id);
@@ -558,7 +558,8 @@ pub async fn spawn_vm_jailed(
 ///     Ok(())
 /// }
 /// ```
-pub async fn destroy_vm_jailed(handle: VmHandle, #[cfg(unix)] _jailer_config: &JailerConfig) -> Result<()> {
+#[cfg(unix)]
+pub async fn destroy_vm_jailed(handle: VmHandle, _jailer_config: &JailerConfig) -> Result<()> {
     tracing::info!("Destroying JAILED VM: {}", handle.id);
 
     // Take process out of Arc<Mutex>

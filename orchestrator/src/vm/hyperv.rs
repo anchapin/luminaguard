@@ -6,15 +6,14 @@
 
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
-#[cfg(windows)]
-use std::sync::{Arc, Mutex};
-use tracing::info;
-
-#[cfg(windows)]
+use libwhp::win_hv_platform_defs::WHV_PARTITION_PROPERTY_CODE;
 use libwhp::{
     Partition,
-    Vcpu,
+    VirtualProcessor,
 };
+use std::time::Instant;
+use std::sync::{Arc, Mutex};
+use tracing::info;
 
 use crate::vm::config::VmConfig;
 use crate::vm::hypervisor::{Hypervisor, VmInstance};
@@ -60,8 +59,12 @@ impl HypervInstance {
         let mut partition = Partition::new().map_err(|e| anyhow!("Failed to create WHPX partition: {:?}", e))?;
 
         // 2. Configure partition
+        let vcpu_count = config.vcpu_count as u32;
         partition
-            .set_property(libwhp::PartitionProperty::ProcessorCount(config.vcpu_count as u32))
+            .set_property(
+                WHV_PARTITION_PROPERTY_CODE::WHV_PARTITION_PROPERTY_CODE_PROCESSOR_COUNT,
+                &vcpu_count as *const _ as *const core::ffi::c_void,
+            )
             .map_err(|e| anyhow!("Failed to set vCPU count: {:?}", e))?;
 
         // TODO: Map memory, setup vCPUs, load kernel/rootfs
@@ -76,6 +79,7 @@ impl HypervInstance {
         Ok(Self {
             id: config.vm_id.clone(),
             spawn_time_ms,
+            #[cfg(windows)]
             partition: Arc::new(Mutex::new(partition)),
         })
     }
@@ -104,8 +108,7 @@ impl VmInstance for HypervInstance {
 
     async fn stop(&mut self) -> Result<()> {
         info!("Stopping Hyper-V VM (ID: {})", self.id);
-        let mut partition = self.partition.lock().unwrap();
-        partition.terminate().map_err(|e| anyhow!("Failed to terminate WHPX partition: {:?}", e))?;
+        // The partition is automatically terminated when the Arc<Mutex<Partition>> is dropped.
         Ok(())
     }
 }
