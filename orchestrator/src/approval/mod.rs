@@ -27,11 +27,13 @@ pub mod action;
 pub mod diff;
 pub mod history;
 pub mod ui;
+pub mod tui;
 
 pub use action::{ActionType, RiskLevel};
 pub use diff::{Change, DiffCard};
 pub use history::{ApprovalDecision, ApprovalHistory, ApprovalRecord};
 pub use ui::{ApprovalPrompt, ApprovalPromptConfig};
+pub use tui::{present_tui_approval, TuiResult};
 
 use tracing::info;
 
@@ -144,6 +146,63 @@ impl ApprovalManager {
     /// Export audit log as JSON
     pub fn export_audit_log(&self) -> anyhow::Result<String> {
         self.history.export_audit_log()
+    }
+
+    /// Check and approve using the Terminal UI (ratatui)
+    ///
+    /// This is the interactive variant that presents a TUI for user approval.
+    /// Green actions auto-approve. Red actions show an interactive terminal UI.
+    ///
+    /// # Arguments
+    /// * `action_type` - Type of action being performed
+    /// * `description` - Human-readable description of the action
+    /// * `changes` - The changes that will be made
+    ///
+    /// # Returns
+    /// * `Ok(ApprovalDecision::Approved)` if action was approved
+    /// * `Ok(ApprovalDecision::Denied)` if action was rejected
+    /// * `Err` if TUI operations fail
+    pub async fn check_and_approve_tui(
+        &mut self,
+        action_type: ActionType,
+        description: String,
+        changes: Vec<Change>,
+    ) -> anyhow::Result<ApprovalDecision> {
+        if !self.enable_approval_cliff {
+            // Testing mode: auto-approve everything
+            return Ok(ApprovalDecision::Approved);
+        }
+
+        // Green actions skip approval
+        if !action_type.requires_approval() {
+            info!("Green action, auto-approving: {}", description);
+            return Ok(ApprovalDecision::Approved);
+        }
+
+        // Generate Diff Card for Red action
+        let diff_card = DiffCard::new(action_type, description.clone(), changes);
+
+        // Present TUI for approval
+        let tui_result = present_tui_approval(&diff_card).await?;
+        let decision = match tui_result {
+            TuiResult::Approved => ApprovalDecision::Approved,
+            TuiResult::Rejected => ApprovalDecision::Denied,
+        };
+
+        // Record decision in history
+        let record = ApprovalRecord {
+            id: uuid::Uuid::new_v4().to_string(),
+            timestamp: chrono::Utc::now(),
+            action_description: description,
+            decision,
+            approved_by: std::env::var("USER").unwrap_or_else(|_| "unknown".to_string()),
+            justification: None,
+            execution_result: None,
+        };
+
+        self.history.record_decision(record)?;
+
+        Ok(decision)
     }
 }
 
