@@ -293,7 +293,7 @@ mod tests {
 
     #[test]
     fn test_args_parsing() {
-        let args = Args::parse_from(["luminaguard, "run", "test task"]);
+        let args = Args::parse_from(["luminaguard", "run", "test task"]);
         assert!(matches!(args.command, Some(Commands::Run { .. })));
     }
 
