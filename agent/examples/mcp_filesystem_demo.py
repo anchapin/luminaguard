@@ -23,7 +23,9 @@ import tempfile
 from pathlib import Path
 
 # Add repo root to path for imports
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+sys.path.insert(
+    0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+)
 
 from agent.mcp_client import McpClient, McpError
 
