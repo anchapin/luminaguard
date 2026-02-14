@@ -63,7 +63,10 @@ impl VmInstance for FirecrackerProcess {
     }
 
     async fn stop(&mut self) -> Result<()> {
-        info!("Stopping Firecracker VM (ID: {}, PID: {})", self.id, self.pid);
+        info!(
+            "Stopping Firecracker VM (ID: {}, PID: {})",
+            self.id, self.pid
+        );
 
         if let Some(mut child) = self.child_process.take() {
             child
@@ -330,7 +333,6 @@ fn create_rootfs_drive(path: &str) -> Drive {
         is_read_only: true,
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -1090,7 +1092,7 @@ mod tests {
     /// This test ensures that the `create_rootfs_drive` helper function
     /// enforces the security invariant that shared rootfs images must be read-only.
     #[test]
-fn test_rootfs_drive_is_secure() {
+    fn test_rootfs_drive_is_secure() {
         let path = "/tmp/rootfs.ext4";
         let drive = Drive {
             drive_id: "rootfs".to_string(),

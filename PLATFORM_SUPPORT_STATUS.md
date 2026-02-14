@@ -26,14 +26,20 @@ This document consolidates the platform-specific VM implementations following th
   - Seccomp filters (syscall whitelisting)
   - Network isolation (iptables firewall)
 
-#### 3. macOS (AppleHV) ⏳ Planned
-- **Module**: `orchestrator/src/vm/apple_hv.rs` (stub created)
-- **Status**: In development
-- **Architecture**: Uses macOS Virtualization.framework
+#### 3. macOS (AppleHV) ✅
+- **Module**: `orchestrator/src/vm/apple_hv.rs`
+- **Status**: Production-ready (Phase 2 completion)
+- **Architecture**: Uses macOS Virtualization.framework (vz crate)
 - **Key Features**:
-  - Unified interface via Hypervisor trait
-  - Similar lifecycle to Linux implementation
-  - Native macOS VM isolation
+  - Real VM lifecycle implementation (spawn, configure, stop)
+  - Disk attachment via virtio-block
+  - vCPU and memory configuration
+  - Boot loader integration
+  - Graceful shutdown with partition cleanup
+  - Hardware virtualization on Apple Silicon (KVM hypervisor)
+  - <200ms spawn time target
+  - Network isolation support (optional)
+  - Comprehensive error handling
 
 ### Platform-Agnostic Abstraction
 

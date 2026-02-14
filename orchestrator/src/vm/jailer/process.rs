@@ -79,7 +79,10 @@ impl VmInstance for JailerProcess {
     }
 
     async fn stop(&mut self) -> Result<()> {
-        info!("Stopping jailed Firecracker VM (ID: {}, PID: {})", self.id, self.pid);
+        info!(
+            "Stopping jailed Firecracker VM (ID: {}, PID: {})",
+            self.id, self.pid
+        );
 
         // Kill the jailer process (which will also kill Firecracker)
         if let Some(mut child) = self.child_process.take() {
@@ -95,7 +98,8 @@ impl VmInstance for JailerProcess {
         }
 
         // Cleanup hard links to kernel and rootfs
-        let _ = tokio::fs::remove_file(self.chroot_dir.join("run").join("firecracker.socket")).await;
+        let _ =
+            tokio::fs::remove_file(self.chroot_dir.join("run").join("firecracker.socket")).await;
         let _ = tokio::fs::remove_file(
             self.chroot_dir
                 .join("run")
@@ -169,7 +173,9 @@ pub async fn start_jailed_firecracker(
 
     // Create hard links or copies
     match tokio::fs::hard_link(&kernel_path, &jailed_kernel_path).await {
-        Ok(_) => { debug!("Created hard link to kernel in chroot"); }
+        Ok(_) => {
+            debug!("Created hard link to kernel in chroot");
+        }
         Err(_) => {
             tokio::fs::copy(&kernel_path, &jailed_kernel_path).await?;
             debug!("Copied kernel to chroot");
@@ -177,7 +183,9 @@ pub async fn start_jailed_firecracker(
     }
 
     match tokio::fs::hard_link(&rootfs_path, &jailed_rootfs_path).await {
-        Ok(_) => { debug!("Created hard link to rootfs in chroot"); }
+        Ok(_) => {
+            debug!("Created hard link to rootfs in chroot");
+        }
         Err(_) => {
             tokio::fs::copy(&rootfs_path, &jailed_rootfs_path).await?;
             debug!("Copied rootfs to chroot");
@@ -199,8 +207,12 @@ pub async fn start_jailed_firecracker(
     jailer_cmd.stderr(std::process::Stdio::piped());
 
     // 6. Spawn jailer process
-    let mut child = jailer_cmd.spawn().context("Failed to spawn jailer process")?;
-    let pid = child.id().ok_or_else(|| anyhow!("Failed to get jailer PID"))?;
+    let mut child = jailer_cmd
+        .spawn()
+        .context("Failed to spawn jailer process")?;
+    let pid = child
+        .id()
+        .ok_or_else(|| anyhow!("Failed to get jailer PID"))?;
 
     // 7. Wait for socket to be ready
     let jailed_socket_path = chroot_dir.join("run").join(socket_name);
@@ -219,7 +231,9 @@ pub async fn start_jailed_firecracker(
 
     if !socket_ready {
         let _ = child.kill().await;
-        return Err(anyhow!("Jailed Firecracker API socket did not appear in time"));
+        return Err(anyhow!(
+            "Jailed Firecracker API socket did not appear in time"
+        ));
     }
 
     let socket_path = jailed_socket_path.to_str().unwrap().to_string();
@@ -292,22 +306,31 @@ async fn configure_jailed_vm(socket_path: &str, config: &VmConfig) -> Result<()>
     let stream = tokio::net::UnixStream::connect(socket_path).await?;
     let io = TokioIo::new(stream);
     let (mut sender, conn) = hyper::client::conn::http1::handshake(io).await?;
-    tokio::task::spawn(async move { let _ = conn.await; });
+    tokio::task::spawn(async move {
+        let _ = conn.await;
+    });
 
     let boot_source = BootSource {
         kernel_image_path: config.kernel_path.clone(),
         boot_args: Some("console=ttyS0 reboot=k panic=1 pci=off".to_string()),
     };
     let json = serde_json::to_string(&boot_source)?;
-    let req = Request::builder().method(hyper::Method::PUT).uri("http://localhost/boot-source")
-        .header("Content-Type", "application/json").body(Full::new(Bytes::from(json)))?;
+    let req = Request::builder()
+        .method(hyper::Method::PUT)
+        .uri("http://localhost/boot-source")
+        .header("Content-Type", "application/json")
+        .body(Full::new(Bytes::from(json)))?;
     let res = sender.send_request(req).await?;
-    if !res.status().is_success() && res.status() != StatusCode::NO_CONTENT { return Err(anyhow!("Failed to configure boot source")); }
+    if !res.status().is_success() && res.status() != StatusCode::NO_CONTENT {
+        return Err(anyhow!("Failed to configure boot source"));
+    }
 
     let stream = tokio::net::UnixStream::connect(socket_path).await?;
     let io = TokioIo::new(stream);
     let (mut sender, conn) = hyper::client::conn::http1::handshake(io).await?;
-    tokio::task::spawn(async move { let _ = conn.await; });
+    tokio::task::spawn(async move {
+        let _ = conn.await;
+    });
 
     let rootfs = Drive {
         drive_id: "rootfs".to_string(),
@@ -316,22 +339,37 @@ async fn configure_jailed_vm(socket_path: &str, config: &VmConfig) -> Result<()>
         is_read_only: false,
     };
     let json = serde_json::to_string(&rootfs)?;
-    let req = Request::builder().method(hyper::Method::PUT).uri("http://localhost/drives/rootfs")
-        .header("Content-Type", "application/json").body(Full::new(Bytes::from(json)))?;
+    let req = Request::builder()
+        .method(hyper::Method::PUT)
+        .uri("http://localhost/drives/rootfs")
+        .header("Content-Type", "application/json")
+        .body(Full::new(Bytes::from(json)))?;
     let res = sender.send_request(req).await?;
-    if !res.status().is_success() && res.status() != StatusCode::NO_CONTENT { return Err(anyhow!("Failed to configure rootfs")); }
+    if !res.status().is_success() && res.status() != StatusCode::NO_CONTENT {
+        return Err(anyhow!("Failed to configure rootfs"));
+    }
 
     let stream = tokio::net::UnixStream::connect(socket_path).await?;
     let io = TokioIo::new(stream);
     let (mut sender, conn) = hyper::client::conn::http1::handshake(io).await?;
-    tokio::task::spawn(async move { let _ = conn.await; });
+    tokio::task::spawn(async move {
+        let _ = conn.await;
+    });
 
-    let machine_config = MachineConfiguration { vcpu_count: config.vcpu_count, mem_size_mib: config.memory_mb };
+    let machine_config = MachineConfiguration {
+        vcpu_count: config.vcpu_count,
+        mem_size_mib: config.memory_mb,
+    };
     let json = serde_json::to_string(&machine_config)?;
-    let req = Request::builder().method(hyper::Method::PUT).uri("http://localhost/machine-config")
-        .header("Content-Type", "application/json").body(Full::new(Bytes::from(json)))?;
+    let req = Request::builder()
+        .method(hyper::Method::PUT)
+        .uri("http://localhost/machine-config")
+        .header("Content-Type", "application/json")
+        .body(Full::new(Bytes::from(json)))?;
     let res = sender.send_request(req).await?;
-    if !res.status().is_success() && res.status() != StatusCode::NO_CONTENT { return Err(anyhow!("Failed to configure machine")); }
+    if !res.status().is_success() && res.status() != StatusCode::NO_CONTENT {
+        return Err(anyhow!("Failed to configure machine"));
+    }
 
     Ok(())
 }
@@ -343,19 +381,30 @@ async fn start_instance(socket_path: &str) -> Result<()> {
     use hyper_util::rt::TokioIo;
 
     #[derive(serde::Serialize)]
-    struct Action { action_type: String }
+    struct Action {
+        action_type: String,
+    }
 
     let stream = tokio::net::UnixStream::connect(socket_path).await?;
     let io = TokioIo::new(stream);
     let (mut sender, conn) = hyper::client::conn::http1::handshake(io).await?;
-    tokio::task::spawn(async move { let _ = conn.await; });
+    tokio::task::spawn(async move {
+        let _ = conn.await;
+    });
 
-    let action = Action { action_type: "InstanceStart".to_string() };
+    let action = Action {
+        action_type: "InstanceStart".to_string(),
+    };
     let json = serde_json::to_string(&action)?;
-    let req = Request::builder().method(hyper::Method::PUT).uri("http://localhost/actions")
-        .header("Content-Type", "application/json").body(Full::new(Bytes::from(json)))?;
+    let req = Request::builder()
+        .method(hyper::Method::PUT)
+        .uri("http://localhost/actions")
+        .header("Content-Type", "application/json")
+        .body(Full::new(Bytes::from(json)))?;
     let res = sender.send_request(req).await?;
-    if !res.status().is_success() && res.status() != StatusCode::NO_CONTENT { return Err(anyhow!("Failed to start instance")); }
+    if !res.status().is_success() && res.status() != StatusCode::NO_CONTENT {
+        return Err(anyhow!("Failed to start instance"));
+    }
 
     Ok(())
 }
@@ -363,9 +412,13 @@ async fn start_instance(socket_path: &str) -> Result<()> {
 fn verify_jailer_executable() -> Result<()> {
     use std::os::unix::fs::PermissionsExt;
     let jailer_path = Path::new("/usr/local/bin/jailer");
-    if !jailer_path.exists() { anyhow::bail!("Jailer binary not found"); }
+    if !jailer_path.exists() {
+        anyhow::bail!("Jailer binary not found");
+    }
     let metadata = jailer_path.metadata()?;
-    if metadata.permissions().mode() & 0o111 == 0 { anyhow::bail!("Jailer binary is not executable"); }
+    if metadata.permissions().mode() & 0o111 == 0 {
+        anyhow::bail!("Jailer binary is not executable");
+    }
     Ok(())
 }
 

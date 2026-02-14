@@ -48,6 +48,11 @@ chrono = { version = "0.4", features = ["serde"] }
 # UUID generation
 uuid = { version = "1.0", features = ["v4"] }
 
+# macOS-specific vz dependency (Virtualization.framework bindings)
+# Uncomment when building on macOS:
+# [target.'cfg(target_os = "macos")'.dependencies]
+# vz = "0.5"  # Or available version of vz crate
+
 [target.'cfg(windows)'.dependencies]
 libwhp = { git = "https://github.com/insula-rs/libwhp", rev = "5a378c4" }
 
