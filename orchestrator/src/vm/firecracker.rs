@@ -1,4 +1,3 @@
-#![cfg(unix)]
 // Firecracker Integration
 //
 // This module handles the actual Firecracker VM spawning using the HTTP API over Unix sockets.
@@ -322,6 +321,7 @@ async fn start_instance(client: &mut FirecrackerClient) -> Result<()> {
     Ok(())
 }
 
+#[cfg(test)]
 fn create_rootfs_drive(path: &str) -> Drive {
     Drive {
         drive_id: "rootfs".to_string(),

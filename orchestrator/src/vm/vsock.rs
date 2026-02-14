@@ -1,4 +1,3 @@
-#![cfg(unix)]
 // vsock-based Host-Guest Communication
 //
 // This module implements secure communication between host and guest VMs

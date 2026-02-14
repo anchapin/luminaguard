@@ -1,13 +1,14 @@
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
+#[cfg(windows)]
 use libwhp::{
     Partition,
-    VirtualProcessor,
     WHV_PARTITION_PROPERTY,
     WHV_PARTITION_PROPERTY_CODE,
 };
 use std::time::Instant;
-use std::sync::{Arc, Mutex};
+#[cfg(windows)]
+use std::sync::mpsc;
 use tracing::info;
 
 use crate::vm::config::VmConfig;
@@ -35,12 +36,20 @@ impl Hypervisor for HypervHypervisor {
     }
 }
 
+/// Commands for the background Hyper-V thread
+#[cfg(windows)]
+enum HypervCommand {
+    Stop,
+}
+
 /// Hyper-V (WHPX) VM instance
 pub struct HypervInstance {
     pub id: String,
     pub spawn_time_ms: f64,
+    // We use a sender to communicate with the background thread that owns the Partition.
+    // This decouples the !Send Partition from the VmInstance, making VmInstance Send + Sync.
     #[cfg(windows)]
-    partition: Arc<Mutex<Partition>>,
+    sender: mpsc::Sender<HypervCommand>,
 }
 
 #[cfg(windows)]
@@ -49,36 +58,79 @@ impl HypervInstance {
         let start_time = Instant::now();
         info!("Starting Hyper-V (WHPX) VM: {}", config.vm_id);
 
-        // 1. Create WHPX partition
-        let mut partition = Partition::new().map_err(|e| anyhow!("Failed to create WHPX partition: {:?}", e))?;
+        let vm_id = config.vm_id.clone();
+        let vcpu_count = config.vcpu_count;
 
-        // 2. Configure partition
-        let vcpu_count_u32 = config.vcpu_count as u32;
-        let partition_property = WHV_PARTITION_PROPERTY {
-            ProcessorCount: vcpu_count_u32,
-        };
-        partition
-            .set_property(
-                WHV_PARTITION_PROPERTY_CODE::WHV_PARTITION_PROPERTY_CODE_PROCESSOR_COUNT,
+        // Create channels for communication
+        let (cmd_tx, cmd_rx) = mpsc::channel();
+        let (init_tx, init_rx) = mpsc::channel();
+
+        // Spawn a background thread to own the Partition
+        // This thread will handle initialization and the message loop.
+        std::thread::spawn(move || {
+            // 1. Create WHPX partition
+            let mut partition = match Partition::new() {
+                Ok(p) => p,
+                Err(e) => {
+                    let _ = init_tx.send(Err(anyhow!("Failed to create WHPX partition: {:?}", e)));
+                    return;
+                }
+            };
+
+            // 2. Configure partition
+            let vcpu_count_u32 = vcpu_count as u32;
+            let partition_property = WHV_PARTITION_PROPERTY {
+                ProcessorCount: vcpu_count_u32,
+            };
+
+            if let Err(e) = partition.set_property(
+                WHV_PARTITION_PROPERTY_CODE::WHvPartitionPropertyCodeProcessorCount,
                 &partition_property,
-            )
-            .map_err(|e| anyhow!("Failed to set vCPU count: {:?}", e))?;
+            ) {
+                let _ = init_tx.send(Err(anyhow!("Failed to set vCPU count: {:?}", e)));
+                return;
+            }
 
-        // TODO: Map memory, setup vCPUs, load kernel/rootfs
-        // This is a complex process in WHPX and requires a full VMM implementation.
-        // For now, we provide the skeletal implementation of the traits.
+            // TODO: Map memory, setup vCPUs, load kernel/rootfs
+            // This is a complex process in WHPX and requires a full VMM implementation.
 
-        partition.setup().map_err(|e| anyhow!("Failed to setup WHPX partition: {:?}", e))?;
+            if let Err(e) = partition.setup() {
+                 let _ = init_tx.send(Err(anyhow!("Failed to setup WHPX partition: {:?}", e)));
+                 return;
+            }
 
-        let elapsed = start_time.elapsed();
-        let spawn_time_ms = elapsed.as_secs_f64() * 1000.0;
+            // Initialization successful
+            if init_tx.send(Ok(())).is_err() {
+                // Main thread died?
+                return;
+            }
 
-        Ok(Self {
-            id: config.vm_id.clone(),
-            spawn_time_ms,
-            #[cfg(windows)]
-            partition: Arc::new(Mutex::new(partition)),
-        })
+            // 3. Message Loop
+            while let Ok(cmd) = cmd_rx.recv() {
+                match cmd {
+                    HypervCommand::Stop => {
+                        info!("Stopping Hyper-V partition thread for {}", vm_id);
+                        break; // Breaking the loop drops the partition
+                    }
+                }
+            }
+        });
+
+        // Wait for initialization result from the thread
+        match init_rx.recv() {
+            Ok(Ok(())) => {
+                let elapsed = start_time.elapsed();
+                let spawn_time_ms = elapsed.as_secs_f64() * 1000.0;
+
+                Ok(Self {
+                    id: config.vm_id.clone(),
+                    spawn_time_ms,
+                    sender: cmd_tx,
+                })
+            }
+            Ok(Err(e)) => Err(e),
+            Err(_) => Err(anyhow!("Hyper-V background thread panicked or exited early")),
+        }
     }
 }
 
@@ -106,7 +158,13 @@ impl VmInstance for HypervInstance {
 
     async fn stop(&mut self) -> Result<()> {
         info!("Stopping Hyper-V VM (ID: {})", self.id);
-        // The partition is automatically terminated when the Arc<Mutex<Partition>> is dropped.
+        #[cfg(windows)]
+        {
+            // Send stop command to background thread
+            // We use standard mpsc, so send is synchronous but non-blocking for unbounded channels
+            self.sender.send(HypervCommand::Stop)
+                .map_err(|_| anyhow!("Failed to send stop command to Hyper-V thread"))?;
+        }
         Ok(())
     }
 }
@@ -135,4 +193,3 @@ mod tests {
         }
     }
 }
-

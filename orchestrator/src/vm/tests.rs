@@ -1,3 +1,4 @@
+#![cfg(unix)]
 // Comprehensive Integration and Security Tests
 //
 // This module contains comprehensive tests for network isolation,

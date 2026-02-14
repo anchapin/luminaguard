@@ -1,3 +1,4 @@
+#![cfg(unix)]
 // Real Integration Tests for Firecracker VM Module
 //
 // This module contains comprehensive integration tests that run against

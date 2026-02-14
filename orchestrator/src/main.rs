@@ -18,7 +18,7 @@ use tracing_subscriber::EnvFilter;
 
 /// LuminaGuard: Local-first Agentic AI Runtime
 #[derive(Parser, Debug)]
-#[command(name = "luminaguard)]
+#[command(name = "luminaguard")]
 #[command(author = "LuminaGuard Contributors")]
 #[command(version = "0.1.0")]
 #[command(about = "Secure agentic AI runtime with JIT Micro-VMs", long_about = None)]
@@ -106,7 +106,7 @@ async fn main() -> Result<()> {
             test_vm_prototype().await?;
         }
         None => {
-            info!("No command specified. Use 'luminaguard --help' for usage.");
+            info!("No command specified. Use \"luminaguard --help\" for usage.");
         }
     }
 
@@ -293,7 +293,7 @@ mod tests {
 
     #[test]
     fn test_args_parsing() {
-        let args = Args::parse_from(["luminaguard, "run", "test task"]);
+        let args = Args::parse_from(["luminaguard", "run", "test task"]);
         assert!(matches!(args.command, Some(Commands::Run { .. })));
     }
 

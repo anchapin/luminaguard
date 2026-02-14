@@ -1,3 +1,4 @@
+#![cfg(unix)]
 // End-to-End Integration Tests for VM Module
 //
 // These tests cover complete workflows from start to finish,
