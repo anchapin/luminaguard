@@ -20,7 +20,7 @@ Before verifying network isolation, ensure:
 Use the built-in verification function:
 
 ```rust
-use ironclaw_orchestrator::vm::{spawn_vm, verify_network_isolation};
+use luminaguard_orchestrator::vm::{spawn_vm, verify_network_isolation};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -48,8 +48,8 @@ async fn main() -> Result<()> {
 Inspect iptables rules directly:
 
 ```bash
-# List all IronClaw firewall chains
-sudo iptables -L | grep IRONCLAW
+# List all LuminaGuard firewall chains
+sudo iptables -L | grep LUMINAGUARD
 
 # Inspect specific VM chain
 sudo iptables -L LUMINAGUARD_vm_test_task -n -v
@@ -70,7 +70,7 @@ DROP       all  --  0.0.0.0/0            0.0.0.0/0
 Verify that VM configuration has networking disabled:
 
 ```rust
-use ironclaw_orchestrator::vm::config::VmConfig;
+use luminaguard_orchestrator::vm::config::VmConfig;
 
 let config = VmConfig::new("test-vm".to_string());
 
@@ -105,7 +105,7 @@ ping -c 1 192.168.1.1
 # Expected: Network is unreachable
 
 # Test vsock communication (should work)
-echo "test" | nc -U /tmp/ironclaw/vsock/vm-test.sock
+echo "test" | nc -U /tmp/luminaguard/vsock/vm-test.sock
 # Expected: Connection succeeds
 ```
 
@@ -131,7 +131,7 @@ Verify that firewall chains are created for each VM:
 cargo test test_multiple_vms_isolation
 
 # Check that unique chains exist
-sudo iptables -L | grep IRONCLAW | wc -l
+sudo iptables -L | grep LUMINAGUARD | wc -l
 # Expected: 2 or more chains
 ```
 
@@ -222,7 +222,7 @@ iptables --version
 sudo luminaguard-orchestrator
 
 # Option 2: Grant capabilities
-sudo setcap cap_net_admin+ep ironclaw-orchestrator
+sudo setcap cap_net_admin+ep luminaguard-orchestrator
 ```
 
 ### Issue 2: Firewall chain not found
@@ -232,7 +232,7 @@ sudo setcap cap_net_admin+ep ironclaw-orchestrator
 **Diagnosis**:
 ```bash
 # Check if chain exists
-sudo iptables -L | grep IRONCLAW
+sudo iptables -L | grep LUMINAGUARD
 
 # Check orchestrator logs
 journalctl -u luminaguard-orchestrator | grep -i firewall
@@ -253,10 +253,10 @@ journalctl -u luminaguard-orchestrator | grep -i firewall
 # (From orchestrator code or logs)
 
 # Check firewall rules
-sudo iptables -L IRONCLAW_vm_<id> -n -v
+sudo iptables -L LUMINAGUARD_vm_<id> -n -v
 
 # Check packet counters
-sudo iptables -L IRONCLAW_vm_<id> -n -v -Z
+sudo iptables -L LUMINAGUARD_vm_<id> -n -v -Z
 ```
 
 **Solution**:
@@ -280,8 +280,8 @@ sudo setcap cap_net_admin,cap_net_raw+ep luminaguard-orchestrator
 Regularly audit firewall rules:
 
 ```bash
-# List all IronClaw rules
-sudo iptables -L | grep -A 5 IRONCLAW
+# List all LuminaGuard rules
+sudo iptables -L | grep -A 5 LUMINAGUARD
 ```
 
 ### 3. Validate Configuration

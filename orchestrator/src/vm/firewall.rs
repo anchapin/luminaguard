@@ -357,7 +357,7 @@ mod tests {
     fn test_firewall_manager_creation() {
         let manager = FirewallManager::new("test-vm".to_string());
         assert_eq!(manager.vm_id(), "test-vm");
-        assert!(manager.chain_name().contains("IRONCLAW"));
+        assert!(manager.chain_name().contains("LUMINAGUARD"));
         assert!(manager.chain_name().contains("test_vm"));
     }
 

@@ -10,7 +10,7 @@ The Snapshot Pool feature enables fast VM spawning (10-50ms) by maintaining a po
 
 1. **Snapshot Module** (`vm/snapshot.rs`)
    - Creates and loads VM snapshots
-   - Stores snapshots at `/var/lib/ironclaw/snapshots/{snapshot_id}/`
+   - Stores snapshots at `/var/lib/luminaguard/snapshots/{snapshot_id}/`
    - Target load time: <20ms
 
 2. **Pool Module** (`vm/pool.rs`)
@@ -32,7 +32,7 @@ Each snapshot contains:
 
 Example structure:
 ```
-/var/lib/ironclaw/snapshots/
+/var/lib/luminaguard/snapshots/
 ├── pool-snapshot-abc123/
 │   ├── memory.snap
 │   └── vmstate.json
@@ -48,21 +48,21 @@ Example structure:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `IRONCLAW_POOL_SIZE` | `5` | Number of snapshots to maintain (1-20) |
-| `IRONCLAW_SNAPSHOT_REFRESH_SECS` | `3600` | Refresh interval in seconds (min: 60) |
-| `IRONCLAW_SNAPSHOT_PATH` | `/var/lib/ironclaw/snapshots` | Snapshot storage location |
+| `LUMINAGUARD_POOL_SIZE` | `5` | Number of snapshots to maintain (1-20) |
+| `LUMINAGUARD_SNAPSHOT_REFRESH_SECS` | `3600` | Refresh interval in seconds (min: 60) |
+| `LUMINAGUARD_SNAPSHOT_PATH` | `/var/lib/luminaguard/snapshots` | Snapshot storage location |
 
 ### Example Configuration
 
 ```bash
 # Set pool size to 10 VMs
-export IRONCLAW_POOL_SIZE=10
+export LUMINAGUARD_POOL_SIZE=10
 
 # Refresh snapshots every 30 minutes
-export IRONCLAW_SNAPSHOT_REFRESH_SECS=1800
+export LUMINAGUARD_SNAPSHOT_REFRESH_SECS=1800
 
 # Use custom snapshot path
-export IRONCLAW_SNAPSHOT_PATH=/mnt/fast-storage/snapshots
+export LUMINAGUARD_SNAPSHOT_PATH=/mnt/fast-storage/snapshots
 ```
 
 ## Usage
@@ -70,7 +70,7 @@ export IRONCLAW_SNAPSHOT_PATH=/mnt/fast-storage/snapshots
 ### Basic VM Spawn
 
 ```rust
-use ironclaw_orchestrator::vm;
+use luminaguard_orchestrator::vm;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -90,7 +90,7 @@ async fn main() -> anyhow::Result<()> {
 ### Warm Up Pool on Startup
 
 ```rust
-use ironclaw_orchestrator::vm;
+use luminaguard_orchestrator::vm;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -108,7 +108,7 @@ async fn main() -> anyhow::Result<()> {
 ### Monitor Pool Statistics
 
 ```rust
-use ironclaw_orchestrator::vm;
+use luminaguard_orchestrator::vm;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -126,7 +126,7 @@ async fn main() -> anyhow::Result<()> {
 ### Custom Pool Configuration
 
 ```rust
-use ironclaw_orchestrator::vm::pool::{PoolConfig, SnapshotPool};
+use luminaguard_orchestrator::vm::pool::{PoolConfig, SnapshotPool};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -287,17 +287,17 @@ Caused by: Permission denied (os error 13)
 
 **Solution**: Create snapshot directory with correct permissions:
 ```bash
-sudo mkdir -p /var/lib/ironclaw/snapshots
-sudo chown $USER:$USER /var/lib/ironclaw/snapshots
+sudo mkdir -p /var/lib/luminaguard/snapshots
+sudo chown $USER:$USER /var/lib/luminaguard/snapshots
 ```
 
-Or use custom path via `IRONCLAW_SNAPSHOT_PATH`.
+Or use custom path via `LUMINAGUARD_SNAPSHOT_PATH`.
 
 ### Pool Not Initializing
 
 Check logs for initialization errors:
 ```bash
-RUST_LOG=debug ironclaw
+RUST_LOG=debug luminaguard
 ```
 
 Common issues:

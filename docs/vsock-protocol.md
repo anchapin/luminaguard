@@ -529,10 +529,10 @@ echo -ne '\x00\x00\x00\x2C{"Request":{"id":"1","method":"test","params":{}}}' | 
 **Solution**:
 ```bash
 # Check socket exists
-ls -l /tmp/ironclaw/vsock/vm-123.sock
+ls -l /tmp/luminaguard/vsock/vm-123.sock
 
 # Check permissions
-stat /tmp/ironclaw/vsock/vm-123.sock
+stat /tmp/luminaguard/vsock/vm-123.sock
 
 # Restart orchestrator
 ```

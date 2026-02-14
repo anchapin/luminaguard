@@ -245,7 +245,7 @@ vm::destroy_vm(handle).await?;
 
 **Snapshot Pool API:**
 ```rust
-use ironclaw_orchestrator::vm;
+use luminaguard_orchestrator::vm;
 
 // Warm up pool on startup (pre-creates 5 snapshots)
 vm::warmup_pool().await?;
@@ -263,7 +263,7 @@ let handle = vm::spawn_vm("task").await?; // Uses pool if available
 |----------|---------|-------------|
 | `LUMINAGUARD_POOL_SIZE` | `5` | Number of snapshots to maintain (1-20) |
 | `LUMINAGUARD_SNAPSHOT_REFRESH_SECS` | `3600` | Refresh interval in seconds (min: 60) |
-| `LUMINAGUARD_SNAPSHOT_PATH` | `/var/lib/ironclaw/snapshots` | Snapshot storage location |
+| `LUMINAGUARD_SNAPSHOT_PATH` | `/var/lib/luminaguard/snapshots` | Snapshot storage location |
 
 **VM Module Status:**
 - ✅ Basic Firecracker integration (~110ms spawn time)

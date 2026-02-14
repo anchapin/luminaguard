@@ -5,7 +5,7 @@ edition = "2021"
 authors = ["LuminaGuard Contributors"]
 description = "Local-first Agentic AI Runtime - Rust LuminaGuard Orchestrator"
 license = "MIT"
-repository = "https://github.com/your-username/ironclaw"
+repository = "https://github.com/your-username/luminaguard"
 readme = "../README.md"
 
 [dependencies]

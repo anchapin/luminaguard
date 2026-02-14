@@ -10,8 +10,8 @@
 
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
-use ironclaw_orchestrator::mcp::{McpClient, StdioTransport};
-use ironclaw_orchestrator::vm::{self, destroy_vm};
+use luminaguard_orchestrator::mcp::{McpClient, StdioTransport};
+use luminaguard_orchestrator::vm::{self, destroy_vm};
 use serde_json::json;
 use tracing::{error, info, Level};
 use tracing_subscriber::EnvFilter;
@@ -106,7 +106,7 @@ async fn main() -> Result<()> {
             test_vm_prototype().await?;
         }
         None => {
-            info!("No command specified. Use 'ironclaw --help' for usage.");
+            info!("No command specified. Use 'luminaguard --help' for usage.");
         }
     }
 
@@ -261,7 +261,7 @@ async fn test_mcp(command: Option<String>, args: Vec<String>, list_tools_only: b
 /// Test Firecracker feasibility prototype
 #[cfg(feature = "vm-prototype")]
 async fn test_vm_prototype() -> Result<()> {
-    use ironclaw_orchestrator::vm::prototype::{self, Recommendation};
+    use luminaguard_orchestrator::vm::prototype::{self, Recommendation};
 
     // Run the feasibility test
     let result = prototype::run_feasibility_test().await;

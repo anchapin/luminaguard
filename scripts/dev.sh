@@ -1,16 +1,16 @@
 #!/bin/bash
-# IronClaw Development Environment Setup
-# This script sets up the development environment for IronClaw
+# LuminaGuard Development Environment Setup
+# This script sets up the development environment for LuminaGuard
 
 set -e
 
-echo "🦊 IronClaw Development Environment Setup"
+echo "🦊 LuminaGuard Development Environment Setup"
 echo "=========================================="
 echo ""
 
 # Check if we're in the right directory
 if [ ! -f "Cargo.toml" ] && [ ! -f "orchestrator/Cargo.toml" ]; then
-    echo "❌ Error: Please run this script from the IronClaw root directory"
+    echo "❌ Error: Please run this script from the LuminaGuard root directory"
     exit 1
 fi
 

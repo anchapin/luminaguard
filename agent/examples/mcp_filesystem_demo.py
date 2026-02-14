@@ -75,7 +75,7 @@ def demo_filesystem_operations():
 
             # Step 4: Write a file
             print("\n✍️  Step 4: Writing file...")
-            test_file = Path(tmpdir) / "ironclaw_demo.txt"
+            test_file = Path(tmpdir) / "luminaguard_demo.txt"
             write_result = client.call_tool(
                 "write_file",
                 {

@@ -141,7 +141,7 @@ impl VsockHostListener {
     ///
     /// * `VsockHostListener` - Host-side listener
     pub async fn new(vm_id: String) -> Result<Self> {
-        let socket_dir = "/tmp/ironclaw/vsock";
+        let socket_dir = "/tmp/luminaguard/vsock";
         fs::create_dir_all(socket_dir)
             .await
             .context("Failed to create vsock directory")?;
@@ -203,7 +203,7 @@ impl VsockHostListener {
 
     /// Get the socket path (for passing to guest)
     pub fn socket_path(&self) -> String {
-        format!("/tmp/ironclaw/vsock/{}.sock", self.vm_id)
+        format!("/tmp/luminaguard/vsock/{}.sock", self.vm_id)
     }
 }
 

@@ -28,7 +28,7 @@ This ensures Jules understands how to set up the LuminaGuard development environ
 
 ## Step 2: Add Jules API Key to GitHub Secrets
 
-1. Go to your repository: https://github.com/anchapin/ironclaw
+1. Go to your repository: https://github.com/anchapin/luminaguard
 2. Navigate to **Settings** → **Secrets and variables** → **Actions**
 3. Click **"New repository secret"**
 4. Name: `JULES_API_KEY`

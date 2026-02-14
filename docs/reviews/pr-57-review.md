@@ -5,7 +5,7 @@
 - Reviewer: Jules (AI Agent)
 
 ## Summary of Changes
-This PR introduces several security-critical modules for the IronClaw orchestrator:
+This PR introduces several security-critical modules for the LuminaGuard orchestrator:
 - `orchestrator/src/vm/firewall.rs`: Implements `FirewallManager` for network isolation using `iptables`.
 - `orchestrator/src/vm/vsock.rs`: Implements `VsockHostListener` and `VsockClient` for secure host-guest communication.
 - `orchestrator/src/vm/seccomp.rs`: Implements `SeccompFilter` for syscall filtering.

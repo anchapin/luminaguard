@@ -209,7 +209,7 @@ conn.handle_messages(handler).await?;
 
 **Guest Side**:
 ```rust
-use ironclaw_orchestrator::vm::vsock::{VsockClient, VsockMessage};
+use luminaguard_orchestrator::vm::vsock::{VsockClient, VsockMessage};
 
 let client = VsockClient::new("/tmp/luminaguard/vsock/vm-123.sock".into());
 let mut conn = client.connect().await?;
@@ -263,7 +263,7 @@ The following security properties are tested:
 sudo luminaguard-orchestrator
 
 # Or give binary capabilities
-sudo setcap cap_net_admin,cap_net_raw+ep ironclaw-orchestrator
+sudo setcap cap_net_admin,cap_net_raw+ep luminaguard-orchestrator
 ```
 
 ### iptables Not Installed

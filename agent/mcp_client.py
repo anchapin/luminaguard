@@ -262,7 +262,7 @@ class McpClient:
         """
         Spawn the orchestrator MCP client process.
 
-        This starts the ironclaw CLI with the `mcp stdio` subcommand,
+        This starts the luminaguard CLI with the `mcp stdio` subcommand,
         which will spawn the MCP server and communicate with it.
 
         Security Note:

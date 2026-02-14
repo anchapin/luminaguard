@@ -304,7 +304,7 @@ User rejects → Cancel, log reason
 
 ## References
 
-- **PRD:** `../ironclaw_prd.md` - Complete product specification
+- **PRD:** `../luminaguard_prd.md` - Complete product specification
 - **CLAUDE.md:** `../CLAUDE.md` - Developer instructions
 - **MCP Protocol:** https://modelcontextprotocol.io/
 - **Nanobot Core:** Reference for Python reasoning loop

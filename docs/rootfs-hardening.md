@@ -52,7 +52,7 @@ LuminaGuard implements **read-only root filesystem hardening** to prevent agents
 ### Default: Ephemeral tmpfs Overlay
 
 ```rust
-use ironclaw_orchestrator::vm::{config::VmConfig, spawn_vm};
+use luminaguard_orchestrator::vm::{config::VmConfig, spawn_vm};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -78,8 +78,8 @@ async fn main() -> anyhow::Result<()> {
 ### Optional: Persistent ext4 Overlay
 
 ```rust
-use ironclaw_orchestrator::vm::config::VmConfig;
-use ironclaw_orchestrator::vm::rootfs::{RootfsConfig, OverlayType};
+use luminaguard_orchestrator::vm::config::VmConfig;
+use luminaguard_orchestrator::vm::rootfs::{RootfsConfig, OverlayType};
 
 let config = VmConfig {
     rootfs_config: Some(RootfsConfig::with_persistent_overlay(

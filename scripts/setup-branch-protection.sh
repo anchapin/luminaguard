@@ -9,7 +9,7 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m'
 
-echo -e "${GREEN}🔒 IronClaw Branch Protection Setup${NC}"
+echo -e "${GREEN}🔒 LuminaGuard Branch Protection Setup${NC}"
 echo ""
 
 # Check if gh CLI is installed
