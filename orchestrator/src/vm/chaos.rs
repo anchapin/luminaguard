@@ -673,7 +673,7 @@ impl ChaosTestHarness {
 
         // Create CPU throttler (10-50ms random delays)
         let throttler = CpuThrottler::new(10, 50);
-        throttler.enable();
+        throttler.enable().await;
 
         let mut total_operations = 0;
         let mut successful_operations = 0;
@@ -909,7 +909,7 @@ impl ChaosTestHarness {
         chaos_monkey.enable();
 
         let throttler = CpuThrottler::new(5, 25); // 5-25ms delays
-        throttler.enable();
+        throttler.enable().await;
 
         let pressure_sim = MemoryPressureSimulator::new(512 * 1024, 5 * 1024 * 1024, 5); // 0.5-5MB
         pressure_sim.enable();
@@ -1059,7 +1059,7 @@ impl ChaosTestHarness {
         chaos_monkey.enable();
 
         let throttler = CpuThrottler::new(5, 20); // 5-20ms delays
-        throttler.enable();
+        throttler.enable().await;
 
         let mut total_operations = 0;
         let mut successful_operations = 0;
@@ -1346,7 +1346,7 @@ mod tests {
     #[tokio::test]
     async fn test_cpu_throttler_enable_disable() {
         let throttler = CpuThrottler::new(10, 50);
-        throttler.enable();
+        throttler.enable().await;
         assert!(throttler.is_enabled());
 
         throttler.disable();
