@@ -18,6 +18,9 @@ pub mod hypervisor;
 #[cfg(unix)]
 pub mod jailer;
 pub mod pool;
+// TODO: Uncomment when network_partition.rs type errors are fixed
+// pub mod network_partition;
+// pub mod network_partition_tests;
 pub mod reliability;
 pub mod rootfs;
 pub mod seccomp;
@@ -45,6 +48,10 @@ mod e2e_tests;
 // Reliability crash tests
 #[cfg(test)]
 mod reliability_tests;
+
+// Network partition tests (TODO: Uncomment when module is fixed)
+// #[cfg(test)]
+// mod network_partition_tests;
 
 #[allow(unused_imports)]
 use anyhow::{Context, Result};

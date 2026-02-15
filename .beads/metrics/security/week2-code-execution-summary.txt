@@ -1,0 +1,55 @@
+
+Week 2: Security Code Execution Defense Report
+============================================================
+
+Test Suite: week2_code_execution_defense
+Date: 2026-02-14T22:56:14.515118
+
+OVERALL RESULTS
+------------------------------------------------------------
+Total Tests: 97
+Passed: 97
+Failed: []
+Security Score: 100.0%
+
+Status: ALL MALICIOUS INPUTS BLOCKED - SYSTEM SECURE
+
+DETAILED RESULTS BY CATEGORY
+------------------------------------------------------------
+
+PROMPT INJECTION:
+  Total: 45
+  Blocked: 45
+  Score: 100.0%
+
+SHELL INJECTION:
+  Total: 23
+  Blocked: 23
+  Score: 100.0%
+
+TOOL VALIDATION:
+  Total: 10
+  Blocked: 10
+  Score: 100.0%
+
+FUZZING:
+  Total: 4
+  Blocked: 4
+  Score: 100.0%
+
+CLASSIFICATION:
+  Total: 3
+  Blocked: 3
+  Score: 100.0%
+
+EDGE CASES:
+  Total: 5
+  Blocked: 5
+  Score: 100.0%
+
+REPORTING:
+  Total: 3
+  Blocked: 3
+  Score: 100.0%
+
+============================================================

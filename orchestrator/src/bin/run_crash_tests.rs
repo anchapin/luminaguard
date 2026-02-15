@@ -69,7 +69,7 @@ async fn main() -> Result<()> {
     info!("Kernel: {}", kernel_path);
     info!("Rootfs: {}", rootfs_path);
     info!("Results: {:?}", results_path);
-    info!();
+    info!("");
 
     // Create test harness
     let harness = CrashTestHarness::new(kernel_path, rootfs_path, results_path)?;
@@ -80,9 +80,9 @@ async fn main() -> Result<()> {
     let results = harness.run_all_tests().await?;
 
     let elapsed = start_time.elapsed();
-    info!();
+    info!("");
     info!("All tests completed in {:?}", elapsed);
-    info!();
+    info!("");
 
     // Generate summary
     let summary = harness.generate_summary(&results);

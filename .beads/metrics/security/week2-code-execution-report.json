@@ -1,0 +1,92 @@
+{
+  "timestamp": "2026-02-14T22:56:14.515118",
+  "test_suite": "week2_code_execution_defense",
+  "total_tests": 97,
+  "passed_tests": 97,
+  "failed_tests": [],
+  "security_score": 100.0,
+  "categories": {
+    "prompt_injection": {
+      "total": 45,
+      "passed": 45,
+      "blocked": 45,
+      "score": 100.0,
+      "subtests": {
+        "sql_injection": 10,
+        "command_injection": 10,
+        "xss": 10,
+        "path_traversal": 8,
+        "ssrf": 8
+      }
+    },
+    "shell_injection": {
+      "total": 23,
+      "passed": 23,
+      "blocked": 23,
+      "score": 100.0,
+      "subtests": {
+        "metacharacter_detection": 11,
+        "combined_patterns": 7,
+        "encoded_patterns": 5
+      }
+    },
+    "tool_validation": {
+      "total": 10,
+      "passed": 10,
+      "blocked": 10,
+      "score": 100.0,
+      "subtests": {
+        "file_operations": 7,
+        "execute_commands": 3,
+        "network_requests": 3
+      }
+    },
+    "fuzzing": {
+      "total": 4,
+      "passed": 4,
+      "blocked": 4,
+      "score": 100.0,
+      "subtests": {
+        "random_strings": 100,
+        "random_lists": 100,
+        "tool_arguments": 50,
+        "json_serialization": 50
+      }
+    },
+    "classification": {
+      "total": 3,
+      "passed": 3,
+      "blocked": 3,
+      "score": 100.0,
+      "subtests": {
+        "dangerous_actions": 10,
+        "safe_actions": 10,
+        "unknown_actions": 3
+      }
+    },
+    "edge_cases": {
+      "total": 5,
+      "passed": 5,
+      "blocked": 5,
+      "score": 100.0,
+      "subtests": {
+        "empty_args": 1,
+        "long_names": 1,
+        "unicode": 1,
+        "nested_args": 1,
+        "special_chars": 5
+      }
+    },
+    "reporting": {
+      "total": 3,
+      "passed": 3,
+      "blocked": 3,
+      "score": 100.0,
+      "subtests": {
+        "test_results": 1,
+        "score_calculation": 1,
+        "summary_generation": 1
+      }
+    }
+  }
+}

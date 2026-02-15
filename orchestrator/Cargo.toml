@@ -35,6 +35,7 @@ reqwest = { version = "0.12", features = ["json"] }
 
 # Random number generation (for retry jitter)
 rand = "0.8"
+fastrand = "2.0"
 
 # Firecracker HTTP client
 hyper = { version = "1.0", features = ["full"] }
@@ -74,6 +75,9 @@ tempfile = "3.10"
 # Async runtime for tests
 futures = "0.3"
 
+# System resource monitoring
+sysinfo = "0.30"
+
 [lib]
 name = "luminaguard_orchestrator"
 path = "src/lib.rs"
@@ -106,6 +110,10 @@ harness = false
 
 [[bench]]
 name = "snapshot_pool"
+harness = false
+
+[[bench]]
+name = "concurrent_agents"
 harness = false
 
 [features]

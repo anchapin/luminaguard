@@ -1,0 +1,719 @@
+{
+  "timestamp": "2026-02-15T04:09:14.924867419+00:00",
+  "test_results": [
+    {
+      "timestamp": "2026-02-15T04:09:14.508224687+00:00",
+      "agent_count": 5,
+      "total_time_ms": 145.06766900000002,
+      "avg_spawn_time_ms": 85.65354420000001,
+      "avg_execute_time_ms": 23.722853399999998,
+      "avg_cleanup_time_ms": 11.336497,
+      "throughput_ops_per_min": 20680.004171018973,
+      "throughput_per_agent_ops_per_min": 4136.0008342037945,
+      "resources": {
+        "cpu_percent": 38.016429435473334,
+        "memory_mb": 210.28028798606576,
+        "memory_peak_mb": 315.4204319790986,
+        "threads_active": 12,
+        "disk_read_mb": 10.0,
+        "disk_write_mb": 5.0
+      },
+      "agent_results": [
+        {
+          "agent_id": "agent-0",
+          "spawn_time_ms": 53.045095,
+          "execute_time_ms": 24.599281,
+          "cleanup_time_ms": 11.508246,
+          "total_time_ms": 89.153212
+        },
+        {
+          "agent_id": "agent-1",
+          "spawn_time_ms": 109.893991,
+          "execute_time_ms": 23.519579,
+          "cleanup_time_ms": 11.138753,
+          "total_time_ms": 144.552663
+        },
+        {
+          "agent_id": "agent-2",
+          "spawn_time_ms": 106.69760600000001,
+          "execute_time_ms": 24.594211,
+          "cleanup_time_ms": 11.190174,
+          "total_time_ms": 142.48234100000002
+        },
+        {
+          "agent_id": "agent-3",
+          "spawn_time_ms": 62.53799,
+          "execute_time_ms": 23.539329000000002,
+          "cleanup_time_ms": 11.073042,
+          "total_time_ms": 97.150821
+        },
+        {
+          "agent_id": "agent-4",
+          "spawn_time_ms": 96.093039,
+          "execute_time_ms": 22.361867,
+          "cleanup_time_ms": 11.772269999999999,
+          "total_time_ms": 130.227786
+        }
+      ],
+      "scaling_factor": 0.2403515705272467
+    },
+    {
+      "timestamp": "2026-02-15T04:09:14.641560407+00:00",
+      "agent_count": 10,
+      "total_time_ms": 133.232298,
+      "avg_spawn_time_ms": 76.7286482,
+      "avg_execute_time_ms": 23.6459025,
+      "avg_cleanup_time_ms": 10.876100899999999,
+      "throughput_ops_per_min": 45034.12528394579,
+      "throughput_per_agent_ops_per_min": 4503.41252839458,
+      "resources": {
+        "cpu_percent": 67.10987711896578,
+        "memory_mb": 163.4274370541733,
+        "memory_peak_mb": 245.14115558125997,
+        "threads_active": 12,
+        "disk_read_mb": 10.0,
+        "disk_write_mb": 5.0
+      },
+      "agent_results": [
+        {
+          "agent_id": "agent-0",
+          "spawn_time_ms": 55.625333,
+          "execute_time_ms": 27.098249000000003,
+          "cleanup_time_ms": 10.660248000000001,
+          "total_time_ms": 93.38405
+        },
+        {
+          "agent_id": "agent-1",
+          "spawn_time_ms": 50.156293,
+          "execute_time_ms": 27.074389,
+          "cleanup_time_ms": 11.742709,
+          "total_time_ms": 88.97380100000001
+        },
+        {
+          "agent_id": "agent-2",
+          "spawn_time_ms": 94.28394,
+          "execute_time_ms": 22.374996,
+          "cleanup_time_ms": 10.409375,
+          "total_time_ms": 127.06857099999999
+        },
+        {
+          "agent_id": "agent-3",
+          "spawn_time_ms": 90.030333,
+          "execute_time_ms": 22.321776,
+          "cleanup_time_ms": 11.655947999999999,
+          "total_time_ms": 124.008247
+        },
+        {
+          "agent_id": "agent-4",
+          "spawn_time_ms": 70.835861,
+          "execute_time_ms": 22.383507,
+          "cleanup_time_ms": 11.745279,
+          "total_time_ms": 104.96489700000001
+        },
+        {
+          "agent_id": "agent-5",
+          "spawn_time_ms": 76.15173,
+          "execute_time_ms": 23.487389,
+          "cleanup_time_ms": 10.581486,
+          "total_time_ms": 110.22095499999999
+        },
+        {
+          "agent_id": "agent-6",
+          "spawn_time_ms": 99.638379,
+          "execute_time_ms": 22.300935000000003,
+          "cleanup_time_ms": 10.189643,
+          "total_time_ms": 132.129207
+        },
+        {
+          "agent_id": "agent-7",
+          "spawn_time_ms": 81.48367900000001,
+          "execute_time_ms": 23.479538,
+          "cleanup_time_ms": 10.618487,
+          "total_time_ms": 115.58185399999999
+        },
+        {
+          "agent_id": "agent-8",
+          "spawn_time_ms": 74.011666,
+          "execute_time_ms": 23.499329,
+          "cleanup_time_ms": 10.578577000000001,
+          "total_time_ms": 108.089772
+        },
+        {
+          "agent_id": "agent-9",
+          "spawn_time_ms": 75.069268,
+          "execute_time_ms": 22.438917,
+          "cleanup_time_ms": 10.579257,
+          "total_time_ms": 108.087632
+        }
+      ],
+      "scaling_factor": 0.11975866755282898
+    },
+    {
+      "timestamp": "2026-02-15T04:09:14.781350228+00:00",
+      "agent_count": 25,
+      "total_time_ms": 139.664339,
+      "avg_spawn_time_ms": 78.56484080000001,
+      "avg_execute_time_ms": 23.584850320000005,
+      "avg_cleanup_time_ms": 11.109827639999999,
+      "throughput_ops_per_min": 107400.35793961691,
+      "throughput_per_agent_ops_per_min": 4296.014317584676,
+      "resources": {
+        "cpu_percent": 41.30883557457342,
+        "memory_mb": 188.16767428267968,
+        "memory_peak_mb": 282.25151142401955,
+        "threads_active": 12,
+        "disk_read_mb": 10.0,
+        "disk_write_mb": 5.0
+      },
+      "agent_results": [
+        {
+          "agent_id": "agent-0",
+          "spawn_time_ms": 92.51245,
+          "execute_time_ms": 22.958042000000003,
+          "cleanup_time_ms": 10.8201,
+          "total_time_ms": 126.290762
+        },
+        {
+          "agent_id": "agent-1",
+          "spawn_time_ms": 85.715815,
+          "execute_time_ms": 25.480771,
+          "cleanup_time_ms": 10.842869,
+          "total_time_ms": 122.039595
+        },
+        {
+          "agent_id": "agent-10",
+          "spawn_time_ms": 74.235688,
+          "execute_time_ms": 24.685071999999998,
+          "cleanup_time_ms": 11.179743,
+          "total_time_ms": 110.100703
+        },
+        {
+          "agent_id": "agent-11",
+          "spawn_time_ms": 52.228346,
+          "execute_time_ms": 24.162306,
+          "cleanup_time_ms": 10.375554000000001,
+          "total_time_ms": 86.766346
+        },
+        {
+          "agent_id": "agent-12",
+          "spawn_time_ms": 106.875358,
+          "execute_time_ms": 21.528847,
+          "cleanup_time_ms": 11.198434,
+          "total_time_ms": 139.602829
+        },
+        {
+          "agent_id": "agent-13",
+          "spawn_time_ms": 57.544545,
+          "execute_time_ms": 23.090604,
+          "cleanup_time_ms": 11.853011,
+          "total_time_ms": 92.48831
+        },
+        {
+          "agent_id": "agent-14",
+          "spawn_time_ms": 68.841979,
+          "execute_time_ms": 25.790484,
+          "cleanup_time_ms": 10.122402000000001,
+          "total_time_ms": 104.755455
+        },
+        {
+          "agent_id": "agent-15",
+          "spawn_time_ms": 61.795961000000005,
+          "execute_time_ms": 24.971775,
+          "cleanup_time_ms": 11.067891999999999,
+          "total_time_ms": 97.835888
+        },
+        {
+          "agent_id": "agent-16",
+          "spawn_time_ms": 73.12289600000001,
+          "execute_time_ms": 25.786374000000002,
+          "cleanup_time_ms": 11.182493,
+          "total_time_ms": 110.09200299999999
+        },
+        {
+          "agent_id": "agent-17",
+          "spawn_time_ms": 105.812476,
+          "execute_time_ms": 21.523968,
+          "cleanup_time_ms": 11.205343,
+          "total_time_ms": 138.541947
+        },
+        {
+          "agent_id": "agent-18",
+          "spawn_time_ms": 58.606586,
+          "execute_time_ms": 22.028483,
+          "cleanup_time_ms": 11.854461,
+          "total_time_ms": 92.48969
+        },
+        {
+          "agent_id": "agent-19",
+          "spawn_time_ms": 97.829818,
+          "execute_time_ms": 22.059484,
+          "cleanup_time_ms": 11.571636999999999,
+          "total_time_ms": 131.461139
+        },
+        {
+          "agent_id": "agent-2",
+          "spawn_time_ms": 106.891908,
+          "execute_time_ms": 21.526726999999998,
+          "cleanup_time_ms": 11.202444,
+          "total_time_ms": 139.621239
+        },
+        {
+          "agent_id": "agent-20",
+          "spawn_time_ms": 94.626503,
+          "execute_time_ms": 22.936963000000002,
+          "cleanup_time_ms": 10.834679,
+          "total_time_ms": 128.398335
+        },
+        {
+          "agent_id": "agent-21",
+          "spawn_time_ms": 74.22344799999999,
+          "execute_time_ms": 24.682921999999998,
+          "cleanup_time_ms": 11.180073,
+          "total_time_ms": 110.086583
+        },
+        {
+          "agent_id": "agent-22",
+          "spawn_time_ms": 86.749956,
+          "execute_time_ms": 24.411549,
+          "cleanup_time_ms": 10.84666,
+          "total_time_ms": 122.008325
+        },
+        {
+          "agent_id": "agent-23",
+          "spawn_time_ms": 51.140574,
+          "execute_time_ms": 23.085234,
+          "cleanup_time_ms": 11.464157,
+          "total_time_ms": 85.690205
+        },
+        {
+          "agent_id": "agent-24",
+          "spawn_time_ms": 84.627353,
+          "execute_time_ms": 24.386729,
+          "cleanup_time_ms": 10.86699,
+          "total_time_ms": 119.88130199999999
+        },
+        {
+          "agent_id": "agent-3",
+          "spawn_time_ms": 59.685758,
+          "execute_time_ms": 23.911384,
+          "cleanup_time_ms": 11.050481,
+          "total_time_ms": 94.647783
+        },
+        {
+          "agent_id": "agent-4",
+          "spawn_time_ms": 52.234986,
+          "execute_time_ms": 22.022641999999998,
+          "cleanup_time_ms": 11.453387000000001,
+          "total_time_ms": 85.711195
+        },
+        {
+          "agent_id": "agent-5",
+          "spawn_time_ms": 72.051804,
+          "execute_time_ms": 24.724673,
+          "cleanup_time_ms": 11.175443,
+          "total_time_ms": 107.95225
+        },
+        {
+          "agent_id": "agent-6",
+          "spawn_time_ms": 70.994363,
+          "execute_time_ms": 25.790054,
+          "cleanup_time_ms": 11.175823,
+          "total_time_ms": 107.96051
+        },
+        {
+          "agent_id": "agent-7",
+          "spawn_time_ms": 74.239188,
+          "execute_time_ms": 24.687002,
+          "cleanup_time_ms": 11.179523,
+          "total_time_ms": 110.105873
+        },
+        {
+          "agent_id": "agent-8",
+          "spawn_time_ms": 95.710575,
+          "execute_time_ms": 21.862981,
+          "cleanup_time_ms": 10.839539,
+          "total_time_ms": 128.413315
+        },
+        {
+          "agent_id": "agent-9",
+          "spawn_time_ms": 105.822686,
+          "execute_time_ms": 21.526188,
+          "cleanup_time_ms": 11.202553,
+          "total_time_ms": 138.55168700000002
+        }
+      ],
+      "scaling_factor": 0.04932542201453373
+    },
+    {
+      "timestamp": "2026-02-15T04:09:14.924861579+00:00",
+      "agent_count": 50,
+      "total_time_ms": 143.40850999999998,
+      "avg_spawn_time_ms": 82.59296688,
+      "avg_execute_time_ms": 23.298992260000006,
+      "avg_cleanup_time_ms": 10.86199312,
+      "throughput_ops_per_min": 209192.60649176262,
+      "throughput_per_agent_ops_per_min": 4183.8521298352525,
+      "resources": {
+        "cpu_percent": 41.81002245947049,
+        "memory_mb": 206.500761038978,
+        "memory_peak_mb": 309.751141558467,
+        "threads_active": 12,
+        "disk_read_mb": 10.0,
+        "disk_write_mb": 5.0
+      },
+      "agent_results": [
+        {
+          "agent_id": "agent-0",
+          "spawn_time_ms": 59.968810999999995,
+          "execute_time_ms": 23.845263,
+          "cleanup_time_ms": 10.656766999999999,
+          "total_time_ms": 94.47120100000001
+        },
+        {
+          "agent_id": "agent-1",
+          "spawn_time_ms": 77.36636299999999,
+          "execute_time_ms": 24.635291,
+          "cleanup_time_ms": 11.77943,
+          "total_time_ms": 113.78139399999999
+        },
+        {
+          "agent_id": "agent-10",
+          "spawn_time_ms": 68.94899,
+          "execute_time_ms": 22.324106,
+          "cleanup_time_ms": 10.715288,
+          "total_time_ms": 101.988654
+        },
+        {
+          "agent_id": "agent-11",
+          "spawn_time_ms": 67.869438,
+          "execute_time_ms": 23.407328000000003,
+          "cleanup_time_ms": 10.712138,
+          "total_time_ms": 101.989124
+        },
+        {
+          "agent_id": "agent-12",
+          "spawn_time_ms": 62.103804,
+          "execute_time_ms": 24.908395,
+          "cleanup_time_ms": 11.77722,
+          "total_time_ms": 98.789709
+        },
+        {
+          "agent_id": "agent-13",
+          "spawn_time_ms": 79.507466,
+          "execute_time_ms": 24.613751,
+          "cleanup_time_ms": 11.806420999999999,
+          "total_time_ms": 115.927798
+        },
+        {
+          "agent_id": "agent-14",
+          "spawn_time_ms": 104.115497,
+          "execute_time_ms": 21.512908,
+          "cleanup_time_ms": 10.559736000000001,
+          "total_time_ms": 136.188281
+        },
+        {
+          "agent_id": "agent-15",
+          "spawn_time_ms": 104.11496700000001,
+          "execute_time_ms": 21.517788,
+          "cleanup_time_ms": 10.554856,
+          "total_time_ms": 136.187741
+        },
+        {
+          "agent_id": "agent-16",
+          "spawn_time_ms": 108.392195,
+          "execute_time_ms": 21.495126,
+          "cleanup_time_ms": 11.420066,
+          "total_time_ms": 141.307527
+        },
+        {
+          "agent_id": "agent-17",
+          "spawn_time_ms": 85.93537699999999,
+          "execute_time_ms": 22.460588,
+          "cleanup_time_ms": 10.776538,
+          "total_time_ms": 119.172653
+        },
+        {
+          "agent_id": "agent-18",
+          "spawn_time_ms": 106.248161,
+          "execute_time_ms": 21.516877,
+          "cleanup_time_ms": 10.479576000000002,
+          "total_time_ms": 138.244854
+        },
+        {
+          "agent_id": "agent-19",
+          "spawn_time_ms": 52.215565,
+          "execute_time_ms": 25.145218,
+          "cleanup_time_ms": 10.708878,
+          "total_time_ms": 88.069781
+        },
+        {
+          "agent_id": "agent-2",
+          "spawn_time_ms": 51.161544000000006,
+          "execute_time_ms": 27.286761,
+          "cleanup_time_ms": 10.697906999999999,
+          "total_time_ms": 89.146342
+        },
+        {
+          "agent_id": "agent-20",
+          "spawn_time_ms": 93.392669,
+          "execute_time_ms": 23.624570000000002,
+          "cleanup_time_ms": 11.805731,
+          "total_time_ms": 128.82310999999999
+        },
+        {
+          "agent_id": "agent-21",
+          "spawn_time_ms": 85.934247,
+          "execute_time_ms": 22.460118,
+          "cleanup_time_ms": 10.776478000000001,
+          "total_time_ms": 119.17098299999999
+        },
+        {
+          "agent_id": "agent-22",
+          "spawn_time_ms": 57.783407000000004,
+          "execute_time_ms": 23.883183,
+          "cleanup_time_ms": 10.663748,
+          "total_time_ms": 92.330558
+        },
+        {
+          "agent_id": "agent-23",
+          "spawn_time_ms": 73.226507,
+          "execute_time_ms": 22.298986,
+          "cleanup_time_ms": 10.720558,
+          "total_time_ms": 106.246341
+        },
+        {
+          "agent_id": "agent-24",
+          "spawn_time_ms": 54.335929,
+          "execute_time_ms": 25.182137,
+          "cleanup_time_ms": 10.683278,
+          "total_time_ms": 90.201544
+        },
+        {
+          "agent_id": "agent-25",
+          "spawn_time_ms": 58.884119,
+          "execute_time_ms": 24.905065,
+          "cleanup_time_ms": 10.663837000000001,
+          "total_time_ms": 94.453151
+        },
+        {
+          "agent_id": "agent-26",
+          "spawn_time_ms": 105.17220900000001,
+          "execute_time_ms": 22.586069000000002,
+          "cleanup_time_ms": 10.482826000000001,
+          "total_time_ms": 138.24124400000002
+        },
+        {
+          "agent_id": "agent-27",
+          "spawn_time_ms": 72.142885,
+          "execute_time_ms": 23.389678,
+          "cleanup_time_ms": 10.708408,
+          "total_time_ms": 106.24112099999999
+        },
+        {
+          "agent_id": "agent-28",
+          "spawn_time_ms": 58.866829,
+          "execute_time_ms": 24.922295000000002,
+          "cleanup_time_ms": 10.661107,
+          "total_time_ms": 94.450471
+        },
+        {
+          "agent_id": "agent-29",
+          "spawn_time_ms": 108.386195,
+          "execute_time_ms": 21.498756,
+          "cleanup_time_ms": 11.415066,
+          "total_time_ms": 141.30016700000002
+        },
+        {
+          "agent_id": "agent-3",
+          "spawn_time_ms": 51.161034,
+          "execute_time_ms": 26.207119000000002,
+          "cleanup_time_ms": 10.710538,
+          "total_time_ms": 88.078811
+        },
+        {
+          "agent_id": "agent-30",
+          "spawn_time_ms": 59.950851,
+          "execute_time_ms": 23.833661999999997,
+          "cleanup_time_ms": 10.665118,
+          "total_time_ms": 94.449781
+        },
+        {
+          "agent_id": "agent-31",
+          "spawn_time_ms": 100.906812,
+          "execute_time_ms": 22.588759,
+          "cleanup_time_ms": 10.566887000000001,
+          "total_time_ms": 134.062588
+        },
+        {
+          "agent_id": "agent-32",
+          "spawn_time_ms": 72.145015,
+          "execute_time_ms": 23.375208,
+          "cleanup_time_ms": 10.722438,
+          "total_time_ms": 106.243001
+        },
+        {
+          "agent_id": "agent-33",
+          "spawn_time_ms": 66.778616,
+          "execute_time_ms": 24.48667,
+          "cleanup_time_ms": 10.711988,
+          "total_time_ms": 101.977464
+        },
+        {
+          "agent_id": "agent-34",
+          "spawn_time_ms": 105.169409,
+          "execute_time_ms": 22.586529000000002,
+          "cleanup_time_ms": 10.482426,
+          "total_time_ms": 138.238514
+        },
+        {
+          "agent_id": "agent-35",
+          "spawn_time_ms": 104.105807,
+          "execute_time_ms": 21.518838,
+          "cleanup_time_ms": 10.552486,
+          "total_time_ms": 136.17728100000002
+        },
+        {
+          "agent_id": "agent-36",
+          "spawn_time_ms": 91.25868600000001,
+          "execute_time_ms": 23.58884,
+          "cleanup_time_ms": 10.765968,
+          "total_time_ms": 125.613644
+        },
+        {
+          "agent_id": "agent-37",
+          "spawn_time_ms": 51.141554,
+          "execute_time_ms": 26.206189000000002,
+          "cleanup_time_ms": 10.712728,
+          "total_time_ms": 88.060891
+        },
+        {
+          "agent_id": "agent-38",
+          "spawn_time_ms": 89.126812,
+          "execute_time_ms": 23.561700000000002,
+          "cleanup_time_ms": 10.797829,
+          "total_time_ms": 123.486551
+        },
+        {
+          "agent_id": "agent-39",
+          "spawn_time_ms": 109.45487700000001,
+          "execute_time_ms": 22.544398,
+          "cleanup_time_ms": 11.361085,
+          "total_time_ms": 143.36051999999998
+        },
+        {
+          "agent_id": "agent-4",
+          "spawn_time_ms": 100.917622,
+          "execute_time_ms": 22.586989,
+          "cleanup_time_ms": 10.569977,
+          "total_time_ms": 134.07471800000002
+        },
+        {
+          "agent_id": "agent-40",
+          "spawn_time_ms": 57.777397,
+          "execute_time_ms": 23.872133,
+          "cleanup_time_ms": 10.673178,
+          "total_time_ms": 92.322858
+        },
+        {
+          "agent_id": "agent-41",
+          "spawn_time_ms": 100.902492,
+          "execute_time_ms": 22.584579,
+          "cleanup_time_ms": 10.571217,
+          "total_time_ms": 134.058478
+        },
+        {
+          "agent_id": "agent-42",
+          "spawn_time_ms": 95.514533,
+          "execute_time_ms": 23.659281,
+          "cleanup_time_ms": 10.702437,
+          "total_time_ms": 129.876411
+        },
+        {
+          "agent_id": "agent-43",
+          "spawn_time_ms": 110.52772800000001,
+          "execute_time_ms": 21.467917,
+          "cleanup_time_ms": 11.364455000000001,
+          "total_time_ms": 143.36025999999998
+        },
+        {
+          "agent_id": "agent-44",
+          "spawn_time_ms": 103.03762599999999,
+          "execute_time_ms": 21.510357,
+          "cleanup_time_ms": 10.568146,
+          "total_time_ms": 135.11626900000002
+        },
+        {
+          "agent_id": "agent-45",
+          "spawn_time_ms": 76.272611,
+          "execute_time_ms": 22.500338000000003,
+          "cleanup_time_ms": 10.679358,
+          "total_time_ms": 109.452907
+        },
+        {
+          "agent_id": "agent-46",
+          "spawn_time_ms": 58.876269,
+          "execute_time_ms": 24.903035,
+          "cleanup_time_ms": 10.664257,
+          "total_time_ms": 94.443681
+        },
+        {
+          "agent_id": "agent-47",
+          "spawn_time_ms": 108.378875,
+          "execute_time_ms": 21.494666,
+          "cleanup_time_ms": 11.419596,
+          "total_time_ms": 141.29326700000001
+        },
+        {
+          "agent_id": "agent-48",
+          "spawn_time_ms": 52.204685,
+          "execute_time_ms": 25.161407999999998,
+          "cleanup_time_ms": 10.691768000000001,
+          "total_time_ms": 88.05801100000001
+        },
+        {
+          "agent_id": "agent-49",
+          "spawn_time_ms": 75.202299,
+          "execute_time_ms": 23.571379999999998,
+          "cleanup_time_ms": 10.678328,
+          "total_time_ms": 109.452197
+        },
+        {
+          "agent_id": "agent-5",
+          "spawn_time_ms": 107.325363,
+          "execute_time_ms": 22.566388,
+          "cleanup_time_ms": 11.417916,
+          "total_time_ms": 141.309817
+        },
+        {
+          "agent_id": "agent-6",
+          "spawn_time_ms": 94.457511,
+          "execute_time_ms": 22.577299,
+          "cleanup_time_ms": 11.79244,
+          "total_time_ms": 128.82742
+        },
+        {
+          "agent_id": "agent-7",
+          "spawn_time_ms": 90.20458400000001,
+          "execute_time_ms": 22.503557999999998,
+          "cleanup_time_ms": 10.789458999999999,
+          "total_time_ms": 123.49780100000001
+        },
+        {
+          "agent_id": "agent-8",
+          "spawn_time_ms": 100.918792,
+          "execute_time_ms": 22.586259000000002,
+          "cleanup_time_ms": 10.570846999999999,
+          "total_time_ms": 134.076058
+        },
+        {
+          "agent_id": "agent-9",
+          "spawn_time_ms": 99.85731,
+          "execute_time_ms": 21.485857,
+          "cleanup_time_ms": 10.670928,
+          "total_time_ms": 132.014245
+        }
+      ],
+      "scaling_factor": 0.024565936694056028
+    }
+  ]
+}
