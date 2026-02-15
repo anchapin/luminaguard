@@ -59,6 +59,12 @@ pub struct SeccompFilter {
     /// Enable audit logging
     #[serde(default = "default_audit_enabled")]
     pub audit_enabled: bool,
+    /// Syscall whitelist for audit logging (only these syscalls are logged)
+    #[serde(default)]
+    pub audit_whitelist: Vec<String>,
+    /// Audit all blocked syscalls (if true, ignores whitelist)
+    #[serde(default)]
+    pub audit_all_blocked: bool,
 }
 
 fn default_audit_enabled() -> bool {
@@ -71,8 +77,38 @@ impl Default for SeccompFilter {
             level: SeccompLevel::Basic,
             custom_rules: Vec::new(),
             audit_enabled: true,
+            audit_whitelist: default_audit_whitelist(),
+            audit_all_blocked: false,
         }
     }
+}
+
+/// Default audit whitelist for rootfs-hardened VMs
+fn default_audit_whitelist() -> Vec<String> {
+    // By default, audit security-sensitive syscalls
+    vec![
+        "execve".to_string(),
+        "execveat".to_string(),
+        "fork".to_string(),
+        "clone".to_string(),
+        "ptrace".to_string(),
+        "mount".to_string(),
+        "umount".to_string(),
+        "pivot_root".to_string(),
+        "chroot".to_string(),
+        "setuid".to_string(),
+        "setgid".to_string(),
+        "setreuid".to_string(),
+        "setregid".to_string(),
+        "setresuid".to_string(),
+        "setresgid".to_string(),
+        "chmod".to_string(),
+        "fchmod".to_string(),
+        "chown".to_string(),
+        "fchown".to_string(),
+        "kill".to_string(),
+        "prctl".to_string(),
+    ]
 }
 
 impl SeccompFilter {
@@ -88,6 +124,40 @@ impl SeccompFilter {
     pub fn add_rule(mut self, rule: SyscallRule) -> Self {
         self.custom_rules.push(rule);
         self
+    }
+
+    /// Add a syscall to the audit whitelist
+    pub fn add_audit_whitelist(mut self, syscall: &str) -> Self {
+        self.audit_whitelist.push(syscall.to_string());
+        self
+    }
+
+    /// Set whether to audit all blocked syscalls
+    pub fn audit_all_blocked(mut self, audit_all: bool) -> Self {
+        self.audit_all_blocked = audit_all;
+        self
+    }
+
+    /// Check if a syscall should be audited
+    pub fn should_audit(&self, syscall: &str) -> bool {
+        if !self.audit_enabled {
+            return false;
+        }
+
+        if self.audit_all_blocked {
+            return true;
+        }
+
+        self.audit_whitelist.contains(&syscall.to_string())
+    }
+
+    /// Get the complete audit whitelist (custom + defaults)
+    pub fn get_audit_whitelist(&self) -> Vec<String> {
+        let mut whitelist = default_audit_whitelist();
+        whitelist.extend(self.audit_whitelist.iter().cloned());
+        whitelist.sort();
+        whitelist.dedup();
+        whitelist
     }
 
     /// Build the syscall whitelist based on filter level
@@ -493,6 +563,109 @@ mod tests {
         let result = validate_seccomp_rules(&filter);
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("audit logging"));
+    }
+
+    #[test]
+    fn test_audit_whitelist_default() {
+        let filter = SeccompFilter::default();
+        assert!(filter.audit_enabled);
+        assert!(!filter.audit_whitelist.is_empty());
+        assert!(!filter.audit_all_blocked);
+    }
+
+    #[test]
+    fn test_add_audit_whitelist() {
+        let filter = SeccompFilter::default()
+            .add_audit_whitelist("custom_syscall")
+            .add_audit_whitelist("another_syscall");
+
+        assert!(filter
+            .audit_whitelist
+            .contains(&"custom_syscall".to_string()));
+        assert!(filter
+            .audit_whitelist
+            .contains(&"another_syscall".to_string()));
+    }
+
+    #[test]
+    fn test_should_audit_with_whitelist() {
+        let filter = SeccompFilter::default().add_audit_whitelist("execve");
+
+        assert!(filter.should_audit("execve"));
+        assert!(filter.should_audit("mount")); // In default whitelist
+        assert!(!filter.should_audit("read")); // Not in whitelist
+    }
+
+    #[test]
+    fn test_should_audit_all_blocked() {
+        let filter = SeccompFilter::default().audit_all_blocked(true);
+
+        assert!(filter.should_audit("execve"));
+        assert!(filter.should_audit("mount"));
+        assert!(filter.should_audit("read"));
+        assert!(filter.should_audit("anything"));
+    }
+
+    #[test]
+    fn test_should_audit_disabled() {
+        let mut filter = SeccompFilter::default();
+        filter.audit_enabled = false;
+
+        assert!(!filter.should_audit("execve"));
+        assert!(!filter.should_audit("mount"));
+    }
+
+    #[test]
+    fn test_get_audit_whitelist_includes_defaults() {
+        let filter = SeccompFilter::default().add_audit_whitelist("custom");
+
+        let whitelist = filter.get_audit_whitelist();
+
+        assert!(whitelist.contains(&"custom".to_string()));
+        assert!(whitelist.contains(&"execve".to_string())); // Default
+        assert!(whitelist.contains(&"mount".to_string())); // Default
+    }
+
+    #[test]
+    fn test_get_audit_whitelist_dedupes() {
+        let filter = SeccompFilter::default().add_audit_whitelist("execve"); // Already in defaults
+
+        let whitelist = filter.get_audit_whitelist();
+
+        // Should not have duplicates
+        let execve_count = whitelist.iter().filter(|s| *s == "execve").count();
+        assert_eq!(execve_count, 1);
+    }
+
+    #[test]
+    fn test_property_audit_security_syscalls() {
+        // Verify all security-sensitive syscalls are in default whitelist
+        let filter = SeccompFilter::default();
+        let whitelist = filter.get_audit_whitelist();
+
+        let security_syscalls = [
+            "execve",
+            "execveat",
+            "fork",
+            "clone",
+            "ptrace",
+            "mount",
+            "umount",
+            "pivot_root",
+            "chroot",
+            "setuid",
+            "setgid",
+            "chmod",
+            "chown",
+        ];
+
+        for syscall in &security_syscalls {
+            assert!(
+                whitelist.contains(&syscall.to_string()),
+                "Security syscall {} should be in audit whitelist",
+                syscall
+            );
+        }
     }
 
     #[tokio::test]

@@ -20,7 +20,7 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph, Wrap},
     Terminal,
 };
-use std::io as _;  // io::stdout is used via crossterm
+use std::io as _; // io::stdout is used via crossterm
 use std::time::{Duration, Instant};
 use tracing::{info, warn};
 
@@ -172,7 +172,7 @@ pub async fn present_tui_approval(diff_card: &DiffCard) -> Result<TuiResult> {
 
     enable_raw_mode()?;
 
-    let mut result = TuiResult::Cancelled;  // Will be set in the loop
+    let mut result = TuiResult::Cancelled; // Will be set in the loop
 
     loop {
         // Check timeout

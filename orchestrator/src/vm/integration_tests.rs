@@ -127,6 +127,7 @@ async fn test_real_vm_spawn_with_config() {
         memory_mb: 1024,
         kernel_path: "./resources/vmlinux".to_string(),
         rootfs_path: "./resources/rootfs.ext4".to_string(),
+        rootfs_config: None,
         enable_networking: false,
         vsock_path: None,
         seccomp_filter: None,

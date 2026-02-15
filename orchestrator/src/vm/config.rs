@@ -2,6 +2,7 @@
 //
 // Firecracker VM configuration for secure agent execution
 
+use crate::vm::rootfs::RootfsConfig;
 use crate::vm::seccomp::SeccompFilter;
 use serde::Deserialize;
 use serde::Serialize;
@@ -22,8 +23,13 @@ pub struct VmConfig {
     /// Kernel image path
     pub kernel_path: String,
 
-    /// Root filesystem path
+    /// Root filesystem path (deprecated, use rootfs_config instead)
+    #[serde(default)]
     pub rootfs_path: String,
+
+    /// Root filesystem configuration with hardening
+    #[serde(default)]
+    pub rootfs_config: Option<RootfsConfig>,
 
     /// Enable networking (default: false for security)
     pub enable_networking: bool,
@@ -45,6 +51,7 @@ impl Default for VmConfig {
             memory_mb: 512,
             kernel_path: "./resources/vmlinux".to_string(),
             rootfs_path: "./resources/rootfs.ext4".to_string(),
+            rootfs_config: Some(RootfsConfig::default()),
             enable_networking: false,
             vsock_path: None,
             seccomp_filter: None,
@@ -66,6 +73,56 @@ impl VmConfig {
         config
     }
 
+    /// Get the effective rootfs path (from rootfs_config if available, else rootfs_path)
+    pub fn effective_rootfs_path(&self) -> &str {
+        if let Some(ref rootfs_config) = self.rootfs_config {
+            &rootfs_config.rootfs_path
+        } else {
+            &self.rootfs_path
+        }
+    }
+
+    /// Check if rootfs hardening is enabled
+    pub fn has_rootfs_hardening(&self) -> bool {
+        self.rootfs_config.is_some()
+            && self
+                .rootfs_config
+                .as_ref()
+                .map(|c| c.read_only)
+                .unwrap_or(false)
+    }
+
+    /// Get kernel boot arguments (including overlay init if rootfs hardening enabled)
+    pub fn get_boot_args(&self) -> String {
+        if let Some(ref rootfs_config) = self.rootfs_config {
+            rootfs_config.get_boot_args()
+        } else {
+            // Default boot args without overlay
+            "console=ttyS0 reboot=k panic=1 pci=off".to_string()
+        }
+    }
+
+    /// Get overlay drive configuration (if using ext4 overlay)
+    pub fn get_overlay_drive(&self) -> Option<OverlayDriveConfig> {
+        if let Some(ref rootfs_config) = self.rootfs_config {
+            if rootfs_config.overlay_type == crate::vm::rootfs::OverlayType::Ext4 {
+                rootfs_config
+                    .overlay_path
+                    .as_ref()
+                    .map(|path| OverlayDriveConfig {
+                        drive_id: "overlayfs".to_string(),
+                        path_on_host: path.clone(),
+                        is_root_device: false,
+                        is_read_only: false,
+                    })
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
+
     /// Validate configuration
     pub fn validate(&self) -> anyhow::Result<()> {
         if self.vcpu_count == 0 {
@@ -83,10 +140,12 @@ impl VmConfig {
     /// Convert to Firecracker JSON config
     pub fn to_firecracker_json(&self) -> String {
         // TODO: Implement actual Firecracker JSON format
+        let boot_args = self.get_boot_args();
         format!(
             r#"{{
   "boot-source": {{
-    "kernel_image_path": "{}"
+    "kernel_image_path": "{}",
+    "boot_args": "{}"
   }},
   "machine-config": {{
     "vcpu_count": {},
@@ -94,7 +153,7 @@ impl VmConfig {
     "ht_enabled": false
   }}
 }}"#,
-            self.kernel_path, self.vcpu_count, self.memory_mb
+            self.kernel_path, boot_args, self.vcpu_count, self.memory_mb
         )
     }
 }
@@ -143,4 +202,50 @@ mod tests {
         assert!(json.contains("boot-source"));
         assert!(json.contains("machine-config"));
     }
+
+    #[test]
+    fn test_effective_rootfs_path_with_config() {
+        let config = VmConfig::new("test-vm".to_string());
+        assert_eq!(config.effective_rootfs_path(), "./resources/rootfs.ext4");
+    }
+
+    #[test]
+    fn test_has_rootfs_hardening() {
+        let config = VmConfig::new("test-vm".to_string());
+        assert!(
+            config.has_rootfs_hardening(),
+            "Rootfs hardening should be enabled by default"
+        );
+    }
+
+    #[test]
+    fn test_get_boot_args_without_hardening() {
+        use crate::vm::rootfs::RootfsConfig;
+        let mut config = VmConfig::new("test-vm".to_string());
+        config.rootfs_config = None;
+        let args = config.get_boot_args();
+        assert!(!args.contains("overlay_root"));
+        assert!(!args.contains("init=/sbin/overlay-init"));
+    }
+
+    #[test]
+    fn test_get_boot_args_with_hardening() {
+        let config = VmConfig::new("test-vm".to_string());
+        let args = config.get_boot_args();
+        assert!(args.contains("overlay_root=ram"));
+        assert!(args.contains("init=/sbin/overlay-init"));
+    }
+}
+
+/// Overlay drive configuration for Firecracker
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OverlayDriveConfig {
+    /// Drive identifier
+    pub drive_id: String,
+    /// Path on host
+    pub path_on_host: String,
+    /// Is root device (always false for overlay)
+    pub is_root_device: bool,
+    /// Is read-only (always false for overlay)
+    pub is_read_only: bool,
 }
