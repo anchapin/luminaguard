@@ -38,6 +38,7 @@ mod integration_tests;
 #[cfg(test)]
 mod e2e_tests;
 
+#[allow(unused_imports)]
 use anyhow::{Context, Result};
 use std::sync::Arc;
 use tokio::sync::{Mutex, OnceCell};
