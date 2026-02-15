@@ -164,7 +164,7 @@ cargo build --release
 Adjust iterations for faster/slower benchmarks:
 
 ```python
-# Python: Edit agent/tests/performance/agent_benchmarks.py
+# Edit agent/tests/performance/agent_benchmarks.py
 ITERATIONS = 100  # Change to desired number
 ```
 

