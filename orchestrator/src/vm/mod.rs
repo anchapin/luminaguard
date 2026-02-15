@@ -7,6 +7,7 @@
 // - Ephemeral: VM destroyed after task completion
 // - Security: No host execution, full isolation
 
+pub mod apple_hv;
 pub mod config;
 #[cfg(unix)]
 pub mod firecracker;

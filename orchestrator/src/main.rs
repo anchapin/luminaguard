@@ -10,11 +10,11 @@
 
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
+use luminaguard_orchestrator::approval::action::ActionType;
+use luminaguard_orchestrator::approval::action::RiskLevel;
 use luminaguard_orchestrator::approval::diff::{Change, DiffCard};
 use luminaguard_orchestrator::approval::tui::TuiResult;
 use luminaguard_orchestrator::mcp::{McpClient, StdioTransport};
-use luminaguard_orchestrator::approval::action::ActionType;
-use luminaguard_orchestrator::approval::action::RiskLevel;
 use luminaguard_orchestrator::vm::{self, destroy_vm};
 use serde_json::json;
 use std::fs;
@@ -358,7 +358,7 @@ async fn present_approval(diff_card_path: &str) -> Result<()> {
     };
 
     let diff_card = DiffCard {
-        action_type: ActionType::Unknown,  // Simplified: use Unknown as placeholder
+        action_type: ActionType::Unknown, // Simplified: use Unknown as placeholder
         description: diff_card_data["description"]
             .as_str()
             .unwrap_or("")

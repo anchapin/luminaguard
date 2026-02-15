@@ -50,10 +50,13 @@ uuid = { version = "1.0", features = ["v4"] }
 ratatui = { version = "0.30.0", features = ["crossterm", "serde", "underline-color"] }
 crossterm = "0.29.0"
 
-# macOS-specific vz dependency (Virtualization.framework bindings)
-# Uncomment when building on macOS:
+# macOS-specific Virtualization.framework bindings
+# NOTE: Currently using stub implementations that match the API shape.
+# To use real Virtualization.framework, uncomment these dependencies:
 # [target.'cfg(target_os = "macos")'.dependencies]
-# vz = "0.5"  # Or available version of vz crate
+# objc2 = "0.5"
+# objc2-foundation = "0.2"
+# objc2-virtualization = "0.2"
 
 [target.'cfg(windows)'.dependencies]
 libwhp = { git = "https://github.com/insula-rs/libwhp", rev = "5a378c4" }
@@ -67,6 +70,9 @@ criterion = "0.8"
 
 # Temporary file management for tests
 tempfile = "3.10"
+
+# Async runtime for tests
+futures = "0.3"
 
 [lib]
 name = "luminaguard_orchestrator"
