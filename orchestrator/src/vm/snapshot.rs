@@ -182,6 +182,7 @@ impl SnapshotClient {
 /// # Performance
 ///
 /// Target: <100ms to create snapshot
+#[cfg(unix)]
 pub async fn create_snapshot_with_api(
     vm_id: &str,
     snapshot_id: &str,
@@ -355,6 +356,7 @@ pub async fn create_snapshot(vm_id: &str, snapshot_id: &str) -> Result<Snapshot>
 /// # Performance
 ///
 /// Target: <20ms to load snapshot
+#[cfg(unix)]
 pub async fn load_snapshot_with_api(snapshot_id: &str, socket_path: &str) -> Result<String> {
     tracing::info!("Loading snapshot {} via API", snapshot_id);
 
