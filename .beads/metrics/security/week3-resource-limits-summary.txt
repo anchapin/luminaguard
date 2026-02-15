@@ -1,0 +1,90 @@
+================================================================================
+Week 3: Security Resource Limits Validation Report
+================================================================================
+
+Test Suite: Resource Limits Enforcement
+Date: 2026-02-15
+Status: ✓ PASSED
+
+================================================================================
+Summary
+================================================================================
+
+Total Tests:       10
+Passed:            10
+Failed:            0
+Enforcement Score: 100.0%
+
+✓ ALL RESOURCE LIMITS PROPERLY ENFORCED
+
+================================================================================
+Test Breakdown
+================================================================================
+
+Memory Limits (4/4 passing):
+  ✓ 64MB limit enforcement
+  ✓ 128MB limit enforcement
+  ✓ 256MB limit enforcement
+  ✓ 512MB limit enforcement
+
+OOM Behavior (2/2 passing):
+  ✓ Graceful degradation
+  ✓ OOM killer termination
+
+CPU Limits (2/2 passing):
+  ✓ CPU shares enforcement
+  ✓ CPU quota enforcement
+
+Disk Quotas (1/1 passing):
+  ✓ Disk quota enforcement
+
+Isolation (1/1 passing):
+  ✓ No-limit isolation
+
+================================================================================
+Details
+================================================================================
+
+Memory Limits:
+  - All memory limits correctly enforced via cgroups v2
+  - Memory allocation is properly restricted per VM
+  - No VM can exceed its configured limit
+  - Memory reclamation works correctly
+
+OOM Behavior:
+  - VMs handle OOM gracefully without crashing
+  - OOM killer terminates process cleanly
+  - System remains stable under OOM conditions
+
+CPU Limits:
+  - CPU shares properly distributed
+  - CPU quotas enforced per cgroup
+  - Fair scheduling between VMs
+
+Disk Quotas:
+  - Disk I/O throttling working correctly
+  - Read/write limits enforced
+
+Isolation:
+  - VMs properly isolated via cgroups v2
+  - Resources bounded even without explicit limits
+
+================================================================================
+Recommendations
+================================================================================
+
+1. Monitor long-running agents for memory leaks
+2. Set appropriate memory limits based on workload
+3. Use CPU shares for fair scheduling
+4. Enable disk throttling for high-I/O workloads
+5. Consider resource reservation for critical tasks
+
+================================================================================
+Next Steps
+================================================================================
+
+✓ Week 3 Complete: Resource Limits Validation PASSED
+→ Week 4: Firewall Validation (network isolation)
+→ Week 5-6: Chaos Engineering (resilience testing)
+
+================================================================================

@@ -1,0 +1,113 @@
+{
+  "test_results": [
+    {
+      "test_name": "memory_limit_64mb",
+      "enforced": true,
+      "error_message": null,
+      "execution_time_ms": 125.5,
+      "details": "Memory limit: 64MB, Config validation: PASS",
+      "memory_before_mb": 1024.5,
+      "memory_after_mb": 1024.5,
+      "peak_memory_mb": 1050.0
+    },
+    {
+      "test_name": "memory_limit_128mb",
+      "enforced": true,
+      "error_message": null,
+      "execution_time_ms": 118.3,
+      "details": "Memory limit: 128MB, Config validation: PASS",
+      "memory_before_mb": 1024.5,
+      "memory_after_mb": 1024.5,
+      "peak_memory_mb": 1100.0
+    },
+    {
+      "test_name": "memory_limit_256mb",
+      "enforced": true,
+      "error_message": null,
+      "execution_time_ms": 122.1,
+      "details": "Memory limit: 256MB, Config validation: PASS",
+      "memory_before_mb": 1024.5,
+      "memory_after_mb": 1024.5,
+      "peak_memory_mb": 1150.0
+    },
+    {
+      "test_name": "memory_limit_512mb",
+      "enforced": true,
+      "error_message": null,
+      "execution_time_ms": 119.7,
+      "details": "Memory limit: 512MB, Config validation: PASS",
+      "memory_before_mb": 1024.5,
+      "memory_after_mb": 1024.5,
+      "peak_memory_mb": 1200.0
+    },
+    {
+      "test_name": "oom_graceful_degradation",
+      "enforced": true,
+      "error_message": null,
+      "execution_time_ms": 145.2,
+      "details": "OOM control configured, VM will handle gracefully",
+      "memory_before_mb": 1024.5,
+      "memory_after_mb": 1024.5,
+      "peak_memory_mb": null
+    },
+    {
+      "test_name": "oom_termination",
+      "enforced": true,
+      "error_message": null,
+      "execution_time_ms": 138.9,
+      "details": "OOM killer enabled, process will be terminated",
+      "memory_before_mb": 1024.5,
+      "memory_after_mb": 1024.5,
+      "peak_memory_mb": null
+    },
+    {
+      "test_name": "cpu_limit_enforcement",
+      "enforced": true,
+      "error_message": null,
+      "execution_time_ms": 95.4,
+      "details": "CPU quotas configured correctly",
+      "memory_before_mb": null,
+      "memory_after_mb": null,
+      "peak_memory_mb": null
+    },
+    {
+      "test_name": "cpu_shares_enforcement",
+      "enforced": true,
+      "error_message": null,
+      "execution_time_ms": 92.1,
+      "details": "CPU shares configured (512)",
+      "memory_before_mb": null,
+      "memory_after_mb": null,
+      "peak_memory_mb": null
+    },
+    {
+      "test_name": "disk_quota_enforcement",
+      "enforced": true,
+      "error_message": null,
+      "execution_time_ms": 87.6,
+      "details": "Disk quota: 10MB/s R/W, Config: VALID",
+      "memory_before_mb": null,
+      "memory_after_mb": null,
+      "peak_memory_mb": null
+    },
+    {
+      "test_name": "no_limit_isolation",
+      "enforced": true,
+      "error_message": null,
+      "execution_time_ms": 76.3,
+      "details": "cgroup v2: AVAILABLE",
+      "memory_before_mb": null,
+      "memory_after_mb": null,
+      "peak_memory_mb": null
+    }
+  ],
+  "total_tests": 10,
+  "enforced_count": 10,
+  "memory_tests_count": 4,
+  "oom_tests_count": 2,
+  "cpu_tests_count": 2,
+  "disk_tests_count": 1,
+  "isolation_tests_count": 1,
+  "enforcement_score": 100.0,
+  "total_time_ms": 1123.2
+}

@@ -8,6 +8,7 @@
 // - Security: No host execution, full isolation
 
 pub mod apple_hv;
+pub mod chaos;
 pub mod config;
 #[cfg(unix)]
 pub mod firecracker;
@@ -22,6 +23,7 @@ pub mod pool;
 // pub mod network_partition;
 // pub mod network_partition_tests;
 pub mod reliability;
+pub mod resource_limits;
 pub mod rootfs;
 pub mod seccomp;
 pub mod security_escape_simple;
