@@ -9,20 +9,43 @@
 //! - Node.js and npm (for @modelcontextprotocol/server-filesystem)
 //! - Network access (for some servers)
 //! - Temporary directory access (for filesystem tests)
+//! - Bash/Unix utilities (for echo/malformed server tests)
 //!
 //! # Running the Tests
 //!
 //! By default, integration tests are ignored to avoid slowing down regular test runs.
-//! Run them with:
+//! They are also skipped in CI environments to prevent timeouts and ensure reliability.
+//!
+//! Run them locally with:
 //!
 //! ```bash
 //! cargo test --lib -- --ignored
 //! ```
 //!
+//! # CI Considerations
+//!
+//! Integration tests are intentionally marked with `#[ignore]` and do not run in CI
+//! for the following reasons:
+//!
+//! 1. **External Dependencies**: Tests require npm/Node.js which may not be available
+//!    or may have varying download times in CI environments
+//! 2. **Network Reliability**: Some tests require network access to download packages
+//! 3. **Timing Variability**: External server spawning can timeout in resource-constrained CI
+//!    environments
+//! 4. **Isolation**: Integration tests are designed for local development and manual
+//!    verification, not automated CI pipelines
+//!
+//! # Note on HTTP Transport
+//!
+//! There are currently **NO HTTP transport integration tests** in this module.
+//! HTTP transport is tested via comprehensive unit tests in `http_transport.rs`.
+//! Future HTTP integration tests should use a mock HTTP server (e.g., httpmock)
+//! to avoid external dependencies.
+//!
 //! # Test Coverage
 //!
 //! - Full client lifecycle (spawn → initialize → list_tools → call_tool → cleanup)
-//! - Real MCP server implementations
+//! - Real MCP server implementations (stdio transport only)
 //! - Protocol compliance validation
 //! - Error handling with real servers
 
