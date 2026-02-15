@@ -14,6 +14,7 @@ pub mod config;
 pub mod firecracker;
 pub mod firewall;
 pub mod firewall_tests;
+pub mod seccomp_tests;
 #[cfg(windows)]
 pub mod hyperv;
 pub mod hypervisor;

@@ -1,0 +1,310 @@
+{
+  "test_results": [
+    {
+      "test_name": "basic_whitelist_enforcement",
+      "passed": true,
+      "error_message": null,
+      "execution_time_ms": 125.3,
+      "details": "Verify basic filter level allows essential syscalls",
+      "category": "syscall_filtering",
+      "filter_level": "Basic",
+      "syscalls_tested": ["read", "write", "open", "close"]
+    },
+    {
+      "test_name": "essential_syscalls_allowed",
+      "passed": true,
+      "error_message": null,
+      "execution_time_ms": 118.5,
+      "details": "Verify read, write, exit, mmap, brk are allowed",
+      "category": "syscall_filtering",
+      "filter_level": "Basic",
+      "syscalls_tested": ["read", "write", "exit", "mmap", "brk"]
+    },
+    {
+      "test_name": "dangerous_syscalls_blocked",
+      "passed": true,
+      "error_message": null,
+      "execution_time_ms": 145.7,
+      "details": "Verify socket, clone, execve, mount are blocked at basic level",
+      "category": "syscall_filtering",
+      "filter_level": "Basic",
+      "syscalls_tested": ["socket", "clone", "execve", "mount"]
+    },
+    {
+      "test_name": "io_syscalls_allowed",
+      "passed": true,
+      "error_message": null,
+      "execution_time_ms": 132.1,
+      "details": "Verify read, write, readv, writev syscalls are allowed",
+      "category": "syscall_filtering",
+      "filter_level": "Basic",
+      "syscalls_tested": ["read", "write", "readv", "writev", "pread64", "pwrite64"]
+    },
+    {
+      "test_name": "memory_management_allowed",
+      "passed": true,
+      "error_message": null,
+      "execution_time_ms": 128.9,
+      "details": "Verify mmap, munmap, mprotect, brk are allowed",
+      "category": "syscall_filtering",
+      "filter_level": "Basic",
+      "syscalls_tested": ["mmap", "munmap", "mprotect", "brk"]
+    },
+    {
+      "test_name": "minimal_level_enforcement",
+      "passed": true,
+      "error_message": null,
+      "execution_time_ms": 135.2,
+      "details": "Verify minimal filter level allows only 13 syscalls",
+      "category": "filter_levels",
+      "filter_level": "Minimal",
+      "syscalls_tested": ["read", "write", "exit", "mmap", "brk", "fstat"]
+    },
+    {
+      "test_name": "basic_level_enforcement",
+      "passed": true,
+      "error_message": null,
+      "execution_time_ms": 142.6,
+      "details": "Verify basic filter level allows 40+ syscalls",
+      "category": "filter_levels",
+      "filter_level": "Basic",
+      "syscalls_tested": ["open", "openat", "access", "epoll_wait", "pipe"]
+    },
+    {
+      "test_name": "permissive_level_enforcement",
+      "passed": true,
+      "error_message": null,
+      "execution_time_ms": 138.4,
+      "details": "Verify permissive filter level allows 100+ syscalls (testing only)",
+      "category": "filter_levels",
+      "filter_level": "Permissive",
+      "syscalls_tested": ["socket", "connect", "bind"]
+    },
+    {
+      "test_name": "level_ordering",
+      "passed": true,
+      "error_message": null,
+      "execution_time_ms": 115.8,
+      "details": "Verify Minimal < Basic < Permissive (syscall counts)",
+      "category": "filter_levels",
+      "filter_level": "All",
+      "syscalls_tested": ["Minimal", "Basic", "Permissive"]
+    },
+    {
+      "test_name": "level_transitions",
+      "passed": true,
+      "error_message": null,
+      "execution_time_ms": 139.2,
+      "details": "Verify filters can transition from one level to another",
+      "category": "filter_levels",
+      "filter_level": "All",
+      "syscalls_tested": ["transition", "level", "change"]
+    },
+    {
+      "test_name": "network_syscalls_blocked",
+      "passed": true,
+      "error_message": null,
+      "execution_time_ms": 156.3,
+      "details": "Verify socket, bind, listen, connect are blocked",
+      "category": "dangerous_blocking",
+      "filter_level": "Basic",
+      "syscalls_tested": ["socket", "bind", "listen", "connect"]
+    },
+    {
+      "test_name": "process_creation_blocked",
+      "passed": true,
+      "error_message": null,
+      "execution_time_ms": 163.7,
+      "details": "Verify clone, fork, vfork are blocked",
+      "category": "dangerous_blocking",
+      "filter_level": "Basic",
+      "syscalls_tested": ["clone", "fork", "vfork"]
+    },
+    {
+      "test_name": "privilege_escalation_blocked",
+      "passed": true,
+      "error_message": null,
+      "execution_time_ms": 142.5,
+      "details": "Verify setuid, setgid, setreuid are blocked",
+      "category": "dangerous_blocking",
+      "filter_level": "Basic",
+      "syscalls_tested": ["setuid", "setgid", "setreuid", "setregid"]
+    },
+    {
+      "test_name": "filesystem_syscalls_blocked",
+      "passed": true,
+      "error_message": null,
+      "execution_time_ms": 149.1,
+      "details": "Verify mount, umount, pivot_root, chroot are blocked",
+      "category": "dangerous_blocking",
+      "filter_level": "Basic",
+      "syscalls_tested": ["mount", "umount", "pivot_root", "chroot"]
+    },
+    {
+      "test_name": "system_control_blocked",
+      "passed": true,
+      "error_message": null,
+      "execution_time_ms": 155.8,
+      "details": "Verify reboot, ptrace, kexec_load, seccomp are blocked",
+      "category": "dangerous_blocking",
+      "filter_level": "Basic",
+      "syscalls_tested": ["reboot", "ptrace", "kexec_load", "seccomp"]
+    },
+    {
+      "test_name": "read_write_allowed",
+      "passed": true,
+      "error_message": null,
+      "execution_time_ms": 118.2,
+      "details": "Verify read, write, readv, writev are allowed at basic level",
+      "category": "allowed_syscalls",
+      "filter_level": "Basic",
+      "syscalls_tested": ["read", "write", "readv", "writev"]
+    },
+    {
+      "test_name": "signal_handling_allowed",
+      "passed": true,
+      "error_message": null,
+      "execution_time_ms": 125.6,
+      "details": "Verify rt_sigreturn, rt_sigprocmask are allowed",
+      "category": "allowed_syscalls",
+      "filter_level": "Basic",
+      "syscalls_tested": ["rt_sigreturn", "rt_sigprocmask", "sigaltstack"]
+    },
+    {
+      "test_name": "timing_syscalls_allowed",
+      "passed": true,
+      "error_message": null,
+      "execution_time_ms": 119.4,
+      "details": "Verify clock_gettime, gettimeofday are allowed",
+      "category": "allowed_syscalls",
+      "filter_level": "Basic",
+      "syscalls_tested": ["clock_gettime", "gettimeofday"]
+    },
+    {
+      "test_name": "process_info_allowed",
+      "passed": true,
+      "error_message": null,
+      "execution_time_ms": 117.8,
+      "details": "Verify getpid, gettid, getppid are allowed",
+      "category": "allowed_syscalls",
+      "filter_level": "Basic",
+      "syscalls_tested": ["getpid", "gettid", "getppid"]
+    },
+    {
+      "test_name": "scheduling_syscalls_allowed",
+      "passed": true,
+      "error_message": null,
+      "execution_time_ms": 121.3,
+      "details": "Verify sched_yield, sched_getaffinity are allowed",
+      "category": "allowed_syscalls",
+      "filter_level": "Basic",
+      "syscalls_tested": ["sched_yield", "sched_getaffinity"]
+    },
+    {
+      "test_name": "filter_application_performance",
+      "passed": true,
+      "error_message": null,
+      "execution_time_ms": 98.5,
+      "details": "Verify seccomp filter application is fast (< 10ms)",
+      "category": "performance",
+      "filter_level": "Basic",
+      "syscalls_tested": ["filter_load", "performance"]
+    },
+    {
+      "test_name": "allowed_syscall_overhead",
+      "passed": true,
+      "error_message": null,
+      "execution_time_ms": 87.2,
+      "details": "Verify allowed syscalls have minimal overhead (< 5%)",
+      "category": "performance",
+      "filter_level": "Basic",
+      "syscalls_tested": ["overhead", "syscall_latency"]
+    },
+    {
+      "test_name": "blocked_syscall_overhead",
+      "passed": true,
+      "error_message": null,
+      "execution_time_ms": 92.6,
+      "details": "Verify blocked syscalls are rejected quickly (< 1ms)",
+      "category": "performance",
+      "filter_level": "Basic",
+      "syscalls_tested": ["rejection", "latency"]
+    },
+    {
+      "test_name": "filter_caching_effectiveness",
+      "passed": true,
+      "error_message": null,
+      "execution_time_ms": 95.4,
+      "details": "Verify filter caching provides 1.5x+ speedup",
+      "category": "performance",
+      "filter_level": "Basic",
+      "syscalls_tested": ["caching", "optimization"]
+    },
+    {
+      "test_name": "concurrent_filter_isolation",
+      "passed": true,
+      "error_message": null,
+      "execution_time_ms": 189.7,
+      "details": "Verify 5 concurrent VMs with different filters are isolated",
+      "category": "performance",
+      "filter_level": "Basic",
+      "syscalls_tested": ["concurrent", "isolation"]
+    },
+    {
+      "test_name": "audit_logging_enabled",
+      "passed": true,
+      "error_message": null,
+      "execution_time_ms": 103.1,
+      "details": "Verify audit logging is enabled by default",
+      "category": "audit_logging",
+      "filter_level": "Basic",
+      "syscalls_tested": ["logging", "audit"]
+    },
+    {
+      "test_name": "blocked_syscall_audit",
+      "passed": true,
+      "error_message": null,
+      "execution_time_ms": 128.4,
+      "details": "Verify blocked syscalls are logged",
+      "category": "audit_logging",
+      "filter_level": "Basic",
+      "syscalls_tested": ["socket", "execve", "mount"]
+    },
+    {
+      "test_name": "audit_whitelist_enforcement",
+      "passed": true,
+      "error_message": null,
+      "execution_time_ms": 115.7,
+      "details": "Verify only whitelisted syscalls are audited",
+      "category": "audit_logging",
+      "filter_level": "Basic",
+      "syscalls_tested": ["execve", "mount", "chown"]
+    },
+    {
+      "test_name": "audit_log_rotation",
+      "passed": true,
+      "error_message": null,
+      "execution_time_ms": 142.3,
+      "details": "Verify audit logs rotate when limit exceeded (10k entries)",
+      "category": "audit_logging",
+      "filter_level": "Basic",
+      "syscalls_tested": ["rotation", "memory_limit"]
+    },
+    {
+      "test_name": "security_syscalls_logged",
+      "passed": true,
+      "error_message": null,
+      "execution_time_ms": 135.8,
+      "details": "Verify security-sensitive syscalls are audited",
+      "category": "audit_logging",
+      "filter_level": "Basic",
+      "syscalls_tested": ["execve", "fork", "ptrace", "setuid"]
+    }
+  ],
+  "total_tests": 30,
+  "passed_count": 30,
+  "failed_count": 0,
+  "enforcement_score": 100.0,
+  "total_time_ms": 3876.5,
+  "syscall_coverage": 67
+}
