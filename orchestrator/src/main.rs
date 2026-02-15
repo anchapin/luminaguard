@@ -10,9 +10,14 @@
 
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
+use luminaguard_orchestrator::approval::action::ActionType;
+use luminaguard_orchestrator::approval::action::RiskLevel;
+use luminaguard_orchestrator::approval::diff::{Change, DiffCard};
+use luminaguard_orchestrator::approval::tui::TuiResult;
 use luminaguard_orchestrator::mcp::{McpClient, StdioTransport};
 use luminaguard_orchestrator::vm::{self, destroy_vm};
 use serde_json::json;
+use std::fs;
 use tracing::{error, info, Level};
 use tracing_subscriber::EnvFilter;
 
@@ -54,6 +59,12 @@ enum Commands {
         /// Only list tools, do not call any
         #[arg(long)]
         list_tools: bool,
+    },
+    /// Present TUI approval UI for an action
+    Approve {
+        /// Path to JSON file containing Diff Card
+        #[arg(long)]
+        diff_card: String,
     },
     /// Test Firecracker feasibility prototype (requires --features vm-prototype)
     #[cfg(feature = "vm-prototype")]
@@ -99,6 +110,10 @@ async fn main() -> Result<()> {
         }) => {
             info!("Testing MCP connection...");
             test_mcp(command, args, list_tools).await?;
+        }
+        Some(Commands::Approve { diff_card }) => {
+            info!("Presenting approval TUI...");
+            present_approval(&diff_card).await?;
         }
         #[cfg(feature = "vm-prototype")]
         Some(Commands::TestVmPrototype) => {
@@ -282,6 +297,100 @@ async fn test_vm_prototype() -> Result<()> {
         Recommendation::Investigate => {
             error!("⚠️  Feasibility test inconclusive - needs investigation");
             std::process::exit(1);
+        }
+    }
+}
+
+/// Present approval TUI for a Diff Card
+async fn present_approval(diff_card_path: &str) -> Result<()> {
+    // Read Diff Card from JSON file
+    let diff_card_json = fs::read_to_string(diff_card_path)
+        .with_context(|| format!("Failed to read Diff Card from {}", diff_card_path))?;
+
+    let diff_card_data: serde_json::Value =
+        serde_json::from_str(&diff_card_json).context("Failed to parse Diff Card JSON")?;
+
+    // Convert to DiffCard structure
+    let changes: Vec<Change> = if let Some(changes_array) = diff_card_data["changes"].as_array() {
+        changes_array
+            .iter()
+            .map(|c| {
+                let change_type = c["change_type"].as_str().unwrap_or("Custom");
+                let summary = c["summary"].as_str().unwrap_or("");
+
+                match change_type {
+                    "FileCreate" => Change::FileCreate {
+                        path: c["details"]["path"].as_str().unwrap_or("").to_string(),
+                        content_preview: c["details"]["before"].as_str().unwrap_or("").to_string(),
+                    },
+                    "FileEdit" => Change::FileEdit {
+                        path: c["details"]["path"].as_str().unwrap_or("").to_string(),
+                        before: c["details"]["before"].as_str().unwrap_or("").to_string(),
+                        after: c["details"]["after"].as_str().unwrap_or("").to_string(),
+                    },
+                    "FileDelete" => Change::FileDelete {
+                        path: c["details"]["path"].as_str().unwrap_or("").to_string(),
+                        size_bytes: c["details"]["size_bytes"].as_u64().unwrap_or(0),
+                    },
+                    "CommandExec" => {
+                        let args = if let Some(arr) = c["details"]["args"].as_array() {
+                            arr.iter()
+                                .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                                .collect()
+                        } else {
+                            vec![]
+                        };
+
+                        Change::CommandExec {
+                            command: summary.replace("Execute: ", ""),
+                            args,
+                            env_vars: None,
+                        }
+                    }
+                    _ => Change::Custom {
+                        description: summary.to_string(),
+                    },
+                }
+            })
+            .collect()
+    } else {
+        vec![]
+    };
+
+    let diff_card = DiffCard {
+        action_type: ActionType::Unknown, // Simplified: use Unknown as placeholder
+        description: diff_card_data["description"]
+            .as_str()
+            .unwrap_or("")
+            .to_string(),
+        risk_level: match diff_card_data["risk_level"].as_str().unwrap_or("medium") {
+            "none" => RiskLevel::None,
+            "low" => RiskLevel::Low,
+            "medium" => RiskLevel::Medium,
+            "high" => RiskLevel::High,
+            "critical" => RiskLevel::Critical,
+            _ => RiskLevel::Medium,
+        },
+        changes,
+        timestamp: chrono::Utc::now(),
+    };
+
+    // Present TUI
+    let result = luminaguard_orchestrator::approval::tui::present_tui_approval(&diff_card).await?;
+
+    // Print result to stdout for Python client to read
+    match result {
+        TuiResult::Approved => {
+            println!("approved");
+            Ok(())
+        }
+        TuiResult::Rejected => {
+            println!("rejected");
+            Ok(())
+        }
+        TuiResult::Cancelled => {
+            println!("cancelled");
+            Ok(())
         }
     }
 }

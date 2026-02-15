@@ -152,8 +152,8 @@ def present_diff_card(action: ToolCall) -> bool:
     """
     Present the Diff Card UI for an action requiring approval.
 
-    This is the Python-side implementation of the Approval Cliff UI.
-    Green actions auto-approve, Red actions require user approval.
+    This function integrates with the Rust orchestrator's TUI for Red actions.
+    Green actions auto-approve without UI.
 
     Args:
         action: The ToolCall to present
@@ -162,8 +162,19 @@ def present_diff_card(action: ToolCall) -> bool:
         True if approved, False otherwise
 
     Note:
-        In Phase 1, this is a simplified version.
-        Phase 2 will integrate with the Rust Orchestrator's TUI/GUI.
+        - Green actions: Auto-approve
+        - Red actions: Present TUI via Rust orchestrator
+        - Timeout: Auto-reject after 5 minutes (configurable via env var)
+        - Works over SSH (no GUI requirement)
+        - Full audit logging of all decisions
+
+    Examples:
+        >>> green_action = ToolCall("read_file", {"path": "test.txt"}, ActionKind.GREEN)
+        >>> present_diff_card(green_action)
+        True
+
+        >>> red_action = ToolCall("delete_file", {"path": "test.txt"}, ActionKind.RED)
+        >>> # Presents TUI, returns True if user approves
 
     Examples:
         >>> green_action = ToolCall("read_file", {"path": "test.txt"}, ActionKind.GREEN)
@@ -173,14 +184,29 @@ def present_diff_card(action: ToolCall) -> bool:
         >>> red_action = ToolCall("delete_file", {"path": "test.txt"}, ActionKind.RED)
         >>> # Would prompt user in real implementation
     """
-    if action.action_kind == ActionKind.GREEN:
-        # Green actions auto-approve
-        return True
-    else:
-        # Red actions require approval
-        # TODO: Phase 2 - Integrate with Rust orchestrator for TUI/GUI
-        # For now, reject to be safe
-        return False
+    # Try to import approval_client for Phase 2 TUI integration
+    try:
+        from approval_client import present_diff_card as present_diff_card_tui
+
+        return present_diff_card_tui(action)
+    except ImportError:
+        # Fallback to simple implementation if approval_client not available
+        if action.action_kind == ActionKind.GREEN:
+            # Green actions auto-approve
+            return True
+        else:
+            # Red actions require approval - simple prompt as fallback
+            print("\n" + "=" * 80)
+            print(f"Action: {action.name}")
+            print(f"Type: {action.action_kind.value.upper()}")
+            print(f"Arguments: {action.arguments}")
+            print("=" * 80)
+            print(f"\nRisk Level: {_get_risk_display(action)}")
+            print("\nApprove this action? (y/n): ", end="")
+
+            response = input().strip().lower()
+
+            return response in ("y", "yes")
 
 
 @dataclass
@@ -357,3 +383,15 @@ if __name__ == "__main__":
 
     state = run_loop(task, ["read_file", "write_file", "search"])
     print(f"Final state: {len(state.messages)} messages")
+
+
+def _get_risk_display(action: ToolCall) -> str:
+    """Get human-readable risk level for an action"""
+    if action.action_kind == ActionKind.GREEN:
+        return "GREEN (Safe)"
+    elif "delete" in action.name or "remove" in action.name:
+        return "CRITICAL (Permanent deletion)"
+    elif "write" in action.name or "edit" in action.name:
+        return "HIGH (Destructive)"
+    else:
+        return "MEDIUM (External action)"
