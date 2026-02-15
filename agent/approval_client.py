@@ -23,6 +23,7 @@ Features:
 import json
 import os
 import subprocess
+import tempfile
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
@@ -151,14 +152,14 @@ class ApprovalClient:
         if action.action_kind == ActionKind.GREEN:
             risk_level = "none"
         else:
-            # Map destructive actions to risk levels
+            # Map destructive actions to risk levels - check action name
             destructive_keywords = ["delete", "remove", "transfer"]
             medium_risk_keywords = ["create", "write", "edit", "send", "execute"]
 
-            desc_lower = str(action.arguments).lower()
-            if any(kw in desc_lower for kw in destructive_keywords):
+            action_name_lower = action.name.lower()
+            if any(kw in action_name_lower for kw in destructive_keywords):
                 risk_level = "critical"
-            elif any(kw in desc_lower for kw in medium_risk_keywords):
+            elif any(kw in action_name_lower for kw in medium_risk_keywords):
                 risk_level = "high"
             else:
                 risk_level = "medium"
@@ -193,7 +194,7 @@ class ApprovalClient:
             changes.append(
                 Change(
                     change_type="FileEdit",
-                    summary=f"Write to: {path}",
+                    summary=f"write_file: Write to {path}",
                     details={
                         "path": path,
                         "before": "",
@@ -207,7 +208,7 @@ class ApprovalClient:
             changes.append(
                 Change(
                     change_type="FileDelete",
-                    summary=f"Delete: {path}",
+                    summary=f"delete_file: Delete {path}",
                     details={
                         "path": path,
                         "size_bytes": 0,  # Would need to read file to get actual size
@@ -220,7 +221,7 @@ class ApprovalClient:
             changes.append(
                 Change(
                     change_type="FileRead",
-                    summary=f"Read: {path}",
+                    summary=f"read_file: Read {path}",
                     details={"path": path},
                 )
             )
@@ -232,7 +233,7 @@ class ApprovalClient:
             changes.append(
                 Change(
                     change_type="CommandExec",
-                    summary=f"Execute: {command}",
+                    summary=f"{command}: Execute",
                     details={"command": command, "args": args},
                 )
             )
