@@ -1,0 +1,91 @@
+{
+  "timestamp": "2026-02-15T04:07:57.349631980+00:00",
+  "agent_count": 10,
+  "total_time_ms": 145.427873,
+  "avg_spawn_time_ms": 79.15632799999999,
+  "avg_execute_time_ms": 24.134209000000002,
+  "avg_cleanup_time_ms": 11.122752600000002,
+  "throughput_ops_per_min": 41257.56552872089,
+  "throughput_per_agent_ops_per_min": 4125.756552872089,
+  "resources": {
+    "cpu_percent": 33.906244205179725,
+    "memory_mb": 199.3311327928139,
+    "memory_peak_mb": 298.99669918922086,
+    "threads_active": 12,
+    "disk_read_mb": 10.0,
+    "disk_write_mb": 5.0
+  },
+  "agent_results": [
+    {
+      "agent_id": "agent-0",
+      "spawn_time_ms": 78.539346,
+      "execute_time_ms": 24.730663,
+      "cleanup_time_ms": 11.359285,
+      "total_time_ms": 114.62958400000001
+    },
+    {
+      "agent_id": "agent-1",
+      "spawn_time_ms": 96.56627399999999,
+      "execute_time_ms": 24.287177,
+      "cleanup_time_ms": 10.955651,
+      "total_time_ms": 131.809392
+    },
+    {
+      "agent_id": "agent-2",
+      "spawn_time_ms": 97.881558,
+      "execute_time_ms": 25.670082999999998,
+      "cleanup_time_ms": 11.327805,
+      "total_time_ms": 134.879816
+    },
+    {
+      "agent_id": "agent-3",
+      "spawn_time_ms": 100.028512,
+      "execute_time_ms": 25.647603,
+      "cleanup_time_ms": 11.272934,
+      "total_time_ms": 136.949439
+    },
+    {
+      "agent_id": "agent-4",
+      "spawn_time_ms": 76.387231,
+      "execute_time_ms": 23.655421,
+      "cleanup_time_ms": 10.876510000000001,
+      "total_time_ms": 110.919512
+    },
+    {
+      "agent_id": "agent-5",
+      "spawn_time_ms": 79.555096,
+      "execute_time_ms": 25.904076,
+      "cleanup_time_ms": 11.096102,
+      "total_time_ms": 116.555614
+    },
+    {
+      "agent_id": "agent-6",
+      "spawn_time_ms": 65.272759,
+      "execute_time_ms": 22.953833,
+      "cleanup_time_ms": 11.80305,
+      "total_time_ms": 100.029882
+    },
+    {
+      "agent_id": "agent-7",
+      "spawn_time_ms": 55.615423,
+      "execute_time_ms": 21.84382,
+      "cleanup_time_ms": 10.761919,
+      "total_time_ms": 88.221562
+    },
+    {
+      "agent_id": "agent-8",
+      "spawn_time_ms": 56.696774,
+      "execute_time_ms": 21.828031000000003,
+      "cleanup_time_ms": 10.775409,
+      "total_time_ms": 89.300434
+    },
+    {
+      "agent_id": "agent-9",
+      "spawn_time_ms": 85.020307,
+      "execute_time_ms": 24.821382999999997,
+      "cleanup_time_ms": 10.998861,
+      "total_time_ms": 120.84132100000001
+    }
+  ],
+  "scaling_factor": 0.1271075008055708
+}
