@@ -36,6 +36,11 @@ reqwest = { version = "0.12", features = ["json"] }
 # Random number generation (for retry jitter)
 rand = "0.8"
 
+# Terminal UI (TUI) - Phase 2
+ratatui = "0.30"
+crossterm = "0.29"
+atty = "0.2"
+
 # Firecracker HTTP client
 hyper = { version = "1.0", features = ["full"] }
 hyper-util = { version = "0.1", features = ["full"] }
