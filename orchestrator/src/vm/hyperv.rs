@@ -2,9 +2,9 @@ use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 #[cfg(windows)]
 use libwhp::Partition;
-use std::time::Instant;
 #[cfg(windows)]
-use std::sync::{Arc, Mutex, mpsc};
+use std::sync::{mpsc, Arc, Mutex};
+use std::time::Instant;
 use tracing::info;
 
 use crate::vm::config::VmConfig;
@@ -21,7 +21,8 @@ impl Hypervisor for HypervHypervisor {
             let instance = HypervInstance::new(config)?;
             Ok(Box::new(instance))
         }
-        #[cfg(not(windows))]{
+        #[cfg(not(windows))]
+        {
             let _ = config;
             Err(anyhow!("Hyper-V backend is only available on Windows"))
         }
@@ -79,7 +80,7 @@ impl HypervInstance {
 
             // 2. Configure partition
             let vcpu_count_u32 = vcpu_count as u32;
-            
+
             {
                 let mut p = match partition.lock() {
                     Ok(guard) => guard,
@@ -100,7 +101,8 @@ impl HypervInstance {
                 let mut p = match partition.lock() {
                     Ok(guard) => guard,
                     Err(e) => {
-                        let _ = init_tx.send(Err(anyhow!("Failed to lock partition for setup: {:?}", e)));
+                        let _ = init_tx
+                            .send(Err(anyhow!("Failed to lock partition for setup: {:?}", e)));
                         return;
                     }
                 };
@@ -145,11 +147,12 @@ impl HypervInstance {
                 })
             }
             Ok(Err(e)) => Err(e),
-            Err(_) => Err(anyhow!("Hyper-V background thread panicked or exited early")),
+            Err(_) => Err(anyhow!(
+                "Hyper-V background thread panicked or exited early"
+            )),
         }
     }
 }
-
 
 #[async_trait]
 impl VmInstance for HypervInstance {
@@ -178,7 +181,8 @@ impl VmInstance for HypervInstance {
         {
             // Send stop command to background thread
             // We use standard mpsc, so send is synchronous but non-blocking for unbounded channels
-            self.sender.send(HypervCommand::Stop)
+            self.sender
+                .send(HypervCommand::Stop)
                 .map_err(|_| anyhow!("Failed to send stop command to Hyper-V thread"))?;
         }
         Ok(())
@@ -204,7 +208,10 @@ mod tests {
         let result = hv.spawn(&config).await;
         assert!(result.is_err());
         match result {
-            Err(e) => assert_eq!(e.to_string(), "Hyper-V backend is only available on Windows"),
+            Err(e) => assert_eq!(
+                e.to_string(),
+                "Hyper-V backend is only available on Windows"
+            ),
             Ok(_) => panic!("Should have failed"),
         }
     }

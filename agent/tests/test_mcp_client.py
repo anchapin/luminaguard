@@ -842,3 +842,145 @@ class TestMcpError:
         error = McpError("Test message")
         assert str(error) == "Test message"
         assert "Test message" in error.args[0]
+
+
+class TestMcpClientAdditionalCoverage:
+    """Additional tests to improve coverage"""
+
+    @patch("subprocess.Popen")
+    def test_send_request_handles_os_error_on_read(self, mock_popen):
+        """Test that _send_request() handles OSError on read"""
+        mock_process = MagicMock()
+        mock_process.stdin = MagicMock()
+        mock_process.stdout = MagicMock()
+        mock_process.stdout.readline = MagicMock(side_effect=OSError("Read error"))
+        mock_process.stderr = MagicMock()
+        mock_popen.return_value = mock_process
+
+        client = McpClient("test", ["echo", "test"])
+        client._process = mock_process
+        client._state = McpState.INITIALIZED
+
+        with pytest.raises(McpError, match="Failed to read response"):
+            client._send_request("test/method")
+
+    @patch("subprocess.Popen")
+    def test_send_request_handles_os_error_on_write(self, mock_popen):
+        """Test that _send_request() handles OSError on write"""
+        mock_process = MagicMock()
+        mock_process.stdin = MagicMock()
+        mock_process.stdin.write = MagicMock(side_effect=OSError("Write error"))
+        mock_process.stdout = MagicMock()
+        mock_process.stderr = MagicMock()
+        mock_popen.return_value = mock_process
+
+        client = McpClient("test", ["echo", "test"])
+        client._process = mock_process
+        client._state = McpState.INITIALIZED
+
+        with pytest.raises(McpError, match="Failed to send request"):
+            client._send_request("test/method")
+
+    @patch("subprocess.Popen")
+    def test_send_request_handles_missing_process(self, mock_popen):
+        """Test that _send_request() raises error when process is None"""
+        mock_process = MagicMock()
+        mock_popen.return_value = mock_process
+
+        client = McpClient("test", ["echo", "test"])
+        client._process = None  # Explicitly set to None
+        client._state = McpState.INITIALIZED
+
+        with pytest.raises(
+            McpError, match="Process not started or pipes not connected"
+        ):
+            client._send_request("test/method")
+
+    @patch("subprocess.Popen")
+    def test_send_request_handles_missing_stdin(self, mock_popen):
+        """Test that _send_request() raises error when stdin is None"""
+        mock_process = MagicMock()
+        mock_process.stdin = None  # Explicitly set to None
+        mock_process.stdout = MagicMock()
+        mock_process.stderr = MagicMock()
+        mock_popen.return_value = mock_process
+
+        client = McpClient("test", ["echo", "test"])
+        client._process = mock_process
+        client._state = McpState.INITIALIZED
+
+        with pytest.raises(
+            McpError, match="Process not started or pipes not connected"
+        ):
+            client._send_request("test/method")
+
+    @patch("subprocess.Popen")
+    def test_send_request_handles_missing_stdout(self, mock_popen):
+        """Test that _send_request() raises error when stdout is None"""
+        mock_process = MagicMock()
+        mock_process.stdin = MagicMock()
+        mock_process.stdout = None  # Explicitly set to None
+        mock_process.stderr = MagicMock()
+        mock_popen.return_value = mock_process
+
+        client = McpClient("test", ["echo", "test"])
+        client._process = mock_process
+        client._state = McpState.INITIALIZED
+
+        with pytest.raises(
+            McpError, match="Process not started or pipes not connected"
+        ):
+            client._send_request("test/method")
+
+    @patch("subprocess.Popen")
+    def test_spawn_handles_os_error(self, mock_popen):
+        """Test that spawn() handles generic OSError"""
+        mock_popen.side_effect = OSError("Permission denied")
+
+        client = McpClient("test", ["echo", "test"])
+
+        with pytest.raises(McpError, match="Failed to spawn orchestrator"):
+            client.spawn()
+
+    @patch("subprocess.Popen")
+    def test_shutdown_handles_exception_on_stdin_close(self, mock_popen):
+        """Test that shutdown() handles exceptions when closing stdin"""
+        mock_process = MagicMock()
+        mock_process.stdin = MagicMock()
+        mock_process.stdin.close = MagicMock(side_effect=Exception("Close error"))
+        mock_process.stdout = MagicMock()
+        mock_process.stderr = MagicMock()
+        mock_process.wait = MagicMock(return_value=0)
+        mock_popen.return_value = mock_process
+
+        client = McpClient("test", ["echo", "test"])
+        client.spawn()
+        client.shutdown()
+
+        # Should not raise, should continue with terminate
+        mock_process.terminate.assert_called_once()
+        assert client.state == McpState.SHUTDOWN
+
+    @patch("subprocess.Popen")
+    def test_command_validation_checks_empty_command(self, mock_popen):
+        """Test that command validation catches empty list in validate_command"""
+        client = McpClient("test", ["echo", "test"])
+
+        with pytest.raises(McpError, match="Command must be a non-empty list"):
+            client._validate_command([])
+
+    @patch("subprocess.Popen")
+    def test_command_validation_checks_non_list_in_validate(self, mock_popen):
+        """Test that command validation catches non-list in validate_command"""
+        client = McpClient("test", ["echo", "test"])
+
+        with pytest.raises(McpError, match="Command must be a non-empty list"):
+            client._validate_command(None)  # type: ignore
+
+    @patch("subprocess.Popen")
+    def test_command_validation_handles_all_strings(self, mock_popen):
+        """Test that command validation checks all args are strings"""
+        client = McpClient("test", ["echo", "test"])
+
+        with pytest.raises(McpError, match="All command arguments must be strings"):
+            client._validate_command(["echo", 123])  # type: ignore

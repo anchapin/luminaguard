@@ -231,7 +231,7 @@ impl HttpTransport {
     }
 
     /// Get the next URL in round-robin fashion (for load balancing)
-    /// 
+    ///
     /// If failover is enabled, skips unhealthy servers.
     fn get_next_url(&self) -> &str {
         let start_idx = self.current_url_index.fetch_add(1, Ordering::SeqCst);
@@ -267,13 +267,18 @@ impl HttpTransport {
                 entry.0 = Instant::now();
                 entry.1 = healthy;
                 let status = if healthy { "healthy" } else { "unhealthy" };
-                debug!("Server {} ({}) marked as {}", url_index, self.urls.get(url_index).unwrap_or(&"unknown".to_string()), status);
+                debug!(
+                    "Server {} ({}) marked as {}",
+                    url_index,
+                    self.urls.get(url_index).unwrap_or(&"unknown".to_string()),
+                    status
+                );
             }
         }
     }
 
     /// Check if a server is healthy and needs re-checking
-    /// 
+    ///
     /// Used by periodic health check tasks (future enhancement for Phase 3)
     #[allow(dead_code)]
     fn should_check_health(&self, url_index: usize) -> bool {
@@ -489,83 +494,87 @@ impl Transport for HttpTransport {
 }
 
 impl HttpTransport {
-     /// Send a single HTTP request to the server
-     ///
-     /// This is the core HTTP request logic, separated for reuse by retry logic.
-     async fn send_request(&self, json: &str) -> Result<()> {
-         let url_index = self.current_url_index.load(Ordering::SeqCst);
-         let url = self.get_next_url();
-         debug!("Sending HTTP POST to {} (server {}): {}", url, url_index, json);
+    /// Send a single HTTP request to the server
+    ///
+    /// This is the core HTTP request logic, separated for reuse by retry logic.
+    async fn send_request(&self, json: &str) -> Result<()> {
+        let url_index = self.current_url_index.load(Ordering::SeqCst);
+        let url = self.get_next_url();
+        debug!(
+            "Sending HTTP POST to {} (server {}): {}",
+            url, url_index, json
+        );
 
-         // Build request with custom headers
-         let mut request_builder = self.client.post(url);
-         request_builder = request_builder.header("Content-Type", "application/json");
+        // Build request with custom headers
+        let mut request_builder = self.client.post(url);
+        request_builder = request_builder.header("Content-Type", "application/json");
 
-         // Add custom headers
-         for (name, value) in &self.custom_headers {
-             request_builder = request_builder.header(name.clone(), value.clone());
-         }
+        // Add custom headers
+        for (name, value) in &self.custom_headers {
+            request_builder = request_builder.header(name.clone(), value.clone());
+        }
 
-         // Send HTTP POST request
-         let http_response = match request_builder
-             .body(json.to_string())
-             .send()
-             .await {
-             Ok(resp) => resp,
-             Err(e) => {
-                 warn!("HTTP request failed to server {}: {}", url, e);
-                 // Mark server as unhealthy on network error
-                 if self.enable_failover {
-                     self.update_server_health(url_index % self.urls.len(), false);
-                 }
-                 return Err(anyhow::anyhow!("Failed to send HTTP request: {}", e));
-             }
-         };
+        // Send HTTP POST request
+        let http_response = match request_builder.body(json.to_string()).send().await {
+            Ok(resp) => resp,
+            Err(e) => {
+                warn!("HTTP request failed to server {}: {}", url, e);
+                // Mark server as unhealthy on network error
+                if self.enable_failover {
+                    self.update_server_health(url_index % self.urls.len(), false);
+                }
+                return Err(anyhow::anyhow!("Failed to send HTTP request: {}", e));
+            }
+        };
 
-         // Check HTTP status
-         if !http_response.status().is_success() {
-             warn!("HTTP request to {} returned status: {}", url, http_response.status());
-             // Mark server as unhealthy on HTTP error
-             if self.enable_failover {
-                 self.update_server_health(url_index % self.urls.len(), false);
-             }
-             return Err(anyhow::anyhow!(
-                 "HTTP request failed with status: {}",
-                 http_response.status()
-             ));
-         }
+        // Check HTTP status
+        if !http_response.status().is_success() {
+            warn!(
+                "HTTP request to {} returned status: {}",
+                url,
+                http_response.status()
+            );
+            // Mark server as unhealthy on HTTP error
+            if self.enable_failover {
+                self.update_server_health(url_index % self.urls.len(), false);
+            }
+            return Err(anyhow::anyhow!(
+                "HTTP request failed with status: {}",
+                http_response.status()
+            ));
+        }
 
-         // Read response body
-         let response_text = http_response
-             .text()
-             .await
-             .context("Failed to read HTTP response body")?;
+        // Read response body
+        let response_text = http_response
+            .text()
+            .await
+            .context("Failed to read HTTP response body")?;
 
-         debug!("Received HTTP response from {}: {}", url, response_text);
+        debug!("Received HTTP response from {}: {}", url, response_text);
 
-         // Parse MCP response
-         let mcp_response: McpResponse =
-             serde_json::from_str(&response_text).with_context(|| {
-                 format!(
-                     "Failed to deserialize MCP response from JSON: {}",
-                     response_text
-                 )
-             })?;
+        // Parse MCP response
+        let mcp_response: McpResponse =
+            serde_json::from_str(&response_text).with_context(|| {
+                format!(
+                    "Failed to deserialize MCP response from JSON: {}",
+                    response_text
+                )
+            })?;
 
-         // Mark server as healthy on successful request
-         if self.enable_failover {
-             self.update_server_health(url_index % self.urls.len(), true);
-         }
+        // Mark server as healthy on successful request
+        if self.enable_failover {
+            self.update_server_health(url_index % self.urls.len(), true);
+        }
 
-         // Store the response in the buffer for recv() to retrieve
-         let mut buffer = self
-             .buffered_response
-             .lock()
-             .map_err(|e| anyhow::anyhow!("Failed to acquire response buffer lock: {}", e))?;
-         *buffer = Some(mcp_response);
+        // Store the response in the buffer for recv() to retrieve
+        let mut buffer = self
+            .buffered_response
+            .lock()
+            .map_err(|e| anyhow::anyhow!("Failed to acquire response buffer lock: {}", e))?;
+        *buffer = Some(mcp_response);
 
-         Ok(())
-     }
+        Ok(())
+    }
 
     /// Send a request with retry logic and exponential backoff
     async fn send_with_retry(&self, json: &str, config: &RetryConfig) -> Result<()> {
@@ -601,7 +610,11 @@ impl HttpTransport {
                     }
 
                     // Don't retry or no more attempts
-                    tracing::error!("Request failed after {} attempts: {}", attempt + 1, error_msg);
+                    tracing::error!(
+                        "Request failed after {} attempts: {}",
+                        attempt + 1,
+                        error_msg
+                    );
                     last_error = Some(e);
                     break;
                 }
