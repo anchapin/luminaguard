@@ -26,14 +26,14 @@
 pub mod action;
 pub mod diff;
 pub mod history;
-pub mod ui;
 pub mod tui;
+pub mod ui;
 
 pub use action::{ActionType, RiskLevel};
 pub use diff::{Change, DiffCard};
 pub use history::{ApprovalDecision, ApprovalHistory, ApprovalRecord};
-pub use ui::{ApprovalPrompt, ApprovalPromptConfig};
 pub use tui::{present_tui_approval, TuiResult};
+pub use ui::{ApprovalPrompt, ApprovalPromptConfig};
 
 use tracing::info;
 
@@ -187,6 +187,7 @@ impl ApprovalManager {
         let decision = match tui_result {
             TuiResult::Approved => ApprovalDecision::Approved,
             TuiResult::Rejected => ApprovalDecision::Denied,
+            TuiResult::Cancelled => ApprovalDecision::DeferredToLater,
         };
 
         // Record decision in history
