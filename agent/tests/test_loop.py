@@ -11,7 +11,7 @@ This test suite validates:
 
 import pytest
 from hypothesis import given, strategies as st
-from unittest.mock import MagicMock, Mock
+from unittest.mock import MagicMock, Mock, patch
 
 from loop import AgentState, think, execute_tool, run_loop, ActionKind, ToolCall
 
@@ -169,6 +169,100 @@ class TestActionKind:
         assert ActionKind.RED.value == "red"
 
 
+class TestDetermineActionKind:
+    """Tests for determine_action_kind function"""
+
+    def test_read_is_green(self):
+        """Test that read actions are classified as GREEN"""
+        from loop import determine_action_kind
+        assert determine_action_kind("read_file") == ActionKind.GREEN
+
+    def test_list_is_green(self):
+        """Test that list actions are classified as GREEN"""
+        from loop import determine_action_kind
+        assert determine_action_kind("list_files") == ActionKind.GREEN
+
+    def test_search_is_green(self):
+        """Test that search actions are classified as GREEN"""
+        from loop import determine_action_kind
+        assert determine_action_kind("search") == ActionKind.GREEN
+
+    def test_delete_is_red(self):
+        """Test that delete actions are classified as RED"""
+        from loop import determine_action_kind
+        assert determine_action_kind("delete_file") == ActionKind.RED
+
+    def test_write_is_red(self):
+        """Test that write actions are classified as RED"""
+        from loop import determine_action_kind
+        assert determine_action_kind("write_file") == ActionKind.RED
+
+    def test_send_is_red(self):
+        """Test that send actions are classified as RED"""
+        from loop import determine_action_kind
+        assert determine_action_kind("send_email") == ActionKind.RED
+
+    def test_unknown_is_red(self):
+        """Test that unknown actions default to RED"""
+        from loop import determine_action_kind
+        assert determine_action_kind("unknown_action") == ActionKind.RED
+
+
+class TestPresentDiffCard:
+    """Tests for present_diff_card function"""
+
+    def test_green_auto_approves(self):
+        """Test that green actions auto-approve"""
+        from loop import present_diff_card
+        green_action = ToolCall("read_file", {"path": "test.txt"}, ActionKind.GREEN)
+        assert present_diff_card(green_action) is True
+
+
+class TestExecuteToolError:
+    """Tests for error handling in execute_tool"""
+
+    def test_error_returns_error_status(self):
+        """Test that exceptions return error status"""
+        from loop import execute_tool
+
+        class ErrorClient:
+            def call_tool(self, name, args):
+                raise Exception("Test error")
+
+        call = ToolCall("test", {}, ActionKind.GREEN)
+        result = execute_tool(call, ErrorClient())
+        assert result["status"] == "error"
+        assert "Test error" in result["error"]
+
+
+class TestGetRiskDisplay:
+    """Tests for _get_risk_display function"""
+
+    def test_green_is_safe(self):
+        """Test green action risk"""
+        from loop import _get_risk_display
+        action = ToolCall("read_file", {}, ActionKind.GREEN)
+        assert "GREEN" in _get_risk_display(action)
+
+    def test_delete_is_critical(self):
+        """Test delete action risk"""
+        from loop import _get_risk_display
+        action = ToolCall("delete_file", {}, ActionKind.RED)
+        assert "CRITICAL" in _get_risk_display(action)
+
+    def test_write_is_high(self):
+        """Test write action risk"""
+        from loop import _get_risk_display
+        action = ToolCall("write_file", {}, ActionKind.RED)
+        assert "HIGH" in _get_risk_display(action)
+
+    def test_other_is_medium(self):
+        """Test other action risk"""
+        from loop import _get_risk_display
+        action = ToolCall("send_email", {}, ActionKind.RED)
+        assert "MEDIUM" in _get_risk_display(action)
+
+
 # Property-based tests using Hypothesis
 
 
@@ -209,3 +303,19 @@ class TestPropertyBased:
         """Property test: run_loop should handle any list of tools"""
         state = run_loop("Test task", tools)
         assert state.tools == tools
+
+
+class TestStyle:
+    """Tests for Style class"""
+
+    def test_style_bold(self):
+        """Test Style.bold() method"""
+        from loop import Style
+        result = Style.bold("test")
+        assert "test" in result
+
+    def test_style_cyan(self):
+        """Test Style.cyan() method"""
+        from loop import Style
+        result = Style.cyan("test")
+        assert "test" in result
