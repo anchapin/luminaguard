@@ -12,15 +12,8 @@
 //! Works over SSH and requires no GUI dependencies.
 
 use crate::approval::diff::{Change, DiffCard};
-use anyhow::{Context, Result};
-use ratatui::{
-    layout::{Alignment, Constraint, Direction, Layout},
-    style::{Color, Modifier, Style},
-    text::{Line, Span},
-    widgets::{Block, Borders, Paragraph, Wrap},
-    Terminal,
-};
-use std::io as _; // io::stdout is used via crossterm
+use anyhow::Result;
+use ratatui::style::Color;
 use std::time::{Duration, Instant};
 use tracing::{info, warn};
 
@@ -172,16 +165,13 @@ pub async fn present_tui_approval(diff_card: &DiffCard) -> Result<TuiResult> {
 
     enable_raw_mode()?;
 
-    let mut result = TuiResult::Cancelled; // Will be set in the loop
-
-    loop {
+    let result = loop {
         // Check timeout
         let elapsed = start_time.elapsed().as_secs();
         if elapsed >= timeout_seconds {
             warn!("Approval timeout after {} seconds", elapsed);
             println!("\n⚠️  TIMEOUT EXCEEDED - Action automatically rejected");
-            result = TuiResult::Rejected;
-            break;
+            break TuiResult::Rejected;
         }
 
         // Poll for events
@@ -190,24 +180,21 @@ pub async fn present_tui_approval(diff_card: &DiffCard) -> Result<TuiResult> {
                 match key.code {
                     KeyCode::Char('y') | KeyCode::Char('Y') => {
                         info!("User approved action: {}", diff_card.description);
-                        result = TuiResult::Approved;
-                        break;
+                        break TuiResult::Approved;
                     }
                     KeyCode::Char('n') | KeyCode::Char('N') => {
                         info!("User rejected action: {}", diff_card.description);
-                        result = TuiResult::Rejected;
-                        break;
+                        break TuiResult::Rejected;
                     }
                     KeyCode::Esc => {
                         info!("User cancelled approval: {}", diff_card.description);
-                        result = TuiResult::Cancelled;
-                        break;
+                        break TuiResult::Cancelled;
                     }
                     _ => {}
                 }
             }
         }
-    }
+    };
 
     disable_raw_mode()?;
     println!();

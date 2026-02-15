@@ -28,10 +28,10 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 try:
     # When imported as module
-    from agent.mcp_client import McpClient, McpError
+    from agent.mcp_client import McpClient
 except ImportError:
     # When run directly
-    from mcp_client import McpClient, McpError
+    from mcp_client import McpClient
 
 
 class Style:
@@ -194,19 +194,19 @@ def present_diff_card(action: ToolCall) -> bool:
         if action.action_kind == ActionKind.GREEN:
             # Green actions auto-approve
             return True
-        else:
-            # Red actions require approval - simple prompt as fallback
-            print("\n" + "=" * 80)
-            print(f"Action: {action.name}")
-            print(f"Type: {action.action_kind.value.upper()}")
-            print(f"Arguments: {action.arguments}")
-            print("=" * 80)
-            print(f"\nRisk Level: {_get_risk_display(action)}")
-            print("\nApprove this action? (y/n): ", end="")
 
-            response = input().strip().lower()
+        # Red actions require approval - simple prompt as fallback
+        print("\n" + "=" * 80)
+        print(f"Action: {action.name}")
+        print(f"Type: {action.action_kind.value.upper()}")
+        print(f"Arguments: {action.arguments}")
+        print("=" * 80)
+        print(f"\nRisk Level: {_get_risk_display(action)}")
+        print("\nApprove this action? (y/n): ", end="")
 
-            return response in ("y", "yes")
+        response = input().strip().lower()
+
+        return response in ("y", "yes")
 
 
 @dataclass
@@ -222,7 +222,7 @@ class AgentState:
         self.messages.append({"role": role, "content": content})
 
 
-def think(state: AgentState) -> Optional[ToolCall]:
+def think(state: AgentState, llm_client=None) -> Optional[ToolCall]:
     """
     Main reasoning loop - decides next action based on state.
 
@@ -232,42 +232,60 @@ def think(state: AgentState) -> Optional[ToolCall]:
     3. Message history
     4. Desired outcome
 
+    Args:
+        state: Current agent state with messages and context
+        llm_client: Optional LLM client (defaults to MockLLMClient)
+
     Returns:
         ToolCall if action needed, None if task complete
 
     Invariant:
         Must remain deterministic and observable.
         All logging must be explicit.
+
+    Multi-turn reasoning:
+        The agent can think multiple times as it processes tool results
+        and updates its understanding of the task.
     """
-    # Check if we have already executed a tool (simple one-shot agent for now)
-    tool_responses = [m for m in state.messages if m["role"] == "tool"]
-    if len(tool_responses) > 0:
-        return None
+    # Import LLM client (lazy import to avoid circular dependency)
+    try:
+        from llm_client import MockLLMClient, LLMConfig
 
-    # Get the last user message
-    user_msgs = [m for m in state.messages if m["role"] == "user"]
-    if not user_msgs:
-        return None
+        # Create LLM client if not provided
+        if llm_client is None:
+            llm_client = MockLLMClient(LLMConfig())
 
-    content = user_msgs[-1]["content"].lower()
-
-    # Simple keyword-based reasoning for testing
-    # TODO: Replace with real LLM reasoning logic in Phase 2
-    if "read" in content:
-        return ToolCall(
-            name="read_file",
-            arguments={"path": "test.txt"},
-            action_kind=ActionKind.GREEN,
-        )
-    elif "write" in content:
-        return ToolCall(
-            name="write_file",
-            arguments={"path": "test.txt", "content": "Hello"},
-            action_kind=ActionKind.GREEN,
+        # Use LLM to decide next action
+        response = llm_client.decide_action(
+            messages=state.messages,
+            available_tools=state.tools,
+            context=state.context,
         )
 
-    # Default: Task complete
-    return None
+        # Log reasoning (observable invariant)
+        print(f"  Reasoning: {response.reasoning}")
+
+        # If task is complete, return None
+        if response.is_complete or response.tool_name is None:
+            return None
+
+        # Determine action kind based on tool name (security invariant)
+        action_kind = determine_action_kind(response.tool_name)
+
+        # Create tool call
+        tool_call = ToolCall(
+            name=response.tool_name,
+            arguments=response.arguments,
+            action_kind=action_kind,
+        )
+
+        return tool_call
+
+    except ImportError:
+        # Fallback to simple implementation if llm_client not available
+        # This should not happen in normal operation
+        print("  Warning: LLM client not available, using fallback")
+        return None
 
 
 def execute_tool(call: ToolCall, mcp_client) -> Dict[str, Any]:
@@ -306,7 +324,10 @@ def execute_tool(call: ToolCall, mcp_client) -> Dict[str, Any]:
 
 
 def run_loop(
-    task: str, tools: List[str], mcp_client: Optional[McpClient] = None
+    task: str,
+    tools: List[str],
+    mcp_client: Optional[McpClient] = None,
+    llm_client=None,
 ) -> AgentState:
     """
     Run the agent reasoning loop for a given task.
@@ -317,6 +338,7 @@ def run_loop(
         task: User task description
         tools: List of available tools (currently informational only)
         mcp_client: Optional McpClient instance for tool execution
+        llm_client: Optional LLM client for reasoning (defaults to MockLLMClient)
 
     Returns:
         Final agent state
@@ -326,6 +348,10 @@ def run_loop(
         2. Execute: Run tool (if action chosen)
         3. Update: Add result to state
         4. Repeat: Until task complete
+
+    Multi-turn reasoning:
+        The agent can execute multiple tools in sequence as it works
+        through complex tasks, using the LLM to decide each step.
 
     Example:
         >>> client = McpClient("filesystem", ["npx", "-y", "@server"])
@@ -343,9 +369,9 @@ def run_loop(
     iteration = 0
 
     while iteration < max_iterations:
-        # Think about next action
+        # Think about next action (using LLM for decision-making)
         print(f"\n🧠 Thinking... (Iteration {iteration + 1}/{max_iterations})")
-        action = think(state)
+        action = think(state, llm_client)
 
         if action is None:
             # Task complete
@@ -389,9 +415,8 @@ def _get_risk_display(action: ToolCall) -> str:
     """Get human-readable risk level for an action"""
     if action.action_kind == ActionKind.GREEN:
         return "GREEN (Safe)"
-    elif "delete" in action.name or "remove" in action.name:
+    if "delete" in action.name or "remove" in action.name:
         return "CRITICAL (Permanent deletion)"
-    elif "write" in action.name or "edit" in action.name:
+    if "write" in action.name or "edit" in action.name:
         return "HIGH (Destructive)"
-    else:
-        return "MEDIUM (External action)"
+    return "MEDIUM (External action)"
