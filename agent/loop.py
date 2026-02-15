@@ -222,7 +222,7 @@ class AgentState:
         self.messages.append({"role": role, "content": content})
 
 
-def think(state: AgentState) -> Optional[ToolCall]:
+def think(state: AgentState, llm_client=None) -> Optional[ToolCall]:
     """
     Main reasoning loop - decides next action based on state.
 
@@ -232,6 +232,12 @@ def think(state: AgentState) -> Optional[ToolCall]:
     3. Message history
     4. Desired outcome
 
+    Uses LLM for decision-making when available, falls back to keyword matching.
+
+    Args:
+        state: Current agent state (messages, tools, context)
+        llm_client: Optional LLM client for reasoning. If None, uses MockLLMClient.
+
     Returns:
         ToolCall if action needed, None if task complete
 
@@ -239,35 +245,68 @@ def think(state: AgentState) -> Optional[ToolCall]:
         Must remain deterministic and observable.
         All logging must be explicit.
     """
-    # Check if we have already executed a tool (simple one-shot agent for now)
-    tool_responses = [m for m in state.messages if m["role"] == "tool"]
-    if len(tool_responses) > 0:
-        return None
+    try:
+        # Try to use LLM-based reasoning
+        from llm_client import MockLLMClient
 
-    # Get the last user message
-    user_msgs = [m for m in state.messages if m["role"] == "user"]
-    if not user_msgs:
-        return None
+        if llm_client is None:
+            llm_client = MockLLMClient()
 
-    content = user_msgs[-1]["content"].lower()
-
-    # Simple keyword-based reasoning for testing
-    # TODO: Replace with real LLM reasoning logic in Phase 2
-    if "read" in content:
-        return ToolCall(
-            name="read_file",
-            arguments={"path": "test.txt"},
-            action_kind=ActionKind.GREEN,
-        )
-    elif "write" in content:
-        return ToolCall(
-            name="write_file",
-            arguments={"path": "test.txt", "content": "Hello"},
-            action_kind=ActionKind.GREEN,
+        # Use LLM to decide next action
+        response = llm_client.decide_action(
+            messages=state.messages,
+            available_tools=state.tools,
+            context=state.context,
         )
 
-    # Default: Task complete
-    return None
+        # If task is complete, return None
+        if response.is_complete:
+            return None
+
+        # If no tool selected, return None
+        if response.tool_name is None:
+            return None
+
+        # Determine action kind based on tool name
+        action_kind = determine_action_kind(response.tool_name)
+
+        # Return the tool call
+        return ToolCall(
+            name=response.tool_name,
+            arguments=response.arguments,
+            action_kind=action_kind,
+        )
+
+    except ImportError:
+        # Fallback: Simple keyword-based reasoning if LLM client not available
+        # Check if we have already executed a tool (simple one-shot agent for now)
+        tool_responses = [m for m in state.messages if m["role"] == "tool"]
+        if len(tool_responses) > 0:
+            return None
+
+        # Get the last user message
+        user_msgs = [m for m in state.messages if m["role"] == "user"]
+        if not user_msgs:
+            return None
+
+        content = user_msgs[-1]["content"].lower()
+
+        # Simple keyword-based reasoning as fallback
+        if "read" in content:
+            return ToolCall(
+                name="read_file",
+                arguments={"path": "test.txt"},
+                action_kind=ActionKind.GREEN,
+            )
+        elif "write" in content:
+            return ToolCall(
+                name="write_file",
+                arguments={"path": "test.txt", "content": "Hello"},
+                action_kind=ActionKind.GREEN,
+            )
+
+        # Default: Task complete
+        return None
 
 
 def execute_tool(call: ToolCall, mcp_client) -> Dict[str, Any]:
