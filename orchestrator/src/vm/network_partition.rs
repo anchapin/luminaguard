@@ -119,7 +119,7 @@ where
 
 /// Partition state for simulation
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum PartitionState {
+pub enum PartitionState {
     Connected,
     Partitioned,
     Recovering,
@@ -349,13 +349,10 @@ impl NetworkPartitionTestHarness {
 
         // Simulate initial connection (send a few requests)
         let successful_requests_before: u64 = 5;
-        let mut successful_count = 0;
 
         for i in 0..successful_requests_before {
             let request = McpRequest::new(i, "test", None);
-            if simulator.send(&request).await.is_ok() {
-                successful_count += 1;
-            }
+            let _ = simulator.send(&request).await;
         }
 
         // Enable partition

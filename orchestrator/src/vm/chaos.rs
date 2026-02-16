@@ -568,7 +568,7 @@ impl ChaosTestHarness {
         let mut partition_count = 0;
 
         // Simulate network partitions
-        for i in 0..10 {
+        for _i in 0..10 {
             total_operations += 1;
 
             // Partition duration: 10-100ms

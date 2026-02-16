@@ -14,7 +14,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::time::Instant;
-use tracing::{debug, info, warn};
+use tracing::info;
 
 /// Result of a single security integration test
 #[derive(Debug, Clone, Serialize, Deserialize)]

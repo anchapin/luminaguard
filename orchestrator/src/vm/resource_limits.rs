@@ -129,7 +129,6 @@ impl ResourceLimitsTestHarness {
     /// Expected: ENFORCED - VM cannot exceed 64MB memory
     fn test_memory_limit_64mb(&mut self) {
         let test_name = "memory_limit_64mb";
-        let start = Instant::now();
 
         info!("Testing: {}", test_name);
 
@@ -144,7 +143,6 @@ impl ResourceLimitsTestHarness {
     /// Expected: ENFORCED - VM cannot exceed 128MB memory
     fn test_memory_limit_128mb(&mut self) {
         let test_name = "memory_limit_128mb";
-        let start = Instant::now();
 
         info!("Testing: {}", test_name);
 
@@ -159,7 +157,6 @@ impl ResourceLimitsTestHarness {
     /// Expected: ENFORCED - VM cannot exceed 256MB memory
     fn test_memory_limit_256mb(&mut self) {
         let test_name = "memory_limit_256mb";
-        let start = Instant::now();
 
         info!("Testing: {}", test_name);
 
@@ -174,7 +171,6 @@ impl ResourceLimitsTestHarness {
     /// Expected: ENFORCED - VM cannot exceed 512MB memory
     fn test_memory_limit_512mb(&mut self) {
         let test_name = "memory_limit_512mb";
-        let start = Instant::now();
 
         info!("Testing: {}", test_name);
 
