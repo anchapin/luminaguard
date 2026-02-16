@@ -392,6 +392,19 @@ def run_loop(
             break
 
         print(f"🛠️  Executing tool: {Style.cyan(action.name)}")
+        
+        # 🔒 Approval Cliff: Request approval for RED actions before execution
+        approved = present_diff_card(action)
+        
+        if not approved:
+            # User rejected the action - skip execution
+            print(f"\n⚠️  Action rejected by user. Skipping: {action.name}")
+            state.add_message("tool", f"REJECTED: {action.name} - user denied approval")
+            iteration += 1
+            continue
+        
+        print(f"✅ Action approved, executing: {action.name}")
+        
         # Execute tool (if MCP client provided)
         if mcp_client is not None:
             result = execute_tool(action, mcp_client)
