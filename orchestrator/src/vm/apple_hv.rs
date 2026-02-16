@@ -564,7 +564,7 @@ mod tests {
         let config = VmConfig {
             vm_id: "test-missing-kernel".to_string(),
             kernel_path: "/nonexistent/vmlinux".to_string(),
-            rootfs_path: "./resources/rootfs.ext4".to_string(),
+            rootfs_path: "/dev/null".to_string(),
             ..VmConfig::default()
         };
 
@@ -584,7 +584,7 @@ mod tests {
         // Test error handling: missing rootfs file
         let config = VmConfig {
             vm_id: "test-missing-rootfs".to_string(),
-            kernel_path: "./resources/vmlinux".to_string(),
+            kernel_path: "/dev/null".to_string(),
             rootfs_path: "/nonexistent/rootfs.ext4".to_string(),
             ..VmConfig::default()
         };
