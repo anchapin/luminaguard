@@ -149,25 +149,52 @@ async fn run_agent(task: String) -> Result<()> {
         info!("VM vsock path: {}", path);
     }
     
-    // Step 3: Launch Python reasoning loop inside VM
-    // For now, we demonstrate the architecture - the actual execution
-    // would communicate with the VM via vsock or other IPC
-    info!("🚀 Launching Python reasoning loop...");
+    // Step 3: Launch Python reasoning loop
+    // For now, run on host with approval cliff integration
+    // TODO: Move inside VM for true isolation
+    info!("🚀 Launching Python reasoning loop with Approval Cliff...");
     
-    // TODO: Implement actual agent execution inside VM
-    // This would involve:
-    // 1. Copy agent code to VM
-    // 2. Execute Python loop via vsock/stdin
-    // 3. Stream results back
+    // Build path to Python agent
+    let agent_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .join("agent");
+    let loop_py = agent_dir.join("loop.py");
+    let venv_python = agent_dir.join(".venv/bin/python");
     
-    // For demonstration, print agent execution info
+    // Check if we have the Python environment
+    let python_cmd = if venv_python.exists() {
+        venv_python.to_str().unwrap()
+    } else {
+        "python3"
+    };
+    
+    info!("Executing: {} {}", python_cmd, loop_py.display());
+    
+    // Run the Python agent loop
+    let output = std::process::Command::new(python_cmd)
+        .arg(loop_py)
+        .arg(&task)
+        .output()
+        .context("Failed to execute Python agent loop")?;
+    
+    // Print agent output
+    if !output.stdout.is_empty() {
+        println!("{}", String::from_utf8_lossy(&output.stdout));
+    }
+    if !output.stderr.is_empty() {
+        eprintln!("Agent stderr: {}", String::from_utf8_lossy(&output.stderr));
+    }
+    
+    // Print summary
     println!("\n==========================================");
-    println!("🤖 Agent Execution");
+    println!("🤖 Agent Execution Summary");
     println!("==========================================");
     println!("Task ID: {}", task_id);
     println!("Task: {}", task);
     println!("VM ID: {}", handle.id);
     println!("Spawn time: {:.2}ms", handle.spawn_time_ms);
+    println!("Exit code: {:?}", output.status.code());
     println!("==========================================\n");
     
     // Step 4: Cleanup - destroy the VM after task completion
