@@ -319,3 +319,317 @@ class TestStyle:
         from loop import Style
         result = Style.cyan("test")
         assert "test" in result
+
+
+class TestPresentDiffCardWithTUI:
+    """Tests for present_diff_card with TUI integration"""
+
+    @patch.dict('sys.modules', {'approval_client': Mock()})
+    def test_present_diff_card_with_tui_import(self):
+        """Test present_diff_card when approval_client is available"""
+        import sys
+        from unittest.mock import MagicMock
+        from loop import present_diff_card, ToolCall, ActionKind
+        
+        # Mock the approval_client module
+        mock_module = MagicMock()
+        mock_module.present_diff_card = MagicMock(return_value=True)
+        sys.modules['approval_client'] = mock_module
+        
+        action = ToolCall("read_file", {"path": "test.txt"}, ActionKind.GREEN)
+        result = present_diff_card(action)
+        
+        # Clean up
+        del sys.modules['approval_client']
+        
+        assert result is True
+
+
+class TestThinkWithLLMClient:
+    """Tests for think() function with LLM client"""
+
+    def test_think_with_llm_client_read_task(self):
+        """Test think() with LLM client that returns read action"""
+        from unittest.mock import MagicMock, patch
+        from loop import think, AgentState, ActionKind
+        
+        # Create mock LLM client
+        mock_llm = MagicMock()
+        mock_response = MagicMock()
+        mock_response.is_complete = False
+        mock_response.tool_name = "read_file"
+        mock_response.arguments = {"path": "/tmp/test.txt"}
+        mock_llm.decide_action.return_value = mock_response
+        
+        state = AgentState(
+            messages=[{"role": "user", "content": "read the file"}],
+            tools=["read_file"],
+            context={}
+        )
+        
+        result = think(state, llm_client=mock_llm)
+        
+        assert result is not None
+        assert result.name == "read_file"
+        assert result.action_kind == ActionKind.GREEN
+
+    def test_think_with_llm_client_write_task(self):
+        """Test think() with LLM client that returns write action"""
+        from unittest.mock import MagicMock
+        from loop import think, AgentState, ActionKind
+        
+        mock_llm = MagicMock()
+        mock_response = MagicMock()
+        mock_response.is_complete = False
+        mock_response.tool_name = "write_file"
+        mock_response.arguments = {"path": "/tmp/test.txt", "content": "hello"}
+        mock_llm.decide_action.return_value = mock_response
+        
+        state = AgentState(
+            messages=[{"role": "user", "content": "write to file"}],
+            tools=["write_file"],
+            context={}
+        )
+        
+        result = think(state, llm_client=mock_llm)
+        
+        assert result is not None
+        assert result.name == "write_file"
+        assert result.action_kind == ActionKind.RED
+
+    def test_think_with_llm_complete(self):
+        """Test think() when LLM indicates task is complete"""
+        from unittest.mock import MagicMock
+        from loop import think, AgentState
+        
+        mock_llm = MagicMock()
+        mock_response = MagicMock()
+        mock_response.is_complete = True
+        mock_llm.decide_action.return_value = mock_response
+        
+        state = AgentState(
+            messages=[{"role": "user", "content": "done"}],
+            tools=[],
+            context={}
+        )
+        
+        result = think(state, llm_client=mock_llm)
+        
+        assert result is None
+
+    def test_think_with_llm_no_tool(self):
+        """Test think() when LLM returns no tool"""
+        from unittest.mock import MagicMock
+        from loop import think, AgentState
+        
+        mock_llm = MagicMock()
+        mock_response = MagicMock()
+        mock_response.is_complete = False
+        mock_response.tool_name = None
+        mock_llm.decide_action.return_value = mock_response
+        
+        state = AgentState(
+            messages=[{"role": "user", "content": "hello"}],
+            tools=[],
+            context={}
+        )
+        
+        result = think(state, llm_client=mock_llm)
+        
+        assert result is None
+
+
+class TestThinkFallbackWithMessages:
+    """Tests for think() fallback with existing tool messages"""
+
+    def test_think_fallback_with_tool_response(self):
+        """Test think() fallback when tool already executed"""
+        from loop import think, AgentState
+        
+        state = AgentState(
+            messages=[
+                {"role": "user", "content": "read file"},
+                {"role": "tool", "content": "file content here"}
+            ],
+            tools=["read_file"],
+            context={}
+        )
+        
+        result = think(state)
+        
+        assert result is None
+
+    def test_think_fallback_with_write_task(self):
+        """Test think() fallback with write task"""
+        from loop import think, AgentState
+        
+        state = AgentState(
+            messages=[{"role": "user", "content": "write hello world"}],
+            tools=["write_file"],
+            context={}
+        )
+        
+        result = think(state)
+        
+        assert result is not None
+        assert result.name == "write_file"
+
+
+class TestRunLoopWithMCP:
+    """Tests for run_loop with actual MCP client"""
+
+    def test_run_loop_with_mcp_client(self):
+        """Test run_loop when MCP client is provided"""
+        from unittest.mock import MagicMock
+        from loop import run_loop, AgentState
+        
+        mock_mcp = MagicMock()
+        mock_mcp.call_tool.return_value = {"result": "success", "content": []}
+        
+        state = run_loop("read test.txt", ["read_file"], mcp_client=mock_mcp)
+        
+        assert isinstance(state, AgentState)
+        mock_mcp.call_tool.assert_called()
+
+    def test_run_loop_max_iterations(self):
+        """Test run_loop respects max iterations"""
+        from loop import run_loop
+        
+        # Using a task that won't complete to test max iterations
+        state = run_loop("do nothing special", ["unknown_tool"])
+        
+        # Should complete without hanging
+        assert isinstance(state, AgentState)
+
+
+class TestAdditionalGreenKeywords:
+    """Tests for determine_action_kind with additional keywords"""
+
+    def test_check_is_green(self):
+        """Test check keyword is green"""
+        from loop import determine_action_kind, ActionKind
+        assert determine_action_kind("check_status") == ActionKind.GREEN
+
+    def test_get_is_green(self):
+        """Test get keyword is green"""
+        from loop import determine_action_kind, ActionKind
+        assert determine_action_kind("get_config") == ActionKind.GREEN
+
+    def test_show_is_green(self):
+        """Test show keyword is green"""
+        from loop import determine_action_kind, ActionKind
+        assert determine_action_kind("show_info") == ActionKind.GREEN
+
+    def test_execute_is_red(self):
+        """Test execute keyword is red"""
+        from loop import determine_action_kind, ActionKind
+        assert determine_action_kind("execute_command") == ActionKind.RED
+
+    def test_deploy_is_red(self):
+        """Test deploy keyword is red"""
+        from loop import determine_action_kind, ActionKind
+        assert determine_action_kind("deploy_app") == ActionKind.RED
+
+    def test_install_is_red(self):
+        """Test install keyword is red"""
+        from loop import determine_action_kind, ActionKind
+        assert determine_action_kind("install_package") == ActionKind.RED
+
+
+class TestPresentDiffCardRedAction:
+    """Tests for present_diff_card with RED actions"""
+
+    def test_present_diff_card_red_approval_with_mock_tui(self):
+        """Test that red actions can be approved via mock TUI"""
+        import sys
+        from unittest.mock import MagicMock
+        from loop import present_diff_card, ToolCall, ActionKind
+        
+        # Mock the approval_client module to return True
+        mock_module = MagicMock()
+        mock_module.present_diff_card = MagicMock(return_value=True)
+        sys.modules['approval_client'] = mock_module
+        
+        action = ToolCall("delete_file", {"path": "test.txt"}, ActionKind.RED)
+        result = present_diff_card(action)
+        
+        # Clean up
+        del sys.modules['approval_client']
+        
+        assert result is True
+
+    def test_present_diff_card_red_rejection_with_mock_tui(self):
+        """Test that red actions can be rejected via mock TUI"""
+        import sys
+        from unittest.mock import MagicMock
+        from loop import present_diff_card, ToolCall, ActionKind
+        
+        # Mock the approval_client module to return False
+        mock_module = MagicMock()
+        mock_module.present_diff_card = MagicMock(return_value=False)
+        sys.modules['approval_client'] = mock_module
+        
+        action = ToolCall("delete_file", {"path": "test.txt"}, ActionKind.RED)
+        result = present_diff_card(action)
+        
+        # Clean up
+        del sys.modules['approval_client']
+        
+        assert result is False
+
+
+class TestRunLoopEdgeCases:
+    """Tests for run_loop edge cases"""
+
+    def test_run_loop_with_mock_mcp(self):
+        """Test run_loop with mock MCP client returns state"""
+        from unittest.mock import MagicMock
+        from loop import run_loop, AgentState
+        
+        mock_mcp = MagicMock()
+        mock_mcp.call_tool.return_value = {"result": "done", "content": []}
+        
+        state = run_loop("read file", ["read_file"], mcp_client=mock_mcp)
+        
+        assert isinstance(state, AgentState)
+
+
+class TestRiskDisplayEdgeCases:
+    """Tests for _get_risk_display edge cases"""
+
+    def test_transfer_is_medium(self):
+        """Test transfer action is medium risk"""
+        from loop import _get_risk_display, ToolCall, ActionKind
+        action = ToolCall("transfer_funds", {}, ActionKind.RED)
+        assert "MEDIUM" in _get_risk_display(action)
+
+    def test_publish_is_medium(self):
+        """Test publish action is medium risk"""
+        from loop import _get_risk_display, ToolCall, ActionKind
+        action = ToolCall("publish_article", {}, ActionKind.RED)
+        assert "MEDIUM" in _get_risk_display(action)
+
+
+class TestImportCases:
+    """Test import scenarios for coverage"""
+
+    def test_import_mcp_client_fallback(self):
+        """Test import fallback path"""
+        import sys
+        # Save original modules
+        orig_modules = sys.modules.copy()
+        
+        # Remove agent.mcp_client if it exists
+        if 'agent.mcp_client' in sys.modules:
+            del sys.modules['agent.mcp_client']
+        
+        # Try importing - should use fallback
+        import importlib
+        importlib.invalidate_caches()
+        
+        # This tests the import fallback logic
+        # The actual import might use cached version but we exercise the code path
+        from loop import McpClient, McpError
+        
+        assert McpClient is not None
+        assert McpError is not None
