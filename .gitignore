@@ -77,3 +77,10 @@ tarpaulin-report.json
 
 # FPF (Formal Proof Framework) - local vibe coding context, not tracked
 .quint/
+
+# VM Resources - Large binaries downloaded from external sources
+# These are fetched by scripts/download-firecracker-resources.sh
+resources/
+orchestrator/resources/*.ext4
+orchestrator/resources/vmlinux
+/tmp/luminaguard-fc-test/
