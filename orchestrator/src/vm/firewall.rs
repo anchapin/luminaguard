@@ -13,20 +13,94 @@ use anyhow::{Context, Result};
 use std::process::Command;
 use tracing::{info, warn};
 
+/// Firewall configuration mode
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FirewallMode {
+    /// Enforce isolation (requires root)
+    Enforce,
+    /// Test mode: skip root check, useful for development
+    Test,
+    /// Disable firewall configuration
+    Disabled,
+}
+
+/// Error types for firewall operations
+#[derive(Debug, Clone)]
+pub enum FirewallError {
+    /// Not running as root
+    PrivilegeRequired,
+    /// iptables not installed
+    IptablesNotAvailable,
+    /// Chain creation failed
+    ChainCreationFailed(String),
+    /// Rule addition failed
+    RuleAdditionFailed(String),
+    /// Rule linking failed
+    LinkingFailed(String),
+    /// Cleanup failed
+    CleanupFailed(String),
+}
+
+impl std::fmt::Display for FirewallError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            FirewallError::PrivilegeRequired => {
+                write!(f, "Firewall configuration requires root privileges or CAP_NET_ADMIN capability")
+            }
+            FirewallError::IptablesNotAvailable => {
+                write!(f, "iptables is not installed or not accessible")
+            }
+            FirewallError::ChainCreationFailed(msg) => write!(f, "Failed to create firewall chain: {}", msg),
+            FirewallError::RuleAdditionFailed(msg) => write!(f, "Failed to add firewall rules: {}", msg),
+            FirewallError::LinkingFailed(msg) => write!(f, "Failed to link firewall chain: {}", msg),
+            FirewallError::CleanupFailed(msg) => write!(f, "Failed to cleanup firewall rules: {}", msg),
+        }
+    }
+}
+
+impl std::error::Error for FirewallError {}
+
 /// Firewall manager for VM network isolation
 pub struct FirewallManager {
     vm_id: String,
     chain_name: String,
     interface: Option<String>,
+    mode: FirewallMode,
 }
 
 impl FirewallManager {
-    /// Create a new firewall manager for a VM
+    /// Create a new firewall manager for a VM (Enforce mode)
     ///
     /// # Arguments
     ///
     /// * `vm_id` - Unique identifier for the VM
+    ///
+    /// # Privilege Requirements
+    ///
+    /// Enforce mode requires running as root or with CAP_NET_ADMIN capability.
     pub fn new(vm_id: String) -> Self {
+        Self::with_mode(vm_id, FirewallMode::Enforce)
+    }
+
+    /// Create a new firewall manager in test mode
+    ///
+    /// Test mode skips privilege checks and is useful for development/testing.
+    /// In test mode, iptables commands are still executed but privilege checks are bypassed.
+    ///
+    /// # Arguments
+    ///
+    /// * `vm_id` - Unique identifier for the VM
+    pub fn test(vm_id: String) -> Self {
+        Self::with_mode(vm_id, FirewallMode::Test)
+    }
+
+    /// Create a new firewall manager with explicit mode
+    ///
+    /// # Arguments
+    ///
+    /// * `vm_id` - Unique identifier for the VM
+    /// * `mode` - Firewall operation mode (Enforce, Test, or Disabled)
+    pub fn with_mode(vm_id: String, mode: FirewallMode) -> Self {
         // Create a unique chain name for this VM
         // Sanitize vm_id to only contain alphanumeric characters
         // and truncate to ensure chain name <= 28 chars (kernel limit)
@@ -43,6 +117,7 @@ impl FirewallManager {
             vm_id,
             chain_name,
             interface: None,
+            mode,
         }
     }
 
@@ -51,6 +126,11 @@ impl FirewallManager {
     pub fn with_interface(mut self, interface: String) -> Self {
         self.interface = Some(interface);
         self
+    }
+
+    /// Get current firewall mode
+    pub fn mode(&self) -> FirewallMode {
+        self.mode
     }
 
     /// Configure firewall rules to isolate the VM
@@ -66,33 +146,73 @@ impl FirewallManager {
     /// * `Ok(())` - Firewall rules configured successfully
     /// * `Err(_)` - Failed to configure firewall rules
     ///
-    /// # Note
+    /// # Behavior by Mode
     ///
-    /// This function requires root privileges. If running without root,
-    /// it will return an error. In production, the orchestrator should
-    /// run with appropriate capabilities.
+    /// * **Enforce**: Requires root/CAP_NET_ADMIN and enforces all checks
+    /// * **Test**: Skips privilege checks (for development/testing)
+    /// * **Disabled**: No-op, returns success immediately
+    ///
+    /// # Security
+    ///
+    /// In production, the orchestrator must run as root or have CAP_NET_ADMIN capability
+    /// for firewall isolation to be effective.
     pub fn configure_isolation(&self) -> Result<()> {
-        info!("Configuring firewall isolation for VM: {}", self.vm_id);
+        match self.mode {
+            FirewallMode::Disabled => {
+                info!(
+                    "Firewall isolation disabled for VM: {} (mode=Disabled)",
+                    self.vm_id
+                );
+                return Ok(());
+            }
+            FirewallMode::Test => {
+                info!("Firewall isolation in test mode for VM: {}", self.vm_id);
+                // Continue without privilege checks
+            }
+            FirewallMode::Enforce => {
+                info!("Configuring firewall isolation for VM: {} (mode=Enforce)", self.vm_id);
+                // Check privileges below
+            }
+        }
 
         // Check if iptables is available
         if !Self::check_iptables_installed() {
-            anyhow::bail!("iptables is not installed or not accessible");
+            let err = FirewallError::IptablesNotAvailable;
+            warn!("{}", err);
+            return Err(anyhow::anyhow!("{}", err));
         }
 
-        // Check if running as root
-        if !Self::is_root() {
-            anyhow::bail!("Firewall configuration requires root privileges");
+        // Check if running as root (skip in Test mode)
+        if self.mode == FirewallMode::Enforce && !Self::is_root() {
+            let err = FirewallError::PrivilegeRequired;
+            warn!("VM {}: {}", self.vm_id, err);
+            return Err(anyhow::anyhow!("{}", err));
         }
 
         // Create a new chain for this VM
-        self.create_chain()?;
+        self.create_chain().map_err(|e| {
+            anyhow::anyhow!(
+                "{}",
+                FirewallError::ChainCreationFailed(e.to_string())
+            )
+        })?;
 
         // Add rules to drop all traffic
-        self.add_drop_rules()?;
+        self.add_drop_rules().map_err(|e| {
+            anyhow::anyhow!(
+                "{}",
+                FirewallError::RuleAdditionFailed(e.to_string())
+            )
+        })?;
 
         // Link the chain if interface is specified
         if let Some(ref iface) = self.interface {
-            self.link_chain(iface)?;
+            self.link_chain(iface).map_err(|e| {
+                anyhow::anyhow!(
+                    "{}",
+                    FirewallError::LinkingFailed(e.to_string())
+                )
+            })?;
         } else {
             warn!(
                 "No interface specified for VM {}. Firewall chain created but NOT linked to system traffic. Isolation verification may fail.",
@@ -101,8 +221,8 @@ impl FirewallManager {
         }
 
         info!(
-            "Firewall isolation configured for VM: {} (chain: {})",
-            self.vm_id, self.chain_name
+            "Firewall isolation configured for VM: {} (chain: {}, mode: {:?})",
+            self.vm_id, self.chain_name, self.mode
         );
 
         Ok(())
@@ -111,18 +231,42 @@ impl FirewallManager {
     /// Remove firewall rules and cleanup
     ///
     /// This should be called when the VM is destroyed.
+    /// Best-effort cleanup: tries to remove all rules even if some fail.
     pub fn cleanup(&self) -> Result<()> {
+        if self.mode == FirewallMode::Disabled {
+            info!("Firewall cleanup skipped for VM: {} (mode=Disabled)", self.vm_id);
+            return Ok(());
+        }
+
         info!("Cleaning up firewall rules for VM: {}", self.vm_id);
+
+        let mut cleanup_errors = Vec::new();
 
         // Unlink chain first (iptables -X fails if chain is in use)
         if let Some(ref iface) = self.interface {
-            // Ignore errors during cleanup as rules might be gone
-            let _ = self.unlink_chain(iface);
+            if let Err(e) = self.unlink_chain(iface) {
+                cleanup_errors.push(format!("unlink_chain: {}", e));
+                warn!("Failed to unlink chain for VM {}: {}", self.vm_id, e);
+            }
         }
 
         // Flush and delete the chain
-        self.flush_chain()?;
-        self.delete_chain()?;
+        if let Err(e) = self.flush_chain() {
+            cleanup_errors.push(format!("flush_chain: {}", e));
+            warn!("Failed to flush chain for VM {}: {}", self.vm_id, e);
+        }
+
+        if let Err(e) = self.delete_chain() {
+            cleanup_errors.push(format!("delete_chain: {}", e));
+            warn!("Failed to delete chain for VM {}: {}", self.vm_id, e);
+        }
+
+        if !cleanup_errors.is_empty() {
+            let error_summary = cleanup_errors.join("; ");
+            let err = FirewallError::CleanupFailed(error_summary);
+            warn!("VM {}: {}", self.vm_id, err);
+            return Err(anyhow::anyhow!("{}", err));
+        }
 
         info!("Firewall rules cleaned up for VM: {}", self.vm_id);
 
@@ -465,5 +609,66 @@ mod tests {
         let manager = FirewallManager::new("vm-1".to_string()).with_interface("tap0".to_string());
 
         assert_eq!(manager.interface, Some("tap0".to_string()));
+    }
+
+    #[test]
+    fn test_firewall_mode_creation() {
+        let enforce_mgr = FirewallManager::new("vm-enforce".to_string());
+        assert_eq!(enforce_mgr.mode(), FirewallMode::Enforce);
+
+        let test_mgr = FirewallManager::test("vm-test".to_string());
+        assert_eq!(test_mgr.mode(), FirewallMode::Test);
+
+        let disabled_mgr = FirewallManager::with_mode("vm-disabled".to_string(), FirewallMode::Disabled);
+        assert_eq!(disabled_mgr.mode(), FirewallMode::Disabled);
+    }
+
+    #[test]
+    fn test_firewall_disabled_mode_noop() {
+        let manager = FirewallManager::with_mode("vm-test".to_string(), FirewallMode::Disabled);
+
+        // Disabled mode should return Ok without doing anything
+        assert!(manager.configure_isolation().is_ok());
+        assert!(manager.cleanup().is_ok());
+    }
+
+    #[test]
+    fn test_firewall_mode_with_interface() {
+        let manager = FirewallManager::test("vm-1".to_string())
+            .with_interface("tap0".to_string());
+
+        assert_eq!(manager.mode(), FirewallMode::Test);
+        assert_eq!(manager.interface, Some("tap0".to_string()));
+    }
+
+    #[test]
+    fn test_firewall_error_display() {
+        let errors = vec![
+            (
+                FirewallError::PrivilegeRequired,
+                "Firewall configuration requires root privileges or CAP_NET_ADMIN capability"
+            ),
+            (FirewallError::IptablesNotAvailable, "iptables is not installed or not accessible"),
+            (
+                FirewallError::ChainCreationFailed("test".to_string()),
+                "Failed to create firewall chain: test"
+            ),
+            (
+                FirewallError::RuleAdditionFailed("test".to_string()),
+                "Failed to add firewall rules: test"
+            ),
+            (
+                FirewallError::LinkingFailed("test".to_string()),
+                "Failed to link firewall chain: test"
+            ),
+            (
+                FirewallError::CleanupFailed("test".to_string()),
+                "Failed to cleanup firewall rules: test"
+            ),
+        ];
+
+        for (error, expected_msg) in errors {
+            assert!(error.to_string().contains(expected_msg));
+        }
     }
 }
