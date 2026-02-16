@@ -44,6 +44,44 @@ fn truncate_text(s: &str, max_len: usize) -> String {
     }
 }
 
+/// Format a file diff with line-by-line changes
+fn format_file_diff(before: &str, after: &str) -> Vec<String> {
+    let mut output = Vec::new();
+    let before_lines: Vec<&str> = before.lines().collect();
+    let after_lines: Vec<&str> = after.lines().collect();
+    
+    // Simple diff output (shows removed lines with -, added lines with +)
+    let max_lines = before_lines.len().max(after_lines.len());
+    for i in 0..max_lines {
+        if i < before_lines.len() {
+            output.push(format!("- {}", before_lines[i]));
+        }
+        if i < after_lines.len() {
+            output.push(format!("+ {}", after_lines[i]));
+        }
+    }
+    output
+}
+
+/// Detect file type from path for syntax highlighting hints
+fn detect_file_type(path: &str) -> &str {
+    if path.ends_with(".rs") {
+        "rust"
+    } else if path.ends_with(".py") {
+        "python"
+    } else if path.ends_with(".js") || path.ends_with(".ts") {
+        "javascript"
+    } else if path.ends_with(".json") {
+        "json"
+    } else if path.ends_with(".yaml") || path.ends_with(".yml") {
+        "yaml"
+    } else if path.ends_with(".sh") {
+        "bash"
+    } else {
+        "text"
+    }
+}
+
 /// Present an approval decision to the user via interactive terminal UI
 ///
 /// This is a simplified TUI implementation that presents a clear approval UI.
@@ -51,9 +89,10 @@ fn truncate_text(s: &str, max_len: usize) -> String {
 ///
 /// Features:
 /// - Color-coded risk levels (green/yellow/orange/red/critical red)
-/// - Clear display of changes
+/// - Clear display of changes with syntax highlighting hints
 /// - Keyboard input (Y approve, N reject, Esc cancel)
 /// - Timeout mechanism (auto-reject after 5 minutes by default)
+/// - Line-by-line diff display for file edits
 ///
 /// # Arguments
 /// * `diff_card` - The DiffCard to display
@@ -93,54 +132,106 @@ pub async fn present_tui_approval(diff_card: &DiffCard) -> Result<TuiResult> {
 
     // Display changes
     if !diff_card.changes.is_empty() {
-        println!("\nChanges:");
+        println!("\nChanges ({} total):", diff_card.changes.len());
+        println!("{}", "─".repeat(80));
+        
         for (i, change) in diff_card.changes.iter().enumerate() {
             println!(
-                "  {}. {} - {}",
+                "\n  [{}/{}] {} - {}",
                 i + 1,
+                diff_card.changes.len(),
                 change.change_type(),
                 change.summary()
             );
+            println!("  {}", "─".repeat(76));
 
-            // Show preview based on change type
+            // Show detailed information based on change type
             match change {
-                Change::FileEdit { before, after, .. } => {
-                    println!("     Before: {}", truncate_text(before, 60));
-                    println!("     After:  {}", truncate_text(after, 60));
+                Change::FileEdit { path, before, after } => {
+                    let file_type = detect_file_type(path);
+                    println!("     File: {}", path);
+                    println!("     Type: {} ({})", change.change_type(), file_type);
+                    println!("     Diff:");
+                    
+                    // Show line-by-line diff
+                    let diff_lines = format_file_diff(before, after);
+                    for (line_idx, diff_line) in diff_lines.iter().take(10).enumerate() {
+                        if diff_line.starts_with('-') {
+                            println!("     \x1b[31m{}\x1b[0m", diff_line); // Red for deletions
+                        } else if diff_line.starts_with('+') {
+                            println!("     \x1b[32m{}\x1b[0m", diff_line); // Green for additions
+                        } else {
+                            println!("     {}", diff_line);
+                        }
+                    }
+                    if diff_lines.len() > 10 {
+                        println!("     ... ({} more lines)", diff_lines.len() - 10);
+                    }
                 }
                 Change::FileCreate {
-                    content_preview, ..
+                    path,
+                    content_preview,
                 } => {
-                    println!("     Content: {}", truncate_text(content_preview, 60));
+                    let file_type = detect_file_type(path);
+                    println!("     Path: {}", path);
+                    println!("     Type: {} ({})", change.change_type(), file_type);
+                    println!("     Preview:");
+                    for line in content_preview.lines().take(5) {
+                        println!("     \x1b[32m+{}\x1b[0m", line);
+                    }
+                    if content_preview.lines().count() > 5 {
+                        println!("     ... ({} more lines)", content_preview.lines().count() - 5);
+                    }
                 }
-                Change::FileDelete { size_bytes, .. } => {
-                    println!("     Size: {} bytes (permanent deletion)", size_bytes);
+                Change::FileDelete { path, size_bytes } => {
+                    println!("     Path: {}", path);
+                    println!("     Size: {} bytes", size_bytes);
+                    println!("     ⚠️  WARNING: Permanent deletion - cannot be undone");
                 }
-                Change::CommandExec { args, .. } => {
+                Change::CommandExec { command, args, env_vars } => {
+                    println!("     Command: {}", command);
                     if !args.is_empty() {
                         println!("     Args: {}", args.join(" "));
                     }
+                    if let Some(vars) = env_vars {
+                        if !vars.is_empty() {
+                            println!("     Environment variables: {} set", vars.len());
+                        }
+                    }
                 }
-                Change::EmailSend { subject, .. } => {
+                Change::EmailSend { to, subject, preview } => {
+                    println!("     To: {}", to);
                     println!("     Subject: {}", subject);
+                    println!("     Preview: {}", truncate_text(preview, 70));
                 }
                 Change::ExternalCall {
-                    payload_preview, ..
+                    method,
+                    endpoint,
+                    payload_preview,
                 } => {
-                    println!("     Payload: {}", truncate_text(payload_preview, 60));
+                    println!("     Method: {}", method);
+                    println!("     Endpoint: {}", endpoint);
+                    println!("     Payload: {}", truncate_text(payload_preview, 70));
                 }
                 Change::AssetTransfer {
-                    amount, currency, ..
+                    from,
+                    to,
+                    amount,
+                    currency,
                 } => {
+                    println!("     From: {}", from);
+                    println!("     To: {}", to);
                     println!("     Amount: {} {}", amount, currency);
+                    println!("     ⚠️  WARNING: Financial transaction - verify recipients");
                 }
                 Change::ConfigChange {
+                    key,
                     old_value,
                     new_value,
-                    ..
                 } => {
-                    println!("     Old: {}", old_value);
-                    println!("     New: {}", new_value);
+                    println!("     Key: {}", key);
+                    println!("     Old: \x1b[31m{}\x1b[0m", old_value);
+                    println!("     New: \x1b[32m{}\x1b[0m", new_value);
                 }
                 Change::Custom { description } => {
                     println!("     {}", description);
@@ -148,6 +239,8 @@ pub async fn present_tui_approval(diff_card: &DiffCard) -> Result<TuiResult> {
             }
         }
     }
+    
+    println!();
 
     println!("\n{}", "=".repeat(80));
 
@@ -268,5 +361,36 @@ mod tests {
         let truncated = truncate_text(text, 20);
         assert!(truncated.len() <= 23); // 20 + "..."
         assert!(truncated.ends_with("..."));
+    }
+
+    #[test]
+    fn test_file_type_detection() {
+        assert_eq!(detect_file_type("main.rs"), "rust");
+        assert_eq!(detect_file_type("script.py"), "python");
+        assert_eq!(detect_file_type("app.js"), "javascript");
+        assert_eq!(detect_file_type("config.json"), "json");
+        assert_eq!(detect_file_type("setup.sh"), "bash");
+        assert_eq!(detect_file_type("deploy.yaml"), "yaml");
+        assert_eq!(detect_file_type("README.md"), "text");
+    }
+
+    #[test]
+    fn test_format_file_diff() {
+        let before = "line 1\nline 2\nline 3";
+        let after = "line 1\nmodified\nline 3";
+        let diff = format_file_diff(before, after);
+        
+        assert!(!diff.is_empty());
+        assert!(diff.iter().any(|l| l.starts_with('-') && l.contains("line 2")));
+        assert!(diff.iter().any(|l| l.starts_with('+') && l.contains("modified")));
+    }
+
+    #[test]
+    fn test_create_test_diff_card_props() {
+        let card = create_test_diff_card();
+        assert_eq!(card.action_type, ActionType::DeleteFile);
+        assert_eq!(card.description, "Delete test file");
+        assert_eq!(card.risk_level, RiskLevel::Critical);
+        assert_eq!(card.changes.len(), 1);
     }
 }
