@@ -4,21 +4,21 @@
       "test_name": "privilege_escalation_setuid",
       "blocked": true,
       "error_message": null,
-      "execution_time_ms": 0.01726,
+      "execution_time_ms": 0.01819,
       "details": "Blocked 10/10 setuid-related syscalls"
     },
     {
       "test_name": "privilege_escalation_capability_bypass",
       "blocked": true,
       "error_message": null,
-      "execution_time_ms": 0.0063,
+      "execution_time_ms": 0.00634,
       "details": "Blocked 3/3 capability-related syscalls"
     },
     {
       "test_name": "filesystem_escape_mount",
       "blocked": true,
       "error_message": null,
-      "execution_time_ms": 0.00588,
+      "execution_time_ms": 0.006059999999999999,
       "details": "Blocked 4/4 mount-related syscalls"
     },
     {
@@ -32,60 +32,60 @@
       "test_name": "network_escape_socket",
       "blocked": true,
       "error_message": null,
-      "execution_time_ms": 0.00362,
+      "execution_time_ms": 0.00331,
       "details": "Verifies socket syscall is blocked"
     },
     {
       "test_name": "network_escape_bind_port",
       "blocked": true,
       "error_message": null,
-      "execution_time_ms": 0.00331,
+      "execution_time_ms": 0.0037199999999999998,
       "details": "Verifies bind syscall is blocked"
     },
     {
       "test_name": "network_escape_connect",
       "blocked": true,
       "error_message": null,
-      "execution_time_ms": 0.00309,
+      "execution_time_ms": 0.00301,
       "details": "Verifies connect syscall is blocked"
     },
     {
       "test_name": "process_fork_bomb",
       "blocked": true,
       "error_message": null,
-      "execution_time_ms": 0.00602,
+      "execution_time_ms": 0.006251,
       "details": "Blocked 4/4 process creation syscalls"
     },
     {
       "test_name": "process_ptrace",
       "blocked": true,
       "error_message": null,
-      "execution_time_ms": 0.00341,
+      "execution_time_ms": 0.00301,
       "details": "Verifies ptrace syscall is blocked"
     },
     {
       "test_name": "system_config_reboot",
       "blocked": true,
       "error_message": null,
-      "execution_time_ms": 0.00306,
+      "execution_time_ms": 0.00293,
       "details": "Verifies reboot syscall is blocked"
     },
     {
       "test_name": "system_config_kexec",
       "blocked": true,
       "error_message": null,
-      "execution_time_ms": 0.0028899999999999998,
+      "execution_time_ms": 0.00295,
       "details": "Verifies kexec_load syscall is blocked"
     },
     {
       "test_name": "system_config_acpi",
       "blocked": true,
       "error_message": null,
-      "execution_time_ms": 0.00654,
+      "execution_time_ms": 0.00583,
       "details": "Blocked 4/4 hardware I/O syscalls"
     }
   ],
   "total_tests": 12,
   "blocked_count": 12,
-  "total_time_ms": 0.089801
+  "total_time_ms": 0.087711
 }
