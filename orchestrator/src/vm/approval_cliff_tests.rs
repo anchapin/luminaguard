@@ -19,7 +19,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::time::Instant;
-use tracing::{debug, info, warn};
+use tracing::{debug, info};
 
 /// Result of a single approval test
 #[derive(Debug, Clone, Serialize, Deserialize)]

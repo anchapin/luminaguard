@@ -16,9 +16,8 @@
 // 6. Audit Logging Verification
 
 use serde::{Deserialize, Serialize};
-use std::process::Command;
 use std::time::Instant;
-use tracing::{debug, info, warn};
+use tracing::info;
 
 /// Result of a single seccomp test
 #[derive(Debug, Clone, Serialize, Deserialize)]
