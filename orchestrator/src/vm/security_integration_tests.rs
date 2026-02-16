@@ -3495,4 +3495,184 @@ mod tests {
         let harness = IntegrationTestHarness::new();
         assert_eq!(harness.test_results.len(), 0);
     }
+
+    // GitHub Issue #298: Implement security test: Firewall disruption recovery
+    #[test]
+    fn test_issue_298_firewall_disruption_recovery() {
+        let harness = IntegrationTestHarness::new();
+        let result = harness.verify_firewall_disruption_recovery();
+        assert!(result.is_ok(), "Firewall disruption recovery verification failed: {:?}", result.err());
+        assert!(result.unwrap(), "Firewall disruption recovery check failed");
+    }
+
+    // GitHub Issue #299: Implement security test: Concurrent chaos handling
+    #[test]
+    fn test_issue_299_concurrent_chaos_handling() {
+        let harness = IntegrationTestHarness::new();
+        let result = harness.verify_concurrent_chaos_handling();
+        assert!(result.is_ok(), "Concurrent chaos handling verification failed: {:?}", result.err());
+        assert!(result.unwrap(), "Concurrent chaos handling check failed");
+    }
+
+    // GitHub Issue #300: Implement security test: Safe recovery state after chaos
+    #[test]
+    fn test_issue_300_safe_recovery_state() {
+        let harness = IntegrationTestHarness::new();
+        let result = harness.verify_safe_recovery_state();
+        assert!(result.is_ok(), "Safe recovery state verification failed: {:?}", result.err());
+        assert!(result.unwrap(), "Safe recovery state check failed");
+    }
+
+    // GitHub Issue #301: Implement security test: Firewall+seccomp protection
+    #[test]
+    fn test_issue_301_firewall_seccomp_protection() {
+        let harness = IntegrationTestHarness::new();
+        let result = harness.verify_firewall_seccomp_protection();
+        assert!(result.is_ok(), "Firewall+seccomp protection verification failed: {:?}", result.err());
+        assert!(result.unwrap(), "Firewall+seccomp protection check failed");
+    }
+
+    // GitHub Issue #302: Implement security test: Approval+firewall sync
+    #[test]
+    fn test_issue_302_approval_firewall_sync() {
+        let harness = IntegrationTestHarness::new();
+        let result = harness.verify_approval_firewall_sync();
+        assert!(result.is_ok(), "Approval+firewall sync verification failed: {:?}", result.err());
+        assert!(result.unwrap(), "Approval+firewall sync check failed");
+    }
+
+    // GitHub Issue #303: Implement security test: Seccomp respects approval
+    #[test]
+    fn test_issue_303_seccomp_approval_respect() {
+        let harness = IntegrationTestHarness::new();
+        let result = harness.verify_seccomp_approval_respect();
+        assert!(result.is_ok(), "Seccomp respects approval verification failed: {:?}", result.err());
+        assert!(result.unwrap(), "Seccomp respects approval check failed");
+    }
+
+    // GitHub Issue #304: Implement security test: Resource+seccomp enforcement
+    #[test]
+    fn test_issue_304_resource_seccomp_enforcement() {
+        let harness = IntegrationTestHarness::new();
+        let result = harness.verify_resource_seccomp_enforcement();
+        assert!(result.is_ok(), "Resource+seccomp enforcement verification failed: {:?}", result.err());
+        assert!(result.unwrap(), "Resource+seccomp enforcement check failed");
+    }
+
+    // GitHub Issue #305: Implement security test: RED action blocking
+    #[test]
+    fn test_issue_305_red_action_blocked() {
+        let harness = IntegrationTestHarness::new();
+        let result = harness.verify_red_action_blocked();
+        assert!(result.is_ok(), "RED action blocking verification failed: {:?}", result.err());
+        assert!(result.unwrap(), "RED action blocking check failed");
+    }
+
+    // GitHub Issue #306: Implement security test: Escape prevention
+    #[test]
+    fn test_issue_306_escape_prevention() {
+        let harness = IntegrationTestHarness::new();
+        let result = harness.verify_escape_prevention();
+        assert!(result.is_ok(), "Escape prevention verification failed: {:?}", result.err());
+        assert!(result.unwrap(), "Escape prevention check failed");
+    }
+
+    // GitHub Issue #307: Implement security test: Comprehensive logging
+    #[test]
+    fn test_issue_307_comprehensive_logging() {
+        let harness = IntegrationTestHarness::new();
+        let result = harness.verify_comprehensive_logging();
+        assert!(result.is_ok(), "Comprehensive logging verification failed: {:?}", result.err());
+        assert!(result.unwrap(), "Comprehensive logging check failed");
+    }
+
+    // GitHub Issue #308: Implement security test: Failure logging
+    #[test]
+    fn test_issue_308_failure_logging() {
+        let harness = IntegrationTestHarness::new();
+        let result = harness.verify_failure_logging();
+        assert!(result.is_ok(), "Failure logging verification failed: {:?}", result.err());
+        assert!(result.unwrap(), "Failure logging check failed");
+    }
+
+    // GitHub Issue #309: Implement security test: Attack detection
+    #[test]
+    fn test_issue_309_attack_detection() {
+        let harness = IntegrationTestHarness::new();
+        let result = harness.verify_attack_detection();
+        assert!(result.is_ok(), "Attack detection verification failed: {:?}", result.err());
+        assert!(result.unwrap(), "Attack detection check failed");
+    }
+
+    // GitHub Issue #310: Implement security test: Log integrity
+    #[test]
+    fn test_issue_310_log_integrity() {
+        let harness = IntegrationTestHarness::new();
+        let result = harness.verify_log_integrity();
+        assert!(result.is_ok(), "Log integrity verification failed: {:?}", result.err());
+        assert!(result.unwrap(), "Log integrity check failed");
+    }
+
+    // GitHub Issue #311: Implement security test: Attack timeline reconstruction
+    #[test]
+    fn test_issue_311_attack_timeline_reconstruction() {
+        let harness = IntegrationTestHarness::new();
+        let result = harness.verify_timeline_reconstruction();
+        assert!(result.is_ok(), "Attack timeline reconstruction verification failed: {:?}", result.err());
+        assert!(result.unwrap(), "Attack timeline reconstruction check failed");
+    }
+
+    // GitHub Issue #312: Implement security test: Event correlation
+    #[test]
+    fn test_issue_312_event_correlation() {
+        let harness = IntegrationTestHarness::new();
+        let result = harness.verify_event_correlation();
+        assert!(result.is_ok(), "Event correlation verification failed: {:?}", result.err());
+        assert!(result.unwrap(), "Event correlation check failed");
+    }
+
+    // GitHub Issue #313: Implement security test: Graceful degradation
+    #[test]
+    fn test_issue_313_graceful_degradation() {
+        let harness = IntegrationTestHarness::new();
+        let result = harness.verify_graceful_degradation();
+        assert!(result.is_ok(), "Graceful degradation verification failed: {:?}", result.err());
+        assert!(result.unwrap(), "Graceful degradation check failed");
+    }
+
+    // GitHub Issue #314: Implement security test: No unintended side effects
+    #[test]
+    fn test_issue_314_no_unintended_side_effects() {
+        let harness = IntegrationTestHarness::new();
+        let result = harness.verify_no_side_effects();
+        assert!(result.is_ok(), "No unintended side effects verification failed: {:?}", result.err());
+        assert!(result.unwrap(), "No unintended side effects check failed");
+    }
+
+    // GitHub Issue #315: Implement security test: Rapid recovery
+    #[test]
+    fn test_issue_315_rapid_recovery() {
+        let harness = IntegrationTestHarness::new();
+        let result = harness.verify_rapid_recovery();
+        assert!(result.is_ok(), "Rapid recovery verification failed: {:?}", result.err());
+        assert!(result.unwrap(), "Rapid recovery check failed");
+    }
+
+    // GitHub Issue #316: Implement security test: State consistency
+    #[test]
+    fn test_issue_316_state_consistency() {
+        let harness = IntegrationTestHarness::new();
+        let result = harness.verify_state_consistency();
+        assert!(result.is_ok(), "State consistency verification failed: {:?}", result.err());
+        assert!(result.unwrap(), "State consistency check failed");
+    }
+
+    // GitHub Issue #317: Implement security test: Performance under attack
+    #[test]
+    fn test_issue_317_performance_under_attack() {
+        let harness = IntegrationTestHarness::new();
+        let result = harness.verify_acceptable_performance();
+        assert!(result.is_ok(), "Performance under attack verification failed: {:?}", result.err());
+        assert!(result.unwrap(), "Performance under attack check failed");
+    }
 }
