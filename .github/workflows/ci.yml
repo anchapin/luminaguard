@@ -84,14 +84,12 @@ jobs:
           .venv/bin/pip install pytest pytest-cov hypothesis black mypy pylint
 
       - name: Download orchestrator binary
-        if: runner.os == 'Linux'
         uses: actions/download-artifact@v4
         with:
           name: orchestrator-bin
           path: orchestrator/target/release/
 
       - name: Make orchestrator executable
-        if: runner.os == 'Linux'
         run: chmod +x orchestrator/target/release/orchestrator
 
       - name: Run pytest
