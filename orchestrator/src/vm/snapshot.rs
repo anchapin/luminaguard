@@ -196,7 +196,7 @@ pub async fn create_snapshot_with_api(
 
     let start = std::time::Instant::now();
 
-    let base_path = PathBuf::from("/var/lib/luminaguard/snapshots");
+    let base_path = get_snapshot_base_path();
     let snapshot_dir = base_path.join(snapshot_id);
 
     // Create snapshot directory
@@ -287,7 +287,7 @@ async fn create_snapshot_placeholder(vm_id: &str, snapshot_id: &str) -> Result<S
         vm_id
     );
 
-    let base_path = PathBuf::from("/var/lib/luminaguard/snapshots");
+    let base_path = get_snapshot_base_path();
     let snapshot_dir = base_path.join(snapshot_id);
 
     // Create snapshot directory
@@ -362,7 +362,7 @@ pub async fn load_snapshot_with_api(snapshot_id: &str, socket_path: &str) -> Res
 
     let start = std::time::Instant::now();
 
-    let base_path = PathBuf::from("/var/lib/luminaguard/snapshots");
+    let base_path = get_snapshot_base_path();
     let snapshot_dir = base_path.join(snapshot_id);
     let memory_path = snapshot_dir.join("memory.snap");
     let state_path = snapshot_dir.join("vmstate.json");
@@ -446,7 +446,7 @@ pub async fn load_snapshot_with_api(snapshot_id: &str, socket_path: &str) -> Res
 pub async fn load_snapshot(snapshot_id: &str) -> Result<String> {
     tracing::info!("Loading snapshot {}", snapshot_id);
 
-    let base_path = PathBuf::from("/var/lib/luminaguard/snapshots");
+    let base_path = get_snapshot_base_path();
     let snapshot_dir = base_path.join(snapshot_id);
     let state_path = snapshot_dir.join("vmstate.json");
 
@@ -478,7 +478,7 @@ pub async fn load_snapshot(snapshot_id: &str) -> Result<String> {
 pub async fn delete_snapshot(snapshot_id: &str) -> Result<()> {
     tracing::info!("Deleting snapshot {}", snapshot_id);
 
-    let base_path = PathBuf::from("/var/lib/luminaguard/snapshots");
+    let base_path = get_snapshot_base_path();
     let snapshot_dir = base_path.join(snapshot_id);
 
     if snapshot_dir.exists() {
@@ -490,13 +490,22 @@ pub async fn delete_snapshot(snapshot_id: &str) -> Result<()> {
     Ok(())
 }
 
+/// Get the snapshot base path from environment variable or default
+fn get_snapshot_base_path() -> PathBuf {
+    if let Ok(path) = std::env::var("LUMINAGUARD_SNAPSHOT_PATH") {
+        PathBuf::from(path)
+    } else {
+        PathBuf::from("/var/lib/luminaguard/snapshots")
+    }
+}
+
 /// List all available snapshots
 ///
 /// # Returns
 ///
 /// * `Vec<SnapshotMetadata>` - List of snapshot metadata
 pub async fn list_snapshots() -> Result<Vec<SnapshotMetadata>> {
-    let base_path = PathBuf::from("/var/lib/luminaguard/snapshots");
+    let base_path = get_snapshot_base_path();
 
     if !base_path.exists() {
         return Ok(Vec::new());
