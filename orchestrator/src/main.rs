@@ -131,12 +131,53 @@ async fn main() -> Result<()> {
 /// Run the agent with the specified task
 async fn run_agent(task: String) -> Result<()> {
     info!("🎯 Task: {}", task);
-    // TODO: Implement agent execution
-    // 1. Spawn JIT Micro-VM
-    // 2. Launch Python reasoning loop inside VM
-    // 3. Monitor execution
-    // 4. Collect results
-    println!("Agent execution placeholder for task: {}", task);
+    
+    // Generate unique task ID for this agent execution
+    let task_id = format!("agent-{}", uuid::Uuid::new_v4());
+    
+    // Step 1: Spawn JIT Micro-VM
+    info!("⚡ Spawning JIT Micro-VM for agent execution...");
+    let handle = vm::spawn_vm(&task_id).await
+        .context("Failed to spawn VM for agent")?;
+    
+    info!("VM spawned: {} (spawn time: {:.2}ms)", 
+          handle.id, handle.spawn_time_ms);
+    
+    // Step 2: Get the vsock path for communication (if available)
+    let vsock_path = handle.vsock_path();
+    if let Some(path) = vsock_path {
+        info!("VM vsock path: {}", path);
+    }
+    
+    // Step 3: Launch Python reasoning loop inside VM
+    // For now, we demonstrate the architecture - the actual execution
+    // would communicate with the VM via vsock or other IPC
+    info!("🚀 Launching Python reasoning loop...");
+    
+    // TODO: Implement actual agent execution inside VM
+    // This would involve:
+    // 1. Copy agent code to VM
+    // 2. Execute Python loop via vsock/stdin
+    // 3. Stream results back
+    
+    // For demonstration, print agent execution info
+    println!("\n==========================================");
+    println!("🤖 Agent Execution");
+    println!("==========================================");
+    println!("Task ID: {}", task_id);
+    println!("Task: {}", task);
+    println!("VM ID: {}", handle.id);
+    println!("Spawn time: {:.2}ms", handle.spawn_time_ms);
+    println!("==========================================\n");
+    
+    // Step 4: Cleanup - destroy the VM after task completion
+    // This ensures ephemeral security (no persistence)
+    info!("🧹 Cleaning up VM...");
+    vm::destroy_vm(handle).await
+        .context("Failed to destroy VM")?;
+    
+    info!("✅ Agent execution complete!");
+    
     Ok(())
 }
 
