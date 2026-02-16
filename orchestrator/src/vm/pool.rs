@@ -11,9 +11,10 @@
 // - Allocation: Round-robin with automatic refresh
 
 use anyhow::{Context, Result};
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, SystemTime};
 use tokio::sync::Mutex;
 
@@ -98,6 +99,12 @@ pub struct SnapshotPool {
 
     /// Last refresh timestamp
     last_refresh: Arc<Mutex<SystemTime>>,
+
+    /// Active VMs: maps VM ID to spawn time
+    active_vms: Arc<Mutex<HashMap<String, SystemTime>>>,
+
+    /// Queued tasks waiting for VM allocation
+    queued_tasks: Arc<AtomicU64>,
 }
 
 impl SnapshotPool {
@@ -118,6 +125,8 @@ impl SnapshotPool {
             config: config.clone(),
             snapshots: Arc::new(Mutex::new(VecDeque::with_capacity(config.pool_size))),
             last_refresh: Arc::new(Mutex::new(SystemTime::UNIX_EPOCH)),
+            active_vms: Arc::new(Mutex::new(HashMap::new())),
+            queued_tasks: Arc::new(AtomicU64::new(0)),
         };
 
         // Initialize pool with snapshots
@@ -292,6 +301,48 @@ impl SnapshotPool {
         self.snapshots.lock().await.len()
     }
 
+    /// Register a newly spawned VM in the active tracking
+    ///
+    /// This should be called immediately after a VM is spawned.
+    /// The VM is tracked for metrics and load analysis.
+    pub async fn register_vm(&self, vm_id: String) {
+        let now = SystemTime::now();
+        let mut vms = self.active_vms.lock().await;
+        vms.insert(vm_id.clone(), now);
+        tracing::debug!("Registered active VM: {}", vm_id);
+    }
+
+    /// Unregister a VM when it's destroyed
+    ///
+    /// This should be called when a VM is being destroyed.
+    /// The VM is removed from active tracking.
+    pub async fn unregister_vm(&self, vm_id: &str) {
+        let mut vms = self.active_vms.lock().await;
+        if vms.remove(vm_id).is_some() {
+            tracing::debug!("Unregistered active VM: {}", vm_id);
+        }
+    }
+
+    /// Get the number of currently active VMs
+    pub async fn active_vm_count(&self) -> usize {
+        self.active_vms.lock().await.len()
+    }
+
+    /// Increment the count of queued tasks waiting for VM allocation
+    pub fn increment_queued_tasks(&self) {
+        self.queued_tasks.fetch_add(1, Ordering::SeqCst);
+    }
+
+    /// Decrement the count of queued tasks
+    pub fn decrement_queued_tasks(&self) {
+        self.queued_tasks.fetch_sub(1, Ordering::SeqCst);
+    }
+
+    /// Get the number of currently queued tasks
+    pub fn queued_task_count(&self) -> u64 {
+        self.queued_tasks.load(Ordering::SeqCst)
+    }
+
     /// Get pool statistics
     pub async fn stats(&self) -> PoolStats {
         let snapshots = self.snapshots.lock().await;
@@ -303,8 +354,8 @@ impl SnapshotPool {
             max_size: self.config.pool_size,
             oldest_snapshot_age_secs: oldest_snapshot.map(|d| d.as_secs()),
             newest_snapshot_age_secs: newest_snapshot.map(|d| d.as_secs()),
-            active_vms: 0,   // TODO: Implement active VM tracking
-            queued_tasks: 0, // TODO: Implement task queue tracking
+            active_vms: self.active_vm_count().await,
+            queued_tasks: self.queued_task_count() as usize,
         }
     }
 
@@ -625,5 +676,83 @@ mod tests {
         let size = pool.pool_size().await;
 
         assert_eq!(size, 0);
+    }
+
+    #[tokio::test]
+    async fn test_vm_registration() {
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let snapshot_path = temp_dir.path().join("snapshots");
+
+        let mut config = PoolConfig::default();
+        config.snapshot_path = snapshot_path.clone();
+
+        let pool = SnapshotPool::new(config).await.unwrap();
+
+        // Register a VM
+        pool.register_vm("test-vm-1".to_string()).await;
+        assert_eq!(pool.active_vm_count().await, 1);
+
+        // Register another VM
+        pool.register_vm("test-vm-2".to_string()).await;
+        assert_eq!(pool.active_vm_count().await, 2);
+
+        // Unregister a VM
+        pool.unregister_vm("test-vm-1").await;
+        assert_eq!(pool.active_vm_count().await, 1);
+
+        // Unregister the last VM
+        pool.unregister_vm("test-vm-2").await;
+        assert_eq!(pool.active_vm_count().await, 0);
+    }
+
+    #[tokio::test]
+    async fn test_task_queue_tracking() {
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let snapshot_path = temp_dir.path().join("snapshots");
+
+        let mut config = PoolConfig::default();
+        config.snapshot_path = snapshot_path.clone();
+
+        let pool = SnapshotPool::new(config).await.unwrap();
+
+        // Initially no queued tasks
+        assert_eq!(pool.queued_task_count(), 0);
+
+        // Queue tasks
+        pool.increment_queued_tasks();
+        assert_eq!(pool.queued_task_count(), 1);
+
+        pool.increment_queued_tasks();
+        pool.increment_queued_tasks();
+        assert_eq!(pool.queued_task_count(), 3);
+
+        // Dequeue tasks
+        pool.decrement_queued_tasks();
+        assert_eq!(pool.queued_task_count(), 2);
+
+        pool.decrement_queued_tasks();
+        pool.decrement_queued_tasks();
+        assert_eq!(pool.queued_task_count(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_pool_stats_includes_active_vms() {
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let snapshot_path = temp_dir.path().join("snapshots");
+
+        let mut config = PoolConfig::default();
+        config.snapshot_path = snapshot_path.clone();
+
+        let pool = SnapshotPool::new(config).await.unwrap();
+
+        // Register VMs and check stats
+        pool.register_vm("test-vm-1".to_string()).await;
+        pool.register_vm("test-vm-2".to_string()).await;
+        pool.increment_queued_tasks();
+        pool.increment_queued_tasks();
+
+        let stats = pool.stats().await;
+        assert_eq!(stats.active_vms, 2);
+        assert_eq!(stats.queued_tasks, 2);
     }
 }
