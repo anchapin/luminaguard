@@ -233,7 +233,7 @@ async fn chat_mode() -> Result<()> {
     // Spawn VM once for the session (for efficiency)
     info!("⚡ Spawning JIT Micro-VM for chat session...");
     let task_id = format!("chat-{}", session_id);
-    let handle = match vm::spawn_vm(&task_id).await {
+    let mut handle = match vm::spawn_vm(&task_id).await {
         Ok(h) => {
             println!("✅ VM ready (spawn time: {:.2}ms)", h.spawn_time_ms);
             Some(h)
