@@ -12,7 +12,8 @@
 //! Works over SSH and requires no GUI dependencies.
 
 use crate::approval::diff::{Change, DiffCard};
-use anyhow::{Context, Result};
+use anyhow::Result;
+#[allow(unused_imports)]
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout},
     style::{Color, Modifier, Style},
@@ -20,7 +21,6 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph, Wrap},
     Terminal,
 };
-use std::io as _;  // io::stdout is used via crossterm
 use std::time::{Duration, Instant};
 use tracing::{info, warn};
 
