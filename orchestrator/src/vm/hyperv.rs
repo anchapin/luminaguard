@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 #[cfg(windows)]
-use libwhp::Partition;
+use libwhp::{Partition, WHV_PARTITION_PROPERTY_CODE, WHV_PARTITION_PROPERTY};
 #[cfg(windows)]
 use std::sync::{mpsc, Arc, Mutex};
 use std::time::Instant;
@@ -78,9 +78,7 @@ impl HypervInstance {
             // Wrap in Arc<Mutex<>> for thread-safe access
             let partition = Arc::new(Mutex::new(partition));
 
-            // 2. Configure partition
-            let vcpu_count_u32 = vcpu_count as u32;
-
+            // 2. Configure partition with processor count using set_property
             {
                 let mut p = match partition.lock() {
                     Ok(guard) => guard,
@@ -90,7 +88,10 @@ impl HypervInstance {
                     }
                 };
 
-                if let Err(e) = p.set_processor_count(vcpu_count_u32) {
+                let prop = WHV_PARTITION_PROPERTY {
+                    ProcessorCount: vcpu_count,
+                };
+                if let Err(e) = p.set_property(WHV_PARTITION_PROPERTY_CODE::WHvPartitionPropertyCodeProcessorCount, &prop) {
                     let _ = init_tx.send(Err(anyhow!("Failed to set vCPU count: {:?}", e)));
                     return;
                 }
@@ -98,7 +99,7 @@ impl HypervInstance {
 
             // 3. Setup partition (blocking operation)
             {
-                let mut p = match partition.lock() {
+                let p = match partition.lock() {
                     Ok(guard) => guard,
                     Err(e) => {
                         let _ = init_tx
@@ -120,15 +121,15 @@ impl HypervInstance {
             }
 
             // 4. Message Loop
+            // Note: The partition will be automatically dropped and cleaned up
+            // when it goes out of scope at the end of this block.
             while let Ok(cmd) = cmd_rx.recv() {
                 match cmd {
                     HypervCommand::Stop => {
                         info!("Stopping Hyper-V partition thread for {}", vm_id);
-                        // Attempt graceful shutdown
-                        if let Ok(mut p) = partition.lock() {
-                            let _ = p.terminate();
-                        }
-                        break; // Breaking the loop drops the partition
+                        // The partition will be dropped when this scope ends,
+                        // which will call WHvDeletePartition automatically.
+                        break;
                     }
                 }
             }
