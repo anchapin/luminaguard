@@ -1314,13 +1314,168 @@ impl IntegrationTestHarness {
     }
 
     fn verify_env_poisoning_blocked(&self) -> Result<bool, String> {
-        // TODO: Implement environment variable poisoning test
-        Ok(true)
+        // Verify that environment variable poisoning attempts are blocked by security layers
+        // Attackers may try to set malicious environment variables to bypass controls
+        
+        use crate::vm::seccomp::{SeccompFilter, SeccompLevel};
+        
+        let filter = SeccompFilter::new(SeccompLevel::Basic);
+        let whitelist = filter.build_whitelist();
+        
+        // Environment variable manipulation typically uses these syscalls
+        let env_dangerous_syscalls = [
+            "setenv",      // Set environment variable
+            "unsetenv",    // Remove environment variable
+            "putenv",      // Set environment variable (C library)
+            "prctl",       // Can modify process environment via prctl options
+        ];
+        
+        // These dangerous syscalls should be blocked in the whitelist
+        let mut all_blocked = true;
+        let mut blocked_syscalls = Vec::new();
+        let mut allowed_syscalls = Vec::new();
+        
+        for syscall in &env_dangerous_syscalls {
+            if whitelist.contains(syscall) {
+                all_blocked = false;
+                allowed_syscalls.push(syscall.to_string());
+            } else {
+                blocked_syscalls.push(syscall.to_string());
+            }
+        }
+        
+        if !allowed_syscalls.is_empty() {
+            tracing::warn!(
+                "Env poisoning: dangerous syscalls allowed in whitelist: {:?}",
+                allowed_syscalls
+            );
+        }
+        
+        // Verify seccomp validation passes
+        crate::vm::seccomp::validate_seccomp_rules(&filter)
+            .map_err(|e| format!("Seccomp validation failed: {}", e))?;
+        
+        // Verify audit is enabled for security monitoring
+        if !filter.audit_enabled {
+            return Err("Seccomp audit must be enabled for security monitoring".to_string());
+        }
+        
+        // Verify security-sensitive syscalls are in audit whitelist
+        let audit_whitelist = filter.get_audit_whitelist();
+        let required_audit = ["prctl", "execve", "execveat"];
+        
+        let mut missing_audit = Vec::new();
+        for syscall in &required_audit {
+            if !audit_whitelist.contains(&syscall.to_string()) {
+                missing_audit.push(syscall.to_string());
+            }
+        }
+        
+        if !missing_audit.is_empty() {
+            tracing::warn!(
+                "Env poisoning: syscalls missing from audit whitelist: {:?}",
+                missing_audit
+            );
+        }
+        
+        tracing::debug!(
+            "Env poisoning blocked verification: dangerous syscalls blocked = {}, blocked = {:?}",
+            all_blocked, blocked_syscalls
+        );
+        
+        if !all_blocked {
+            return Err(format!(
+                "Env poisoning not blocked: dangerous syscalls in whitelist: {:?}",
+                allowed_syscalls
+            ));
+        }
+        
+        Ok(all_blocked)
     }
 
     fn verify_fuzzing_rejected(&self) -> Result<bool, String> {
-        // TODO: Implement fuzzing test
-        Ok(true)
+        // Verify that fuzzing attempts (malformed argument injection) are rejected
+        // Attackers may try to fuzz action arguments with malicious payloads
+        
+        use crate::vm::seccomp::{SeccompFilter, SeccompLevel};
+        
+        let filter = SeccompFilter::new(SeccompLevel::Basic);
+        let whitelist = filter.build_whitelist();
+        
+        // Fuzzing typically tries to execute or inject through argument manipulation
+        // These syscalls could be used for fuzzing attacks
+        let fuzzing_syscalls = [
+            "execve",       // Direct execution with fuzzed args
+            "execveat",     // Extended exec
+            "fork",         // Fork to test multiple inputs
+            "clone",        // Clone for parallel fuzzing
+            "vfork",        // Virtual fork
+            "pipe",         // Create pipes for fuzzing
+            "pipe2",        // Pipe with flags
+            "socketpair",   // Create socket pairs for fuzzing
+        ];
+        
+        // These dangerous syscalls should be blocked to prevent fuzzing
+        let mut all_blocked = true;
+        let mut blocked_syscalls = Vec::new();
+        let mut allowed_syscalls = Vec::new();
+        
+        for syscall in &fuzzing_syscalls {
+            if whitelist.contains(syscall) {
+                all_blocked = false;
+                allowed_syscalls.push(syscall.to_string());
+            } else {
+                blocked_syscalls.push(syscall.to_string());
+            }
+        }
+        
+        if !allowed_syscalls.is_empty() {
+            tracing::warn!(
+                "Fuzzing: dangerous syscalls allowed in whitelist: {:?}",
+                allowed_syscalls
+            );
+        }
+        
+        // Verify seccomp validation passes
+        crate::vm::seccomp::validate_seccomp_rules(&filter)
+            .map_err(|e| format!("Seccomp validation failed: {}", e))?;
+        
+        // Verify audit is enabled for security monitoring
+        if !filter.audit_enabled {
+            return Err("Seccomp audit must be enabled for security monitoring".to_string());
+        }
+        
+        // Verify security-sensitive syscalls are in audit whitelist
+        let audit_whitelist = filter.get_audit_whitelist();
+        let required_audit = ["execve", "execveat", "fork", "clone"];
+        
+        let mut missing_audit = Vec::new();
+        for syscall in &required_audit {
+            if !audit_whitelist.contains(&syscall.to_string()) {
+                missing_audit.push(syscall.to_string());
+            }
+        }
+        
+        if !missing_audit.is_empty() {
+            tracing::warn!(
+                "Fuzzing: syscalls missing from audit whitelist: {:?}",
+                missing_audit
+            );
+        }
+        
+        tracing::debug!(
+            "Fuzzing rejection verification: dangerous syscalls blocked = {}, blocked = {:?}",
+            all_blocked, blocked_syscalls
+        );
+        
+        if !all_blocked {
+            return Err(format!(
+                "Fuzzing not rejected: dangerous syscalls in whitelist: {:?}",
+                allowed_syscalls
+            ));
+        }
+        
+        Ok(all_blocked)
     }
 
     fn verify_path_traversal_prevented(&self) -> Result<bool, String> {
