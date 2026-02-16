@@ -1254,21 +1254,61 @@ impl IntegrationTestHarness {
             "connect",    // Network connection
             "listen",     // Listen for connections
             "accept",     // Accept connections
+            "sendto",     // Send data to network
+            "recvfrom",   // Receive data from network
+            "sendmsg",    // Send message to network
+            "recvmsg",    // Receive message from network
         ];
         
         let mut all_blocked = true;
+        let mut blocked_syscalls = Vec::new();
+        let mut allowed_syscalls = Vec::new();
+        
         for syscall in &dangerous_syscalls {
             if whitelist.contains(syscall) {
                 all_blocked = false;
+                allowed_syscalls.push(syscall.to_string());
+            } else {
+                blocked_syscalls.push(syscall.to_string());
             }
         }
         
-        // Check audit log for blocked attempts
-        // In a real test, this would check actual VM execution logs
+        if !allowed_syscalls.is_empty() {
+            tracing::warn!(
+                "Payload injection: dangerous syscalls allowed in whitelist: {:?}",
+                allowed_syscalls
+            );
+        }
+        
+        // Verify seccomp validation passes
+        crate::vm::seccomp::validate_seccomp_rules(&filter)
+            .map_err(|e| format!("Seccomp validation failed: {}", e))?;
+        
+        // Check that audit is enabled for security monitoring
+        if !filter.audit_enabled {
+            return Err("Seccomp audit must be enabled for security monitoring".to_string());
+        }
+        
+        // Verify audit whitelist includes network syscalls
+        let audit_whitelist = filter.get_audit_whitelist();
+        let network_audit = ["socket", "bind", "connect", "listen", "accept"];
+        for syscall in &network_audit {
+            if !audit_whitelist.contains(&syscall.to_string()) {
+                tracing::warn!("Payload injection: {} should be audited but isn't", syscall);
+            }
+        }
+        
         tracing::debug!(
-            "Payload injection blocked verification: dangerous syscalls blocked = {}",
-            all_blocked
+            "Payload injection blocked verification: dangerous syscalls blocked = {}, blocked = {:?}",
+            all_blocked, blocked_syscalls
         );
+        
+        if !all_blocked {
+            return Err(format!(
+                "Payload injection not blocked: dangerous syscalls in whitelist: {:?}",
+                allowed_syscalls
+            ));
+        }
         
         Ok(all_blocked)
     }
@@ -1299,30 +1339,64 @@ impl IntegrationTestHarness {
             "umount",       // Unmount filesystem
             "pivot_root",   // Change root filesystem
             "chroot",       // Change root directory
+            "mknod",        // Create special files
+            "mknodat",      // Create special files
         ];
         
         // Verify these dangerous syscalls are NOT in the whitelist
         let mut all_blocked = true;
+        let mut blocked_syscalls = Vec::new();
+        let mut allowed_syscalls = Vec::new();
+        
         for syscall in &dangerous_fs_syscalls {
             if whitelist.contains(syscall) {
                 all_blocked = false;
+                allowed_syscalls.push(syscall.to_string());
+            } else {
+                blocked_syscalls.push(syscall.to_string());
             }
         }
         
-        // Additionally verify that security-sensitive syscalls are audited
-        let audit_whitelist = filter.get_audit_whitelist();
-        let required_audit = ["chroot", "mount", "pivot_root"];
+        if !allowed_syscalls.is_empty() {
+            tracing::warn!(
+                "Path traversal: dangerous fs syscalls allowed in whitelist: {:?}",
+                allowed_syscalls
+            );
+        }
         
+        // Verify seccomp validation passes
+        crate::vm::seccomp::validate_seccomp_rules(&filter)
+            .map_err(|e| format!("Seccomp validation failed: {}", e))?;
+        
+        // Verify that security-sensitive syscalls are audited
+        let audit_whitelist = filter.get_audit_whitelist();
+        let required_audit = ["chroot", "mount", "pivot_root", "umount"];
+        
+        let mut missing_audit = Vec::new();
         for syscall in &required_audit {
             if !audit_whitelist.contains(&syscall.to_string()) {
-                tracing::warn!("Path traversal: {} should be audited but isn't", syscall);
+                missing_audit.push(syscall.to_string());
             }
+        }
+        
+        if !missing_audit.is_empty() {
+            tracing::warn!(
+                "Path traversal: syscalls missing from audit whitelist: {:?}",
+                missing_audit
+            );
         }
         
         tracing::debug!(
-            "Path traversal prevention verification: dangerous fs syscalls blocked = {}",
-            all_blocked
+            "Path traversal prevention verification: dangerous fs syscalls blocked = {}, blocked = {:?}",
+            all_blocked, blocked_syscalls
         );
+        
+        if !all_blocked {
+            return Err(format!(
+                "Path traversal not prevented: dangerous syscalls in whitelist: {:?}",
+                allowed_syscalls
+            ));
+        }
         
         Ok(all_blocked)
     }
@@ -1345,20 +1419,35 @@ impl IntegrationTestHarness {
             "clone",        // Create process
             "vfork",        // Fork (virtual)
             "ptrace",       // Process tracing (can be used for code injection)
-            "kernelhack",   // Would be ideal but doesn't exist
             "mprotect",     // Change memory protection (sometimes used)
+            "mremap",       // Remap memory (used in ROP attacks)
         ];
         
         // Verify dangerous syscalls are blocked (shellcode can't execute)
         let mut shellcode_blocked = true;
+        let mut blocked_syscalls = Vec::new();
+        let mut allowed_syscalls = Vec::new();
         
-        // execve, fork, clone are blocked in Basic level
         let blocked_by_seccomp = ["execve", "fork", "clone", "vfork", "ptrace"];
         for syscall in &blocked_by_seccomp {
             if whitelist.contains(syscall) {
                 shellcode_blocked = false;
+                allowed_syscalls.push(syscall.to_string());
+            } else {
+                blocked_syscalls.push(syscall.to_string());
             }
         }
+        
+        if !allowed_syscalls.is_empty() {
+            tracing::warn!(
+                "Shellcode: dangerous syscalls allowed in whitelist: {:?}",
+                allowed_syscalls
+            );
+        }
+        
+        // Verify seccomp validation passes
+        crate::vm::seccomp::validate_seccomp_rules(&filter)
+            .map_err(|e| format!("Seccomp validation failed: {}", e))?;
         
         // Verify audit is enabled for security monitoring
         if !filter.audit_enabled {
@@ -1369,19 +1458,31 @@ impl IntegrationTestHarness {
         let audit_whitelist = filter.get_audit_whitelist();
         let security_syscalls = ["execve", "execveat", "fork", "clone", "ptrace"];
         
+        let mut missing_audit = Vec::new();
         for syscall in &security_syscalls {
             if !audit_whitelist.contains(&syscall.to_string()) {
-                tracing::warn!(
-                    "Shellcode blocking: {} should be audited but isn't",
-                    syscall
-                );
+                missing_audit.push(syscall.to_string());
             }
         }
         
+        if !missing_audit.is_empty() {
+            tracing::warn!(
+                "Shellcode: syscalls missing from audit whitelist: {:?}",
+                missing_audit
+            );
+        }
+        
         tracing::debug!(
-            "Shellcode blocking verification: shellcode syscalls blocked = {}",
-            shellcode_blocked
+            "Shellcode blocking verification: shellcode syscalls blocked = {}, blocked = {:?}",
+            shellcode_blocked, blocked_syscalls
         );
+        
+        if !shellcode_blocked {
+            return Err(format!(
+                "Shellcode execution not blocked: dangerous syscalls in whitelist: {:?}",
+                allowed_syscalls
+            ));
+        }
         
         Ok(shellcode_blocked)
     }
