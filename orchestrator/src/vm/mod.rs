@@ -30,6 +30,7 @@ pub mod resource_limits;
 pub mod rootfs;
 pub mod seccomp;
 pub mod security_escape_simple;
+pub mod security_integration_tests;
 // pub mod security_validation;
 pub mod snapshot;
 #[cfg(unix)]
