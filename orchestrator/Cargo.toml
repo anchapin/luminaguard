@@ -47,7 +47,7 @@ bytes = "1.0"
 chrono = { version = "0.4", features = ["serde"] }
 
 # UUID generation
-uuid = { version = "1.0", features = ["v4"] }
+uuid = { version = "1.21", features = ["v4"] }
 ratatui = { version = "0.30.0", features = ["crossterm", "serde", "underline-color"] }
 crossterm = "0.29.0"
 
