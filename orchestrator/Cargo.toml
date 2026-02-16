@@ -34,7 +34,7 @@ async-trait = "0.1"
 reqwest = { version = "0.12", features = ["json"] }
 
 # Random number generation (for retry jitter)
-rand = "0.8"
+rand = "0.9"
 fastrand = "2.0"
 
 # Firecracker HTTP client
