@@ -18,6 +18,11 @@ async fn test_vm_spawn_time_baseline() {
     // This test validates the baseline VM spawn time target
     // In production with real Firecracker, this would be <200ms
     
+    // Use temp directory to avoid permission issues
+    let temp_dir = tempfile::TempDir::new().unwrap();
+    let snapshot_path = temp_dir.path().to_path_buf();
+    std::env::set_var("LUMINAGUARD_SNAPSHOT_PATH", snapshot_path.to_str().unwrap());
+    
     let start = Instant::now();
     
     // Simulate VM spawn (in real implementation, this would be actual VM spawning)
@@ -42,6 +47,9 @@ async fn test_vm_spawn_time_baseline() {
 async fn test_snapshot_pool_fast_spawn() {
     let temp_dir = tempfile::TempDir::new().unwrap();
     let snapshot_path = temp_dir.path().to_path_buf();
+    
+    // Set env var so snapshot module uses our temp directory
+    std::env::set_var("LUMINAGUARD_SNAPSHOT_PATH", snapshot_path.to_str().unwrap());
     
     let config = PoolConfig {
         snapshot_path,
@@ -113,12 +121,14 @@ async fn test_orchestrator_startup_time() {
     // Measure orchestrator initialization
     // This includes VM pool initialization
     
+    // Use temp directory to avoid permission issues
+    let temp_dir = tempfile::TempDir::new().unwrap();
+    let snapshot_path = temp_dir.path().to_path_buf();
+    std::env::set_var("LUMINAGUARD_SNAPSHOT_PATH", snapshot_path.to_str().unwrap());
+    
     let start = Instant::now();
     
     // Initialize pool (simulates orchestrator startup)
-    let temp_dir = tempfile::TempDir::new().unwrap();
-    let snapshot_path = temp_dir.path().to_path_buf();
-    
     let config = PoolConfig {
         snapshot_path,
         pool_size: 2,
@@ -149,9 +159,10 @@ async fn test_performance_summary() {
     println!("Target: Tool call latency <100ms");
     println!("--------------------------------------------------------");
     
-    // Run quick benchmarks
+    // Run quick benchmarks - use temp directory to avoid permission issues
     let temp_dir = tempfile::TempDir::new().unwrap();
     let snapshot_path = temp_dir.path().to_path_buf();
+    std::env::set_var("LUMINAGUARD_SNAPSHOT_PATH", snapshot_path.to_str().unwrap());
     
     // Measure pool creation
     let start = Instant::now();
