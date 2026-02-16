@@ -36,6 +36,9 @@ use crate::vm::hypervisor::{Hypervisor, VmInstance};
 // On actual macOS, these would bind to the real framework
 #[cfg(target_os = "macos")]
 mod vz_bindings {
+    use std::path::PathBuf;
+    use anyhow::Result;
+
     // NOTE: These are placeholder types representing the real Virtualization.framework API.
     // When building on macOS with proper bindings, these would be the actual types.
     // For now, we use stubs that match the API shape.
