@@ -13,6 +13,10 @@ Architecture Principles:
 - Deterministic: No randomness in core logic
 - Secure: All tool use goes through MCP client
 - Observable: All decisions logged
+
+Execution Modes:
+- host: Agent runs on host, tools execute via MCP to host servers
+- vm: Agent runs inside Firecracker VM, communicates with host via vsock
 """
 
 from __future__ import annotations
@@ -29,9 +33,17 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 try:
     # When imported as module
     from agent.mcp_client import McpClient, McpError
+    from agent.vsock_client import VsockClient
 except ImportError:
     # When run directly
     from mcp_client import McpClient, McpError
+    from vsock_client import VsockClient
+
+
+class ExecutionMode(Enum):
+    """Execution mode for the agent"""
+    HOST = "host"  # Agent runs on host (default)
+    VM = "vm"      # Agent runs inside VM, communicates via vsock
 
 
 class Style:
@@ -116,86 +128,29 @@ class ToolCall:
 def determine_action_kind(message: str) -> ActionKind:
     """
     Determine if an action is GREEN (autonomous) or RED (requires approval).
-
-    This function uses keyword matching to classify actions based on safety.
-    Unknown actions default to RED for safety (fail-secure).
-
-    Args:
-        message: The action description or tool name
-
-    Returns:
-        ActionKind.GREEN if the action is safe, ActionKind.RED otherwise
-
-    Examples:
-        >>> determine_action_kind("read_file")
-        <ActionKind.GREEN: 'green'>
-        >>> determine_action_kind("delete_file")
-        <ActionKind.RED: 'red'>
     """
     message_lower = message.lower()
 
-    # Check for red keywords first (more restrictive)
     for keyword in RED_KEYWORDS:
         if keyword in message_lower:
             return ActionKind.RED
 
-    # Check for green keywords
     for keyword in GREEN_KEYWORDS:
         if keyword in message_lower:
             return ActionKind.GREEN
 
-    # Default: RED (safe by default)
     return ActionKind.RED
 
 
 def present_diff_card(action: ToolCall) -> bool:
-    """
-    Present the Diff Card UI for an action requiring approval.
-
-    This function integrates with the Rust orchestrator's TUI for Red actions.
-    Green actions auto-approve without UI.
-
-    Args:
-        action: The ToolCall to present
-
-    Returns:
-        True if approved, False otherwise
-
-    Note:
-        - Green actions: Auto-approve
-        - Red actions: Present TUI via Rust orchestrator
-        - Timeout: Auto-reject after 5 minutes (configurable via env var)
-        - Works over SSH (no GUI requirement)
-        - Full audit logging of all decisions
-
-    Examples:
-        >>> green_action = ToolCall("read_file", {"path": "test.txt"}, ActionKind.GREEN)
-        >>> present_diff_card(green_action)
-        True
-
-        >>> red_action = ToolCall("delete_file", {"path": "test.txt"}, ActionKind.RED)
-        >>> # Presents TUI, returns True if user approves
-
-    Examples:
-        >>> green_action = ToolCall("read_file", {"path": "test.txt"}, ActionKind.GREEN)
-        >>> present_diff_card(green_action)
-        True
-
-        >>> red_action = ToolCall("delete_file", {"path": "test.txt"}, ActionKind.RED)
-        >>> # Would prompt user in real implementation
-    """
-    # Try to import approval_client for Phase 2 TUI integration
+    """Present the Diff Card UI for an action requiring approval."""
     try:
         from approval_client import present_diff_card as present_diff_card_tui
-
         return present_diff_card_tui(action)
     except ImportError:
-        # Fallback to simple implementation if approval_client not available
         if action.action_kind == ActionKind.GREEN:
-            # Green actions auto-approve
             return True
         else:
-            # Red actions require approval - simple prompt as fallback
             print("\n" + "=" * 80)
             print(f"Action: {action.name}")
             print(f"Type: {action.action_kind.value.upper()}")
@@ -205,7 +160,6 @@ def present_diff_card(action: ToolCall) -> bool:
             print("\nApprove this action? (y/n): ", end="")
 
             response = input().strip().lower()
-
             return response in ("y", "yes")
 
 
@@ -223,75 +177,38 @@ class AgentState:
 
 
 def think(state: AgentState, llm_client=None) -> Optional[ToolCall]:
-    """
-    Main reasoning loop - decides next action based on state.
-
-    This is the core "brain" of LuminaGuard. It analyzes:
-    1. Current task and context
-    2. Available tools
-    3. Message history
-    4. Desired outcome
-
-    Uses LLM for decision-making when available, falls back to keyword matching.
-
-    Args:
-        state: Current agent state (messages, tools, context)
-        llm_client: Optional LLM client for reasoning. If None, uses MockLLMClient.
-
-    Returns:
-        ToolCall if action needed, None if task complete
-
-    Invariant:
-        Must remain deterministic and observable.
-        All logging must be explicit.
-    """
+    """Main reasoning loop - decides next action based on state."""
     try:
-        # Try to use LLM-based reasoning
         from llm_client import MockLLMClient
-
         if llm_client is None:
             llm_client = MockLLMClient()
 
-        # Use LLM to decide next action
         response = llm_client.decide_action(
             messages=state.messages,
             available_tools=state.tools,
             context=state.context,
         )
 
-        # If task is complete, return None
-        if response.is_complete:
+        if response.is_complete or response.tool_name is None:
             return None
 
-        # If no tool selected, return None
-        if response.tool_name is None:
-            return None
-
-        # Determine action kind based on tool name
         action_kind = determine_action_kind(response.tool_name)
-
-        # Return the tool call
         return ToolCall(
             name=response.tool_name,
             arguments=response.arguments,
             action_kind=action_kind,
         )
-
     except ImportError:
-        # Fallback: Simple keyword-based reasoning if LLM client not available
-        # Check if we have already executed a tool (simple one-shot agent for now)
         tool_responses = [m for m in state.messages if m["role"] == "tool"]
         if len(tool_responses) > 0:
             return None
 
-        # Get the last user message
         user_msgs = [m for m in state.messages if m["role"] == "user"]
         if not user_msgs:
             return None
 
         content = user_msgs[-1]["content"].lower()
 
-        # Simple keyword-based reasoning as fallback
         if "read" in content:
             return ToolCall(
                 name="read_file",
@@ -305,30 +222,11 @@ def think(state: AgentState, llm_client=None) -> Optional[ToolCall]:
                 action_kind=ActionKind.GREEN,
             )
 
-        # Default: Task complete
         return None
 
 
 def execute_tool(call: ToolCall, mcp_client) -> Dict[str, Any]:
-    """
-    Execute a tool via MCP connection.
-
-    Args:
-        call: ToolCall with name and arguments
-        mcp_client: McpClient instance (from mcp_client.py)
-
-    Returns:
-        Tool execution result
-
-    Note:
-        This communicates with the Rust Orchestrator's MCP client.
-        All tool execution happens inside JIT Micro-VMs (future).
-
-    Example:
-        >>> client = McpClient("filesystem", ["npx", "-y", "@server"])
-        >>> client.initialize()
-        >>> execute_tool(tool_call, client)
-    """
+    """Execute a tool via MCP connection."""
     try:
         result = mcp_client.call_tool(call.name, call.arguments)
         return {
@@ -344,96 +242,120 @@ def execute_tool(call: ToolCall, mcp_client) -> Dict[str, Any]:
         }
 
 
+def execute_tool_vm(call: ToolCall, vsock_client: VsockClient) -> Dict[str, Any]:
+    """Execute a tool via vsock connection (when running inside VM)."""
+    try:
+        result = vsock_client.execute_tool(call.name, call.arguments)
+        return {
+            "status": "ok",
+            "result": result,
+            "action_kind": call.action_kind.value,
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "error": str(e),
+            "action_kind": call.action_kind.value,
+        }
+
+
+def get_execution_mode() -> ExecutionMode:
+    """Determine execution mode from environment."""
+    mode = os.environ.get("LUMINAGUARD_MODE", "host").lower()
+    try:
+        return ExecutionMode(mode)
+    except ValueError:
+        return ExecutionMode.HOST
+
+
 def run_loop(
-    task: str, tools: List[str], mcp_client: Optional[McpClient] = None
+    task: str,
+    tools: List[str],
+    mcp_client: Optional[McpClient] = None,
+    vsock_client: Optional[VsockClient] = None,
+    execution_mode: Optional[ExecutionMode] = None,
 ) -> AgentState:
-    """
-    Run the agent reasoning loop for a given task.
+    """Run the agent reasoning loop for a given task."""
+    if execution_mode is None:
+        execution_mode = get_execution_mode()
 
-    This is the main entry point for the agent.
-
-    Args:
-        task: User task description
-        tools: List of available tools (currently informational only)
-        mcp_client: Optional McpClient instance for tool execution
-
-    Returns:
-        Final agent state
-
-    Loop:
-        1. Think: Decide next action
-        2. Execute: Run tool (if action chosen)
-        3. Update: Add result to state
-        4. Repeat: Until task complete
-
-    Example:
-        >>> client = McpClient("filesystem", ["npx", "-y", "@server"])
-        >>> client.spawn()
-        >>> client.initialize()
-        >>> state = run_loop("Read /tmp/test.txt", ["read_file"], client)
-        >>> client.shutdown()
-    """
     print(f"\n🚀 Starting task: {Style.bold(task)}")
+    print(f"📍 Execution mode: {execution_mode.value}")
+
     state = AgentState(
-        messages=[{"role": "user", "content": task}], tools=tools, context={}
+        messages=[{"role": "user", "content": task}],
+        tools=tools,
+        context={"mode": execution_mode.value},
     )
 
     max_iterations = 100
     iteration = 0
 
     while iteration < max_iterations:
-        # Think about next action
         print(f"\n🧠 Thinking... (Iteration {iteration + 1}/{max_iterations})")
         action = think(state)
 
         if action is None:
-            # Task complete
             print("\n✅ Task complete!")
             break
 
         print(f"🛠️  Executing tool: {Style.cyan(action.name)}")
-        
-        # 🔒 Approval Cliff: Request approval for RED actions before execution
+
         approved = present_diff_card(action)
-        
+
         if not approved:
-            # User rejected the action - skip execution
             print(f"\n⚠️  Action rejected by user. Skipping: {action.name}")
             state.add_message("tool", f"REJECTED: {action.name} - user denied approval")
             iteration += 1
             continue
-        
+
         print(f"✅ Action approved, executing: {action.name}")
-        
-        # Execute tool (if MCP client provided)
-        if mcp_client is not None:
+
+        # Execute tool based on mode
+        if execution_mode == ExecutionMode.VM and vsock_client:
+            result = execute_tool_vm(action, vsock_client)
+        elif mcp_client:
             result = execute_tool(action, mcp_client)
         else:
-            # Fallback: Mock execution
             result = {
                 "status": "mock",
                 "result": f"Mock execution of {action.name}",
                 "action_kind": action.action_kind.value,
             }
 
-        # Update state with result
         state.add_message("tool", str(result))
-
         iteration += 1
 
     return state
 
 
-if __name__ == "__main__":
-    # CLI entry point for testing
-    import sys
+def run_loop_vm(task: str, tools: List[str]) -> AgentState:
+    """Run the agent inside a VM with vsock communication."""
+    vsock_client = VsockClient()
+    if not vsock_client.connect():
+        print("ERROR: Failed to connect to host via vsock")
+        sys.exit(1)
 
+    print("Connected to host via vsock")
+
+    try:
+        return run_loop(task, tools, vsock_client=vsock_client, execution_mode=ExecutionMode.VM)
+    finally:
+        vsock_client.disconnect()
+
+
+if __name__ == "__main__":
     if len(sys.argv) > 1:
         task = sys.argv[1]
     else:
         task = "Hello, LuminaGuard!"
 
-    state = run_loop(task, ["read_file", "write_file", "search"])
+    mode = get_execution_mode()
+    if mode == ExecutionMode.VM:
+        state = run_loop_vm(task, ["read_file", "write_file", "search"])
+    else:
+        state = run_loop(task, ["read_file", "write_file", "search"])
+    
     print(f"Final state: {len(state.messages)} messages")
 
 
