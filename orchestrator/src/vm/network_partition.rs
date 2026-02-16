@@ -348,7 +348,7 @@ impl NetworkPartitionTestHarness {
         let mut simulator = PartitionSimulatorTransport::new(transport);
 
         // Simulate initial connection (send a few requests)
-        let successful_requests_before = 5;
+        let successful_requests_before: u64 = 5;
         let mut successful_count = 0;
 
         for i in 0..successful_requests_before {
@@ -363,7 +363,7 @@ impl NetworkPartitionTestHarness {
         simulator.enable_partition().await;
 
         // Try to send requests during partition
-        let failed_requests_during = 10;
+        let failed_requests_during: u64 = 10;
         for i in successful_requests_before..(successful_requests_before + failed_requests_during) {
             let request = McpRequest::new(i, "test", None);
             let _ = simulator.send(&request).await; // Should fail
@@ -377,10 +377,10 @@ impl NetworkPartitionTestHarness {
 
         // Verify recovery by sending successful requests
         let mut recovery_success_count = 0;
-        let recovery_attempts = 5;
-        for i in (successful_requests_before + failed_requests_during)
-            ..(successful_requests_before + failed_requests_during + recovery_attempts)
-        {
+        let recovery_attempts: u32 = 5;
+        let recovery_start_id = successful_requests_before + failed_requests_during;
+        let recovery_end_id = recovery_start_id + recovery_attempts as u64;
+        for i in recovery_start_id..recovery_end_id {
             let request = McpRequest::new(i, "test", None);
             if simulator.send(&request).await.is_ok() {
                 recovery_success_count += 1;
@@ -392,7 +392,8 @@ impl NetworkPartitionTestHarness {
 
         let metrics = simulator.get_metrics();
         let connection_lost = true;
-        let recovery_success = recovery_success_count >= recovery_attempts - 1;
+        let recovery_success_count_u32 = recovery_success_count as u32;
+        let recovery_success = recovery_success_count_u32 >= recovery_attempts - 1;
         let data_lost = false; // No data loss in this test
         let cascading_failure = false; // Single partition only
         let graceful_degradation = true; // System handled partition gracefully
@@ -420,7 +421,7 @@ impl NetworkPartitionTestHarness {
                 cached_responses: 0,
                 successful_requests_before_recovery: 0,
                 failed_requests_during_partition: metrics.failed_requests as u32,
-                recovery_attempts: recovery_attempts,
+                recovery_attempts,
             },
         };
 
@@ -654,10 +655,10 @@ impl NetworkPartitionTestHarness {
         simulator.disable_partition().await;
 
         // Verify recovery with successful requests
-        let recovery_requests = 5;
+        let recovery_requests: u32 = 5;
         let mut successful_recovery = 0;
-        for i in 10..(10 + recovery_requests) {
-            let request = McpRequest::new(i, "test", None);
+        for i in 10..(10 + recovery_requests as usize) {
+            let request = McpRequest::new(i as u64, "test", None);
             if simulator.send(&request).await.is_ok() {
                 successful_recovery += 1;
             }
@@ -696,7 +697,7 @@ impl NetworkPartitionTestHarness {
                 cached_responses: 0,
                 successful_requests_before_recovery: 0,
                 failed_requests_during_partition: metrics.failed_requests as u32,
-                recovery_attempts: recovery_attempts as u32,
+                recovery_attempts: recovery_requests as u32,
             },
         };
 

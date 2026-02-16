@@ -22,8 +22,8 @@ pub mod hypervisor;
 #[cfg(unix)]
 pub mod jailer;
 pub mod pool;
-// TODO: Uncomment when network_partition.rs type errors are fixed
-// pub mod network_partition;
+// Issue #259: Enable network_partition module
+pub mod network_partition;
 // pub mod network_partition_tests;
 pub mod reliability;
 pub mod resource_limits;
