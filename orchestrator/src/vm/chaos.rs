@@ -402,8 +402,8 @@ impl ChaosTestHarness {
         let mut cascade_failures = 0;
 
         // Run 20 VM lifecycle cycles with chaos
-        for i in 0..20 {
-            let vm_id = format!("{}-{}", test_name, i);
+        for _i in 0..20 {
+            let vm_id = format!("{}-{}", test_name, _i);
 
             // Check if this VM should be killed during spawn
             if chaos_monkey.should_kill() {
