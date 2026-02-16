@@ -42,6 +42,8 @@ pub struct FirecrackerProcess {
     pub socket_path: String,
     pub child_process: Option<Child>,
     pub spawn_time_ms: f64,
+    /// Timestamp when VM was created (for lifecycle tracking)
+    pub created_at: std::time::Instant,
 }
 
 #[async_trait]
@@ -267,6 +269,7 @@ pub async fn start_firecracker(config: &VmConfig) -> Result<FirecrackerProcess> 
         socket_path,
         child_process: Some(child),
         spawn_time_ms,
+        created_at: std::time::Instant::now(),
     })
 }
 
@@ -733,6 +736,7 @@ mod tests {
             socket_path: "/tmp/nonexistent.socket".to_string(),
             child_process: None,
             spawn_time_ms: 0.0,
+            created_at: std::time::Instant::now(),
         };
 
         // Should not panic even without a real process
@@ -786,6 +790,7 @@ mod tests {
             socket_path: "/tmp/test.socket".to_string(),
             child_process: None,
             spawn_time_ms: 150.5,
+            created_at: std::time::Instant::now(),
         };
 
         assert_eq!(process.spawn_time_ms, 150.5);
@@ -809,6 +814,7 @@ mod tests {
             socket_path: "/tmp/vm.socket".to_string(),
             child_process: None,
             spawn_time_ms: 200.0,
+            created_at: std::time::Instant::now(),
         };
 
         assert_eq!(process.pid, 12345);
