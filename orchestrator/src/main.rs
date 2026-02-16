@@ -39,11 +39,13 @@ struct Args {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
-    /// Run the agent interactively
+    /// Run the agent with a single task
     Run {
         /// Task description for the agent
         task: String,
     },
+    /// Start interactive chat mode
+    Chat,
     /// Spawn a new JIT Micro-VM
     SpawnVm,
     /// Test MCP connection
@@ -98,6 +100,10 @@ async fn main() -> Result<()> {
         Some(Commands::Run { task }) => {
             info!("Running agent task: {}", task);
             run_agent(task).await?;
+        }
+        Some(Commands::Chat) => {
+            info!("Starting interactive chat mode...");
+            chat_mode().await?;
         }
         Some(Commands::SpawnVm) => {
             info!("Spawning JIT Micro-VM...");
@@ -204,6 +210,187 @@ async fn run_agent(task: String) -> Result<()> {
         .context("Failed to destroy VM")?;
     
     info!("✅ Agent execution complete!");
+    
+    Ok(())
+}
+
+/// Interactive chat mode - allows multiple exchanges with the agent
+async fn chat_mode() -> Result<()> {
+    use std::io::{self, Write};
+    
+    println!("\n==========================================");
+    println!("🦊 LuminaGuard Interactive Chat");
+    println!("==========================================");
+    println!("Type your prompts and press Enter to send.");
+    println!("Type 'quit', 'exit', or 'bye' to end the session.");
+    println!("Type 'help' for available commands.");
+    println!("==========================================\n");
+    
+    // Session state
+    let session_id = uuid::Uuid::new_v4();
+    let mut message_count = 0;
+    
+    // Spawn VM once for the session (for efficiency)
+    info!("⚡ Spawning JIT Micro-VM for chat session...");
+    let task_id = format!("chat-{}", session_id);
+    let handle = match vm::spawn_vm(&task_id).await {
+        Ok(h) => {
+            println!("✅ VM ready (spawn time: {:.2}ms)", h.spawn_time_ms);
+            Some(h)
+        }
+        Err(e) => {
+            eprintln!("⚠️  Failed to spawn VM: {}. Running in host mode.", e);
+            None
+        }
+    };
+    
+    // Print prompt
+    print!("\n> ");
+    io::stdout().flush()?;
+    
+    // Main chat loop
+    loop {
+        let mut input = String::new();
+        match io::stdin().read_line(&mut input) {
+            Ok(0) => {
+                // EOF
+                println!("\n👋 Goodbye!");
+                break;
+            }
+            Ok(_) => {
+                let input = input.trim();
+                
+                // Handle commands
+                match input.to_lowercase().as_str() {
+                    "quit" | "exit" | "bye" => {
+                        println!("👋 Goodbye!");
+                        break;
+                    }
+                    "help" => {
+                        println!("\n📚 Available commands:");
+                        println!("  help     - Show this help message");
+                        println!("  quit     - Exit chat mode");
+                        println!("  exit     - Exit chat mode");
+                        println!("  bye      - Exit chat mode");
+                        println!("  clear    - Clear the screen");
+                        println!("  status   - Show session status");
+                        println!("  spawn    - (Re)spawn the VM");
+                        println!("  kill     - Destroy the VM");
+                        println!("  tools    - List available MCP tools");
+                        println!();
+                        print!("> ");
+                        io::stdout().flush()?;
+                        continue;
+                    }
+                    "clear" => {
+                        // Simple clear - print newlines
+                        print!("\x1B[2J\x1B[H");
+                        println!("🦊 LuminaGuard Interactive Chat - Session: {}", session_id);
+                        print!("> ");
+                        io::stdout().flush()?;
+                        continue;
+                    }
+                    "status" => {
+                        println!("\n📊 Session Status:");
+                        println!("  Session ID: {}", session_id);
+                        println!("  Messages: {}", message_count);
+                        if let Some(ref h) = handle {
+                            println!("  VM ID: {}", h.id);
+                            println!("  VM Spawn Time: {:.2}ms", h.spawn_time_ms);
+                            println!("  VM Status: Active");
+                        } else {
+                            println!("  VM Status: Not available (running on host)");
+                        }
+                        println!();
+                        print!("> ");
+                        io::stdout().flush()?;
+                        continue;
+                    }
+                    "spawn" => {
+                        if handle.is_some() {
+                            println!("ℹ️  VM already spawned. Use 'kill' first to respawn.");
+                        } else {
+                            info!("⚡ Spawning JIT Micro-VM...");
+                            match vm::spawn_vm(&task_id).await {
+                                Ok(h) => {
+                                    println!("✅ VM ready (spawn time: {:.2}ms)", h.spawn_time_ms);
+                                }
+                                Err(e) => {
+                                    eprintln!("❌ Failed to spawn VM: {}", e);
+                                }
+                            }
+                        }
+                        print!("> ");
+                        io::stdout().flush()?;
+                        continue;
+                    }
+                    "kill" => {
+                        if let Some(h) = handle.take() {
+                            match vm::destroy_vm(h).await {
+                                Ok(_) => println!("✅ VM destroyed"),
+                                Err(e) => eprintln!("❌ Failed to destroy VM: {}", e),
+                            }
+                        } else {
+                            println!("ℹ️  No VM to kill");
+                        }
+                        print!("> ");
+                        io::stdout().flush()?;
+                        continue;
+                    }
+                    "tools" => {
+                        // Quick MCP tool listing
+                        println!("\n🔌 To list MCP tools, use: luminaguard test-mcp --list-tools");
+                        println!();
+                        print!("> ");
+                        io::stdout().flush()?;
+                        continue;
+                    }
+                    "" => {
+                        // Empty input
+                        print!("> ");
+                        io::stdout().flush()?;
+                        continue;
+                    }
+                    _ => {
+                        // Regular message - send to agent
+                        message_count += 1;
+                        println!("\n🤖 Processing...");
+                    }
+                }
+                
+                // Send to agent (run_agent handles the actual execution)
+                match run_agent(input.to_string()).await {
+                    Ok(_) => {
+                        // Agent completed successfully
+                    }
+                    Err(e) => {
+                        eprintln!("❌ Error: {}", e);
+                    }
+                }
+                
+                // Print prompt for next message
+                print!("\n> ");
+                io::stdout().flush()?;
+            }
+            Err(e) => {
+                eprintln!("\n❌ Error reading input: {}", e);
+                break;
+            }
+        }
+    }
+    
+    // Cleanup - destroy VM if still active
+    if let Some(h) = handle {
+        info!("🧹 Cleaning up VM...");
+        if let Err(e) = vm::destroy_vm(h).await {
+            eprintln!("⚠️  Failed to cleanup VM: {}", e);
+        }
+    }
+    
+    println!("\n📊 Session Summary:");
+    println!("  Session ID: {}", session_id);
+    println!("  Total Messages: {}", message_count);
+    println!("\n✅ Chat session ended.\n");
     
     Ok(())
 }
