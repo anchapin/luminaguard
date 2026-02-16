@@ -4,7 +4,7 @@
 //! Multiple transports are supported:
 //!
 //! - **stdio**: Standard input/output (for local MCP servers)
-//! - **HTTP**: HTTP/HTTPS (for remote MCP servers) - TODO: Phase 2
+//! - **HTTP**: HTTP/HTTPS (for remote MCP servers) - IMPLEMENTED
 //!
 //! # Architecture
 //!
