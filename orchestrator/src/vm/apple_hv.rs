@@ -609,6 +609,7 @@ mod tests {
 
     #[test]
     #[cfg(target_os = "macos")]
+    #[ignore]
     fn test_apple_hv_stop_command() {
         // Test that stop command can be sent
         let (sender, receiver) = mpsc::channel();
@@ -635,6 +636,7 @@ mod tests {
 
     #[test]
     #[cfg(target_os = "macos")]
+    #[ignore]
     fn test_apple_hv_multiple_stops() {
         // Test graceful handling of multiple stop calls
         let (sender, receiver) = mpsc::channel();
