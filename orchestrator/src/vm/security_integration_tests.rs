@@ -3496,6 +3496,96 @@ mod tests {
         assert_eq!(harness.test_results.len(), 0);
     }
 
+    // GitHub Issue #288: Implement security test: Concurrent approval bypass prevention
+    #[test]
+    fn test_issue_288_concurrent_approval_bypass() {
+        let harness = IntegrationTestHarness::new();
+        let result = harness.verify_concurrent_approval_safe();
+        assert!(result.is_ok(), "Concurrent approval bypass verification failed: {:?}", result.err());
+        assert!(result.unwrap(), "Concurrent approval bypass check failed");
+    }
+
+    // GitHub Issue #289: Implement security test: Combined firewall+seccomp protection
+    #[test]
+    fn test_issue_289_firewall_seccomp_bypass() {
+        let harness = IntegrationTestHarness::new();
+        let result = harness.verify_combined_layer_protection();
+        assert!(result.is_ok(), "Combined firewall+seccomp protection verification failed: {:?}", result.err());
+        assert!(result.unwrap(), "Combined firewall+seccomp protection check failed");
+    }
+
+    // GitHub Issue #290: Implement security test: Resource+execution safety
+    #[test]
+    fn test_issue_290_resource_execution_safety() {
+        let harness = IntegrationTestHarness::new();
+        let result = harness.verify_resource_execution_safety();
+        assert!(result.is_ok(), "Resource+execution safety verification failed: {:?}", result.err());
+        assert!(result.unwrap(), "Resource+execution safety check failed");
+    }
+
+    // GitHub Issue #291: Implement security test: Approval timeout race condition safety
+    #[test]
+    fn test_issue_291_approval_timeout_race() {
+        let harness = IntegrationTestHarness::new();
+        let result = harness.verify_timeout_race_safe();
+        assert!(result.is_ok(), "Approval timeout race condition verification failed: {:?}", result.err());
+        assert!(result.unwrap(), "Approval timeout race condition check failed");
+    }
+
+    // GitHub Issue #292: Implement security test: Cascading failure isolation
+    #[test]
+    fn test_issue_292_cascading_failure_isolation() {
+        let harness = IntegrationTestHarness::new();
+        let result = harness.verify_isolation_on_failure();
+        assert!(result.is_ok(), "Cascading failure isolation verification failed: {:?}", result.err());
+        assert!(result.unwrap(), "Cascading failure isolation check failed");
+    }
+
+    // GitHub Issue #293: Implement security test: VM escape prevention
+    #[test]
+    fn test_issue_293_vm_escape_prevention() {
+        let harness = IntegrationTestHarness::new();
+        let result = harness.verify_vm_escape_prevented();
+        assert!(result.is_ok(), "VM escape prevention verification failed: {:?}", result.err());
+        assert!(result.unwrap(), "VM escape prevention check failed");
+    }
+
+    // GitHub Issue #294: Implement security test: VM termination cleanup
+    #[test]
+    fn test_issue_294_vm_termination_cleanup() {
+        let harness = IntegrationTestHarness::new();
+        let result = harness.verify_vm_termination_cleanup();
+        assert!(result.is_ok(), "VM termination cleanup verification failed: {:?}", result.err());
+        assert!(result.unwrap(), "VM termination cleanup check failed");
+    }
+
+    // GitHub Issue #295: Implement security test: Network partition recovery
+    #[test]
+    fn test_issue_295_network_partition_recovery() {
+        let harness = IntegrationTestHarness::new();
+        let result = harness.verify_network_partition_recovery();
+        assert!(result.is_ok(), "Network partition recovery verification failed: {:?}", result.err());
+        assert!(result.unwrap(), "Network partition recovery check failed");
+    }
+
+    // GitHub Issue #296: Implement security test: Resource exhaustion limits
+    #[test]
+    fn test_issue_296_resource_exhaustion_limits() {
+        let harness = IntegrationTestHarness::new();
+        let result = harness.verify_resource_exhaustion_limits();
+        assert!(result.is_ok(), "Resource exhaustion limits verification failed: {:?}", result.err());
+        assert!(result.unwrap(), "Resource exhaustion limits check failed");
+    }
+
+    // GitHub Issue #297: Implement security test: Approval server resilience
+    #[test]
+    fn test_issue_297_approval_server_resilience() {
+        let harness = IntegrationTestHarness::new();
+        let result = harness.verify_approval_server_resilience();
+        assert!(result.is_ok(), "Approval server resilience verification failed: {:?}", result.err());
+        assert!(result.unwrap(), "Approval server resilience check failed");
+    }
+
     // GitHub Issue #298: Implement security test: Firewall disruption recovery
     #[test]
     fn test_issue_298_firewall_disruption_recovery() {
