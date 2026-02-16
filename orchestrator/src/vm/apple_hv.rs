@@ -610,10 +610,10 @@ mod tests {
         assert!(instance.spawn_time_ms < 10000.0); // Less than 10 seconds
     }
 
-    #[test]
+    #[tokio::test]
     #[cfg(target_os = "macos")]
     #[ignore]
-    fn test_apple_hv_stop_command() {
+    async fn test_apple_hv_stop_command() {
         // Test that stop command can be sent
         let (sender, receiver) = mpsc::channel();
 
@@ -625,10 +625,8 @@ mod tests {
             sender,
         };
 
-        // Send stop command (synchronously for test)
-        let result = std::thread::spawn(move || async move { instance.stop().await })
-            .join()
-            .unwrap();
+        // Send stop command (async)
+        let result = instance.stop().await;
 
         // Should succeed (command sent, even if thread doesn't receive it)
         assert!(result.is_ok());
@@ -637,10 +635,10 @@ mod tests {
         assert!(matches!(receiver.try_recv(), Ok(AppleHvCommand::Stop)));
     }
 
-    #[test]
+    #[tokio::test]
     #[cfg(target_os = "macos")]
     #[ignore]
-    fn test_apple_hv_multiple_stops() {
+    async fn test_apple_hv_multiple_stops() {
         // Test graceful handling of multiple stop calls
         let (sender, receiver) = mpsc::channel();
 
@@ -653,12 +651,12 @@ mod tests {
         };
 
         // First stop
-        let result1 = instance.stop();
-        assert!(futures::executor::block_on(result1).is_ok());
+        let result1 = instance.stop().await;
+        assert!(result1.is_ok());
 
         // Second stop should still succeed (may fail to send, but shouldn't panic)
-        let result2 = instance.stop();
-        assert!(futures::executor::block_on(result2).is_ok() || result2.is_err());
+        let result2 = instance.stop().await;
+        assert!(result2.is_ok() || result2.is_err());
 
         // Only one stop command should be in channel
         assert!(matches!(receiver.try_recv(), Ok(AppleHvCommand::Stop)));
