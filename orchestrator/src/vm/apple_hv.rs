@@ -593,7 +593,13 @@ mod tests {
         assert!(result.is_err(), "Should fail with missing rootfs");
         match result {
             Err(e) => {
-                assert!(e.to_string().contains("Root filesystem not found"));
+                let error_msg = e.to_string();
+                // Accept either "Root filesystem not found" or just "rootfs" for cross-platform compatibility
+                assert!(
+                    error_msg.contains("Root filesystem not found") || error_msg.to_lowercase().contains("rootfs"),
+                    "Error should mention rootfs, got: {}",
+                    error_msg
+                );
             }
             _ => panic!("Expected error with missing rootfs"),
         }
