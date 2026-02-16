@@ -24,7 +24,7 @@ pub mod jailer;
 pub mod pool;
 // Issue #259: Enable network_partition module
 pub mod network_partition;
-// pub mod network_partition_tests;
+pub mod network_partition_tests;
 pub mod reliability;
 pub mod resource_limits;
 pub mod rootfs;
