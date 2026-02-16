@@ -768,6 +768,7 @@ mod tests {
             socket_path: socket_path.to_str().unwrap().to_string(),
             child_process: None,
             spawn_time_ms: 100.0,
+            created_at: std::time::Instant::now(),
         };
 
         // Stop should clean up the socket
