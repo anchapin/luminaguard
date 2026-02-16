@@ -1,0 +1,60 @@
+LuminaGuard Security Integration Test Report
+=============================================
+Generated: 2026-02-16 10:50:36
+
+Test Results:
+- Total Tests: 35
+- Passed: 35
+- Failed: 0
+- Security Score: 100.0%
+- Attack Block Rate: 100.0%
+- Total Time: 0.21ms
+
+Test Categories:
+
+red_team_attack_simulation: 5/5 passed
+  [✓] direct_payload_injection_blocked (0ms)
+  [✓] environment_variable_poisoning_blocked (0ms)
+  [✓] argument_fuzzing_rejected (0ms)
+  [✓] path_traversal_prevented (0ms)
+  [✓] shellcode_execution_blocked (0ms)
+
+multi_vector_attacks: 6/6 passed
+  [✓] concurrent_approval_bypass (0ms)
+  [✓] firewall_plus_seccomp_bypass (0ms)
+  [✓] resource_limit_plus_execution_bypass (0ms)
+  [✓] approval_timeout_race_condition (0ms)
+  [✓] cascading_failures_isolated (0ms)
+  [✓] privilege_escalation_via_vm_escape (0ms)
+
+cross_layer_validation: 7/7 passed
+  [✓] firewall_and_seccomp_together (0ms)
+  [✓] approval_and_firewall_sync (0ms)
+  [✓] seccomp_respects_approval (0ms)
+  [✓] resource_limits_enforced_with_seccomp (0ms)
+  [✓] approval_cliff_blocks_red_action (0ms)
+  [✓] all_layers_prevent_escape (0ms)
+  [✓] audit_logging_comprehensive (0ms)
+
+attack_detection_logging: 5/5 passed
+  [✓] failed_approvals_logged (0ms)
+  [✓] attack_attempts_detected (0ms)
+  [✓] log_integrity_preserved (0ms)
+  [✓] attack_timeline_reconstructed (0ms)
+  [✓] security_event_correlation (0ms)
+
+system_resilience: 5/5 passed
+  [✓] graceful_degradation_under_attack (0ms)
+  [✓] no_unintended_side_effects (0ms)
+  [✓] rapid_recovery_after_attack (0ms)
+  [✓] security_state_consistency (0ms)
+  [✓] performance_under_attack_load (0ms)
+
+chaos_engineering: 7/7 passed
+  [✓] random_vm_termination_safety (0ms)
+  [✓] network_partition_resilience (0ms)
+  [✓] resource_exhaustion_handling (0ms)
+  [✓] approval_server_chaos (0ms)
+  [✓] firewall_rule_disruption (0ms)
+  [✓] concurrent_chaos_scenarios (0ms)
+  [✓] system_recovery_after_chaos (0ms)

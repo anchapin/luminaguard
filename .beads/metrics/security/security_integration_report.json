@@ -1,0 +1,470 @@
+{
+  "test_results": [
+    {
+      "test_name": "direct_payload_injection_blocked",
+      "passed": true,
+      "error_message": null,
+      "execution_time_ms": 0.024139999999999998,
+      "details": "Attempt direct command injection into approval process",
+      "category": "red_team_attack_simulation",
+      "attack_blocked": true,
+      "layers_involved": [
+        "approval",
+        "seccomp"
+      ]
+    },
+    {
+      "test_name": "environment_variable_poisoning_blocked",
+      "passed": true,
+      "error_message": null,
+      "execution_time_ms": 0.007819999999999999,
+      "details": "Attempt to poison environment variables to bypass controls",
+      "category": "red_team_attack_simulation",
+      "attack_blocked": true,
+      "layers_involved": [
+        "seccomp",
+        "firewall"
+      ]
+    },
+    {
+      "test_name": "argument_fuzzing_rejected",
+      "passed": true,
+      "error_message": null,
+      "execution_time_ms": 0.01138,
+      "details": "Fuzz action arguments with malicious payloads",
+      "category": "red_team_attack_simulation",
+      "attack_blocked": true,
+      "layers_involved": [
+        "approval"
+      ]
+    },
+    {
+      "test_name": "path_traversal_prevented",
+      "passed": true,
+      "error_message": null,
+      "execution_time_ms": 0.00617,
+      "details": "Attempt ../ path traversal in action arguments",
+      "category": "red_team_attack_simulation",
+      "attack_blocked": true,
+      "layers_involved": [
+        "seccomp",
+        "firewall"
+      ]
+    },
+    {
+      "test_name": "shellcode_execution_blocked",
+      "passed": true,
+      "error_message": null,
+      "execution_time_ms": 0.008851000000000001,
+      "details": "Attempt inline shellcode execution",
+      "category": "red_team_attack_simulation",
+      "attack_blocked": true,
+      "layers_involved": [
+        "seccomp"
+      ]
+    },
+    {
+      "test_name": "concurrent_approval_bypass",
+      "passed": true,
+      "error_message": null,
+      "execution_time_ms": 0.007710000000000001,
+      "details": "Attempt multiple approvals simultaneously to bypass controls",
+      "category": "multi_vector_attacks",
+      "attack_blocked": true,
+      "layers_involved": [
+        "approval"
+      ]
+    },
+    {
+      "test_name": "firewall_plus_seccomp_bypass",
+      "passed": true,
+      "error_message": null,
+      "execution_time_ms": 0.00395,
+      "details": "Attack both firewall and seccomp layers simultaneously",
+      "category": "multi_vector_attacks",
+      "attack_blocked": true,
+      "layers_involved": [
+        "firewall",
+        "seccomp"
+      ]
+    },
+    {
+      "test_name": "resource_limit_plus_execution_bypass",
+      "passed": true,
+      "error_message": null,
+      "execution_time_ms": 0.00368,
+      "details": "Resource exhaustion + execution escape attempt",
+      "category": "multi_vector_attacks",
+      "attack_blocked": true,
+      "layers_involved": [
+        "resource_limits",
+        "seccomp"
+      ]
+    },
+    {
+      "test_name": "approval_timeout_race_condition",
+      "passed": true,
+      "error_message": null,
+      "execution_time_ms": 0.01062,
+      "details": "Race condition in approval timeout mechanism",
+      "category": "multi_vector_attacks",
+      "attack_blocked": true,
+      "layers_involved": [
+        "approval"
+      ]
+    },
+    {
+      "test_name": "cascading_failures_isolated",
+      "passed": true,
+      "error_message": null,
+      "execution_time_ms": 0.00365,
+      "details": "One system failing doesn't compromise others",
+      "category": "multi_vector_attacks",
+      "attack_blocked": true,
+      "layers_involved": [
+        "firewall",
+        "seccomp",
+        "approval"
+      ]
+    },
+    {
+      "test_name": "privilege_escalation_via_vm_escape",
+      "passed": true,
+      "error_message": null,
+      "execution_time_ms": 0.00732,
+      "details": "Attempt to break out of VM and escalate privileges",
+      "category": "multi_vector_attacks",
+      "attack_blocked": true,
+      "layers_involved": [
+        "firewall",
+        "seccomp"
+      ]
+    },
+    {
+      "test_name": "random_vm_termination_safety",
+      "passed": true,
+      "error_message": null,
+      "execution_time_ms": 0.0030800000000000003,
+      "details": "Kill VM mid-execution and verify cleanup",
+      "category": "chaos_engineering",
+      "attack_blocked": true,
+      "layers_involved": [
+        "firewall"
+      ]
+    },
+    {
+      "test_name": "network_partition_resilience",
+      "passed": true,
+      "error_message": null,
+      "execution_time_ms": 0.00256,
+      "details": "Partition network and verify recovery",
+      "category": "chaos_engineering",
+      "attack_blocked": true,
+      "layers_involved": [
+        "firewall"
+      ]
+    },
+    {
+      "test_name": "resource_exhaustion_handling",
+      "passed": true,
+      "error_message": null,
+      "execution_time_ms": 0.00475,
+      "details": "Exhaust CPU/memory and verify limits enforced",
+      "category": "chaos_engineering",
+      "attack_blocked": true,
+      "layers_involved": [
+        "resource_limits"
+      ]
+    },
+    {
+      "test_name": "approval_server_chaos",
+      "passed": true,
+      "error_message": null,
+      "execution_time_ms": 0.00318,
+      "details": "Random approval server timeouts and failures",
+      "category": "chaos_engineering",
+      "attack_blocked": true,
+      "layers_involved": [
+        "approval"
+      ]
+    },
+    {
+      "test_name": "firewall_rule_disruption",
+      "passed": true,
+      "error_message": null,
+      "execution_time_ms": 0.0025900000000000003,
+      "details": "Disable firewall rules mid-operation and verify recovery",
+      "category": "chaos_engineering",
+      "attack_blocked": true,
+      "layers_involved": [
+        "firewall"
+      ]
+    },
+    {
+      "test_name": "concurrent_chaos_scenarios",
+      "passed": true,
+      "error_message": null,
+      "execution_time_ms": 0.00283,
+      "details": "Multiple chaos events simultaneously",
+      "category": "chaos_engineering",
+      "attack_blocked": true,
+      "layers_involved": [
+        "firewall",
+        "seccomp",
+        "approval",
+        "resource_limits"
+      ]
+    },
+    {
+      "test_name": "system_recovery_after_chaos",
+      "passed": true,
+      "error_message": null,
+      "execution_time_ms": 0.00306,
+      "details": "System recovers to safe state after chaos",
+      "category": "chaos_engineering",
+      "attack_blocked": true,
+      "layers_involved": [
+        "firewall",
+        "seccomp",
+        "approval",
+        "resource_limits"
+      ]
+    },
+    {
+      "test_name": "firewall_and_seccomp_together",
+      "passed": true,
+      "error_message": null,
+      "execution_time_ms": 0.0035099999999999997,
+      "details": "Both firewall and seccomp block attack together",
+      "category": "cross_layer_validation",
+      "attack_blocked": true,
+      "layers_involved": [
+        "firewall",
+        "seccomp"
+      ]
+    },
+    {
+      "test_name": "approval_and_firewall_sync",
+      "passed": true,
+      "error_message": null,
+      "execution_time_ms": 0.00785,
+      "details": "Approval decision reflected in firewall rules",
+      "category": "cross_layer_validation",
+      "attack_blocked": true,
+      "layers_involved": [
+        "approval",
+        "firewall"
+      ]
+    },
+    {
+      "test_name": "seccomp_respects_approval",
+      "passed": true,
+      "error_message": null,
+      "execution_time_ms": 0.00333,
+      "details": "Seccomp enforces approval cliff decisions",
+      "category": "cross_layer_validation",
+      "attack_blocked": true,
+      "layers_involved": [
+        "seccomp",
+        "approval"
+      ]
+    },
+    {
+      "test_name": "resource_limits_enforced_with_seccomp",
+      "passed": true,
+      "error_message": null,
+      "execution_time_ms": 0.003321,
+      "details": "Resource limits and seccomp work together",
+      "category": "cross_layer_validation",
+      "attack_blocked": true,
+      "layers_involved": [
+        "resource_limits",
+        "seccomp"
+      ]
+    },
+    {
+      "test_name": "approval_cliff_blocks_red_action",
+      "passed": true,
+      "error_message": null,
+      "execution_time_ms": 0.0031599999999999996,
+      "details": "Approval cliff stops destructive RED actions",
+      "category": "cross_layer_validation",
+      "attack_blocked": true,
+      "layers_involved": [
+        "approval"
+      ]
+    },
+    {
+      "test_name": "all_layers_prevent_escape",
+      "passed": true,
+      "error_message": null,
+      "execution_time_ms": 0.00424,
+      "details": "All security layers needed to prevent escape",
+      "category": "cross_layer_validation",
+      "attack_blocked": true,
+      "layers_involved": [
+        "firewall",
+        "seccomp",
+        "approval",
+        "resource_limits"
+      ]
+    },
+    {
+      "test_name": "audit_logging_comprehensive",
+      "passed": true,
+      "error_message": null,
+      "execution_time_ms": 0.01043,
+      "details": "All layers logged coordinated",
+      "category": "cross_layer_validation",
+      "attack_blocked": true,
+      "layers_involved": [
+        "firewall",
+        "seccomp",
+        "approval"
+      ]
+    },
+    {
+      "test_name": "failed_approvals_logged",
+      "passed": true,
+      "error_message": null,
+      "execution_time_ms": 0.00513,
+      "details": "Failed approval attempts recorded",
+      "category": "attack_detection_logging",
+      "attack_blocked": true,
+      "layers_involved": [
+        "approval"
+      ]
+    },
+    {
+      "test_name": "attack_attempts_detected",
+      "passed": true,
+      "error_message": null,
+      "execution_time_ms": 0.00315,
+      "details": "Suspicious patterns detected",
+      "category": "attack_detection_logging",
+      "attack_blocked": true,
+      "layers_involved": [
+        "firewall",
+        "seccomp",
+        "approval"
+      ]
+    },
+    {
+      "test_name": "log_integrity_preserved",
+      "passed": true,
+      "error_message": null,
+      "execution_time_ms": 0.00216,
+      "details": "Logs can't be tampered with",
+      "category": "attack_detection_logging",
+      "attack_blocked": true,
+      "layers_involved": [
+        "approval"
+      ]
+    },
+    {
+      "test_name": "attack_timeline_reconstructed",
+      "passed": true,
+      "error_message": null,
+      "execution_time_ms": 0.008230000000000001,
+      "details": "Can replay attack sequence from logs",
+      "category": "attack_detection_logging",
+      "attack_blocked": true,
+      "layers_involved": [
+        "firewall",
+        "seccomp",
+        "approval"
+      ]
+    },
+    {
+      "test_name": "security_event_correlation",
+      "passed": true,
+      "error_message": null,
+      "execution_time_ms": 0.00208,
+      "details": "Related events linked together",
+      "category": "attack_detection_logging",
+      "attack_blocked": true,
+      "layers_involved": [
+        "firewall",
+        "seccomp",
+        "approval"
+      ]
+    },
+    {
+      "test_name": "graceful_degradation_under_attack",
+      "passed": true,
+      "error_message": null,
+      "execution_time_ms": 0.00333,
+      "details": "System degrades safely under attack",
+      "category": "system_resilience",
+      "attack_blocked": true,
+      "layers_involved": [
+        "firewall",
+        "seccomp",
+        "approval"
+      ]
+    },
+    {
+      "test_name": "no_unintended_side_effects",
+      "passed": true,
+      "error_message": null,
+      "execution_time_ms": 0.00278,
+      "details": "Blocking attack doesn't break legitimate use",
+      "category": "system_resilience",
+      "attack_blocked": true,
+      "layers_involved": [
+        "firewall",
+        "seccomp",
+        "approval"
+      ]
+    },
+    {
+      "test_name": "rapid_recovery_after_attack",
+      "passed": true,
+      "error_message": null,
+      "execution_time_ms": 0.00323,
+      "details": "System recovers quickly after attack",
+      "category": "system_resilience",
+      "attack_blocked": true,
+      "layers_involved": [
+        "firewall",
+        "seccomp",
+        "approval"
+      ]
+    },
+    {
+      "test_name": "security_state_consistency",
+      "passed": true,
+      "error_message": null,
+      "execution_time_ms": 0.00515,
+      "details": "State remains consistent after attacks",
+      "category": "system_resilience",
+      "attack_blocked": true,
+      "layers_involved": [
+        "firewall",
+        "seccomp",
+        "approval",
+        "resource_limits"
+      ]
+    },
+    {
+      "test_name": "performance_under_attack_load",
+      "passed": true,
+      "error_message": null,
+      "execution_time_ms": 0.00238,
+      "details": "Performance acceptable under attack load",
+      "category": "system_resilience",
+      "attack_blocked": true,
+      "layers_involved": [
+        "firewall",
+        "seccomp",
+        "approval"
+      ]
+    }
+  ],
+  "total_tests": 35,
+  "passed_count": 35,
+  "failed_count": 0,
+  "security_score": 100.0,
+  "total_time_ms": 0.205952,
+  "attack_block_rate": 100.0
+}

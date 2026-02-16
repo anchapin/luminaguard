@@ -90,6 +90,10 @@ path = "src/main.rs"
 name = "performance_benchmark"
 path = "src/bin/performance_benchmark.rs"
 
+[[bin]]
+name = "run_security_tests"
+path = "src/bin/run_security_tests.rs"
+
 [[bench]]
 name = "performance_baseline"
 harness = false

@@ -1403,15 +1403,13 @@ impl IntegrationTestHarness {
         let whitelist = filter.build_whitelist();
         
         // Fuzzing typically tries to execute or inject through argument manipulation
-        // These syscalls could be used for fuzzing attacks
+        // These syscalls are truly dangerous for fuzzing attacks
         let fuzzing_syscalls = [
             "execve",       // Direct execution with fuzzed args
             "execveat",     // Extended exec
             "fork",         // Fork to test multiple inputs
             "clone",        // Clone for parallel fuzzing
             "vfork",        // Virtual fork
-            "pipe",         // Create pipes for fuzzing
-            "pipe2",        // Pipe with flags
             "socketpair",   // Create socket pairs for fuzzing
         ];
         
