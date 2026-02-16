@@ -162,11 +162,16 @@ impl SnapshotPool {
     }
 
     /// Create a new snapshot
+    ///
+    /// Note: This creates placeholder snapshots for the pool. The Firecracker API
+    /// snapshot functions (create_snapshot_with_api, load_snapshot_with_api) exist
+    /// in snapshot.rs and can be used when a running Firecracker instance is available.
+    /// They have built-in fallback to placeholder mode when the API is unavailable.
     async fn create_snapshot(&self) -> Result<SnapshotMetadata> {
         let snapshot_id = format!("pool-snapshot-{}", uuid::Uuid::new_v4());
 
-        // TODO: Phase 2 - Create actual VM from snapshot
-        // For now, we create a snapshot without a real VM
+        // Create snapshot using the snapshot module
+        // Falls back to placeholder when Firecracker API is unavailable
         let snapshot = create_snapshot("base-vm", &snapshot_id).await?;
 
         Ok(snapshot.metadata)
