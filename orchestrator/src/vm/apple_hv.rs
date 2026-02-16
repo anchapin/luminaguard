@@ -521,6 +521,7 @@ mod tests {
             vm_id: "test-integration".to_string(),
             kernel_path: kernel_path.to_str().unwrap().to_string(),
             rootfs_path: rootfs_path.to_str().unwrap().to_string(),
+            rootfs_config: None,
             vcpu_count: 2,
             memory_mb: 512,
             enable_networking: false,
