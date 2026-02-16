@@ -696,18 +696,15 @@ mod tests {
 
     #[tokio::test]
     #[cfg(not(target_os = "macos"))]
-    async fn test_apple_hv_stop_on_non_macos() {
-        // Test that stop works gracefully on non-macOS (stub implementation)
-        // On non-macOS, the AppleHvInstance struct doesn't have a sender field,
-        // so we just verify it compiles and the stop method works
-        let mut instance = AppleHvInstance {
-            id: "test-vm".to_string(),
-            pid: 1234,
-            spawn_time_ms: 100.0,
-        };
+    async fn test_apple_hv_stub_implementation() {
+        // Test that stub implementation works on non-macOS platforms
+        // Verify the hypervisor returns appropriate errors
+        let hypervisor = AppleHvHypervisor;
+        let config = VmConfig::default();
 
-        let result = instance.stop().await;
-        assert!(result.is_ok());
+        // Should fail on non-macOS with appropriate error message
+        let result = hypervisor.spawn(&config).await;
+        assert!(result.is_err());
     }
 
     #[test]
