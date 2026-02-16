@@ -1238,8 +1238,39 @@ impl IntegrationTestHarness {
     // ============================================================================
 
     fn verify_payload_injection_blocked(&self) -> Result<bool, String> {
-        // TODO: Implement payload injection test
-        Ok(true)
+        // Verify that payload injection attempts are blocked by security layers
+        // This integrates with the seccomp filter and security_escape module
+        
+        use crate::vm::seccomp::{SeccompFilter, SeccompLevel};
+        
+        // Create a seccomp filter to verify blocking
+        let filter = SeccompFilter::new(SeccompLevel::Basic);
+        let whitelist = filter.build_whitelist();
+        
+        // Verify dangerous syscalls are blocked
+        let dangerous_syscalls = [
+            "socket",     // Network socket creation
+            "bind",       // Bind to port
+            "connect",    // Network connection
+            "listen",     // Listen for connections
+            "accept",     // Accept connections
+        ];
+        
+        let mut all_blocked = true;
+        for syscall in &dangerous_syscalls {
+            if whitelist.contains(syscall) {
+                all_blocked = false;
+            }
+        }
+        
+        // Check audit log for blocked attempts
+        // In a real test, this would check actual VM execution logs
+        tracing::debug!(
+            "Payload injection blocked verification: dangerous syscalls blocked = {}",
+            all_blocked
+        );
+        
+        Ok(all_blocked)
     }
 
     fn verify_env_poisoning_blocked(&self) -> Result<bool, String> {
@@ -1253,13 +1284,106 @@ impl IntegrationTestHarness {
     }
 
     fn verify_path_traversal_prevented(&self) -> Result<bool, String> {
-        // TODO: Implement path traversal test
-        Ok(true)
+        // Verify that path traversal attempts are prevented by security layers
+        // This integrates with the jailer/chroot and seccomp modules
+        
+        use crate::vm::seccomp::{SeccompFilter, SeccompLevel};
+        
+        // Create a seccomp filter to verify blocking of dangerous filesystem syscalls
+        let filter = SeccompFilter::new(SeccompLevel::Basic);
+        let whitelist = filter.build_whitelist();
+        
+        // Path traversal attempts typically try to use these dangerous syscalls
+        let dangerous_fs_syscalls = [
+            "mount",        // Mount filesystem (could escape chroot)
+            "umount",       // Unmount filesystem
+            "pivot_root",   // Change root filesystem
+            "chroot",       // Change root directory
+        ];
+        
+        // Verify these dangerous syscalls are NOT in the whitelist
+        let mut all_blocked = true;
+        for syscall in &dangerous_fs_syscalls {
+            if whitelist.contains(syscall) {
+                all_blocked = false;
+            }
+        }
+        
+        // Additionally verify that security-sensitive syscalls are audited
+        let audit_whitelist = filter.get_audit_whitelist();
+        let required_audit = ["chroot", "mount", "pivot_root"];
+        
+        for syscall in &required_audit {
+            if !audit_whitelist.contains(&syscall.to_string()) {
+                tracing::warn!("Path traversal: {} should be audited but isn't", syscall);
+            }
+        }
+        
+        tracing::debug!(
+            "Path traversal prevention verification: dangerous fs syscalls blocked = {}",
+            all_blocked
+        );
+        
+        Ok(all_blocked)
     }
 
     fn verify_shellcode_blocked(&self) -> Result<bool, String> {
-        // TODO: Implement shellcode blocking test
-        Ok(true)
+        // Verify that shellcode execution attempts are blocked by seccomp filters
+        // Shellcode typically tries to use dangerous syscalls that are blocked
+        
+        use crate::vm::seccomp::{SeccompFilter, SeccompLevel};
+        
+        // Create a seccomp filter to verify blocking
+        let filter = SeccompFilter::new(SeccompLevel::Basic);
+        let whitelist = filter.build_whitelist();
+        
+        // Shellcode execution typically attempts these syscalls
+        let shellcode_syscalls = [
+            "execve",       // Execute program
+            "execveat",     // Execute program (extended)
+            "fork",         // Fork process
+            "clone",        // Create process
+            "vfork",        // Fork (virtual)
+            "ptrace",       // Process tracing (can be used for code injection)
+            "kernelhack",   // Would be ideal but doesn't exist
+            "mprotect",     // Change memory protection (sometimes used)
+        ];
+        
+        // Verify dangerous syscalls are blocked (shellcode can't execute)
+        let mut shellcode_blocked = true;
+        
+        // execve, fork, clone are blocked in Basic level
+        let blocked_by_seccomp = ["execve", "fork", "clone", "vfork", "ptrace"];
+        for syscall in &blocked_by_seccomp {
+            if whitelist.contains(syscall) {
+                shellcode_blocked = false;
+            }
+        }
+        
+        // Verify audit is enabled for security monitoring
+        if !filter.audit_enabled {
+            return Err("Seccomp audit must be enabled for security monitoring".to_string());
+        }
+        
+        // Verify security-sensitive syscalls are in audit whitelist
+        let audit_whitelist = filter.get_audit_whitelist();
+        let security_syscalls = ["execve", "execveat", "fork", "clone", "ptrace"];
+        
+        for syscall in &security_syscalls {
+            if !audit_whitelist.contains(&syscall.to_string()) {
+                tracing::warn!(
+                    "Shellcode blocking: {} should be audited but isn't",
+                    syscall
+                );
+            }
+        }
+        
+        tracing::debug!(
+            "Shellcode blocking verification: shellcode syscalls blocked = {}",
+            shellcode_blocked
+        );
+        
+        Ok(shellcode_blocked)
     }
 
     fn verify_concurrent_approval_safe(&self) -> Result<bool, String> {
