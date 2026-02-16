@@ -18,6 +18,7 @@ use std::path::PathBuf;
 use std::time::Instant;
 use tracing::{error, info, warn};
 
+#[cfg(unix)]
 use crate::vm::jailer::JailerConfig;
 
 /// Resource limit test result
@@ -59,6 +60,7 @@ impl ResourceLimitsTestHarness {
     }
 
     /// Run all resource limits tests
+    #[cfg(unix)]
     pub fn run_all_tests(&mut self) -> ResourceLimitsReport {
         info!("Starting comprehensive resource limits validation tests");
         info!("==============================================");
@@ -701,6 +703,7 @@ Test Categories:
 /// # Returns
 ///
 /// * `ResourceLimitsReport` - Complete resource limits test results
+#[cfg(unix)]
 pub fn run_resource_limits_validation(output_dir: &str) -> Result<ResourceLimitsReport> {
     info!("Starting Week 3 Resource Limits Validation");
     info!("==========================================");
