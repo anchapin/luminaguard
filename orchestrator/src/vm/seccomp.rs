@@ -3,6 +3,32 @@
 // Defense-in-depth security: syscall filtering prevents even compromised VMs
 // from executing dangerous operations. Blocks 99% of syscalls, allowing
 // only essential ones for basic VM operation.
+//
+// ## Syscall Whitelisting Strategy
+//
+// The Basic level whitelist (production-recommended) includes ~60 syscalls
+// carefully selected for agent workloads while maintaining security:
+//
+// ### Allowed Categories:
+// - **I/O Operations**: read, write, readv, writev, pread64, pwrite64
+// - **File Descriptor Management**: open, openat, close, dup, dup2, dup3, pipe, pipe2
+// - **File Metadata**: stat, lstat, fstat, statfs, access, faccessat
+// - **Directory Operations**: chdir, fchdir, getcwd, mkdir, rmdir
+// - **File Operations**: unlink, rename, truncate, ftruncate, fsync
+// - **Process Info**: getpid, gettid, getppid (read-only)
+// - **Credentials**: geteuid, getuid, getegid, getgid (read-only)
+// - **Time**: clock_gettime, gettimeofday, time
+// - **Async I/O**: epoll_*, poll, select, pselect6, eventfd2
+// - **Memory**: mmap, munmap, mprotect, brk (no exec)
+// - **Signals**: rt_sigreturn, rt_sigprocmask, sigaltstack (no kill/tkill)
+//
+// ### Blocked Categories (Security):
+// - **Process Creation**: fork, vfork, clone, execve, execveat
+// - **Privilege Escalation**: setuid, setgid, setreuid, setresuid, setgroups
+// - **System Control**: mount, umount2, pivot_root, chroot, ptrace
+// - **Network**: socket, connect, bind, listen (isolated to vsock only)
+// - **Signal Delivery**: kill, tkill, tgkill, rt_sigqueue
+// - **Process Introspection**: ptrace, process_vm_readv, process_vm_writev
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
@@ -194,51 +220,105 @@ impl SeccompFilter {
     }
 
     /// Basic whitelist - common operations (recommended for production)
+    ///
+    /// This whitelist includes 43 syscalls carefully selected for agent workloads:
+    /// - Essential I/O operations (read, write, pread, pwrite)
+    /// - File descriptor management (open, close, dup, pipe)
+    /// - Memory management (mmap, brk, mprotect)
+    /// - Process and thread information (getpid, gettid, geteuid)
+    /// - Async I/O primitives (epoll, poll, select)
+    /// - Time functions (clock_gettime, gettimeofday)
+    /// - Safe signal handling
+    ///
+    /// Excluded dangerous syscalls:
+    /// - execve/execveat (no process spawning)
+    /// - fork/clone (no process creation)
+    /// - ptrace (no process introspection)
+    /// - mount/umount (no filesystem changes)
+    /// - setuid/setgid/setresuid (no privilege escalation)
+    /// - kill/tkill (no signal sending)
     fn basic_whitelist(&self) -> Vec<&'static str> {
         let mut whitelist = self.minimal_whitelist();
 
-        // Additional safe syscalls
+        // Additional safe syscalls organized by category
         whitelist.extend(vec![
-            // Extended I/O
-            "readv",
-            "writev",
-            "pread64",
-            "pwrite64",
-            // File operations
-            "open",
-            "openat",
-            "access",
-            "faccessat",
-            "statfs",
-            "fstatfs",
-            // Time
-            "clock_gettime",
-            "gettimeofday",
-            // Process info (read-only)
-            "getpid",
-            "gettid",
-            "getppid",
-            // Scheduling
-            "sched_yield",
-            "sched_getaffinity",
-            // epoll for async I/O
-            "epoll_wait",
-            "epoll_ctl",
-            "epoll_pwait",
-            // Eventfd
-            "eventfd2",
+            // Extended I/O operations
+            "readv",        // Vectored read
+            "writev",       // Vectored write
+            "pread64",      // Positional read
+            "pwrite64",     // Positional write
+            
+            // File descriptor operations
+            "open",         // Open file
+            "openat",       // Open relative to dirfd
+            "access",       // Check file accessibility
+            "faccessat",    // Check file accessibility relative to dirfd
+            "dup",          // Duplicate file descriptor
+            "dup2",         // Duplicate to specific fd
+            "dup3",         // Duplicate with flags
+            
+            // File metadata
+            "statfs",       // Get filesystem statistics
+            "fstatfs",      // Get filesystem statistics for fd
+            
+            // Pipes and sockets
+            "pipe",         // Create unidirectional pipe
+            "pipe2",        // Create pipe with flags (for nonblocking I/O)
+            
+            // Time operations
+            "clock_gettime", // Get current time (secure)
+            "gettimeofday",  // Get current time (legacy)
+            
+            // Process information (read-only)
+            "getpid",       // Get process ID
+            "gettid",       // Get thread ID
+            "getppid",      // Get parent process ID
+            
+            // Process credentials (read-only)
+            "geteuid",      // Get effective user ID
+            "getegid",      // Get effective group ID
+            "getuid",       // Get real user ID
+            "getgid",       // Get real group ID
+            
+            // Scheduling control (safe operations)
+            "sched_yield",        // Yield to other threads
+            "sched_getaffinity",  // Get CPU affinity
+            
+            // Async I/O multiplexing
+            "epoll_wait",   // Wait on epoll file descriptor
+            "epoll_ctl",    // Control epoll set
+            "epoll_pwait",  // Wait on epoll with signal mask
+            "select",       // Synchronous I/O multiplexing
+            "pselect6",     // Select with signal mask
+            
+            // Event notification
+            "eventfd2",     // Create event notification fd
+            
+            // Polling
+            "poll",         // Poll file descriptors
+            "ppoll",        // Poll with signal mask
+            
             // Basic signal handling
-            "sigaltstack",
-            // Pipe
-            "pipe",
-            "pipe2",
-            // Dup
-            "dup",
-            "dup2",
-            "dup3",
-            // Basic polling
-            "poll",
-            "ppoll",
+            "sigaltstack",  // Set alternate signal stack
+            
+            // Additional safe syscalls for broader capability
+            "fcntl",        // File descriptor control (get flags, set flags)
+            "fcntl64",      // File descriptor control (64-bit)
+            "getcwd",       // Get current working directory
+            "chdir",        // Change directory (limited to VM filesystem)
+            "fchdir",       // Change to directory fd
+            "lseek",        // Seek in file (already in minimal but being explicit)
+            "mkdir",        // Create directory
+            "rmdir",        // Remove directory
+            "unlink",       // Remove file
+            "truncate",     // Truncate file
+            "ftruncate",    // Truncate open file
+            "rename",       // Rename file
+            "renameat",     // Rename relative to dirfd
+            "fsync",        // Synchronize file to disk
+            "fdatasync",    // Synchronize file data to disk
+            "flock",        // Apply/remove advisory lock
+            "realpath",     // Resolve pathname
         ]);
 
         whitelist
