@@ -59,6 +59,10 @@ mod reliability_tests;
 // #[cfg(test)]
 // mod network_partition_tests;
 
+// Performance validation tests (issue #373)
+#[cfg(test)]
+mod performance_tests;
+
 #[allow(unused_imports)]
 use anyhow::{Context, Result};
 use std::sync::Arc;
