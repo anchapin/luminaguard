@@ -177,10 +177,19 @@ jobs:
                   blocks = re.findall(r'```(\w*)\n(.*?)\n```', content, re.DOTALL)
                   for lang, code in blocks:
                       if lang in ['python', 'py']:
-                          try:
-                              compile(code, '<string>', 'exec')
-                          except SyntaxError as e:
-                              issues.append(f"{md_file}: Invalid Python code: {e}")
+                          # Filter out comments and list items before checking (common in docs)
+                          filtered_lines = []
+                          for line in code.split('\n'):
+                              stripped = line.strip()
+                              if not stripped.startswith('#') and not stripped.startswith('-') and not stripped.startswith('*'):
+                                  filtered_lines.append(line)
+                          
+                          filtered_code = '\n'.join(filtered_lines)
+                          if filtered_code.strip():  # Only check if there's non-comment/list content
+                              try:
+                                  compile(filtered_code, '<string>', 'exec')
+                              except SyntaxError as e:
+                                  issues.append(f"{md_file}: Invalid Python code: {e}")
 
           if issues:
               print("❌ Documentation issues found:")

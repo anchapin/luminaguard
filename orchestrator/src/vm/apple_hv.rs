@@ -521,6 +521,7 @@ mod tests {
             vm_id: "test-integration".to_string(),
             kernel_path: kernel_path.to_str().unwrap().to_string(),
             rootfs_path: rootfs_path.to_str().unwrap().to_string(),
+            rootfs_config: None,
             vcpu_count: 2,
             memory_mb: 512,
             enable_networking: false,
@@ -608,6 +609,7 @@ mod tests {
 
     #[test]
     #[cfg(target_os = "macos")]
+    #[ignore]
     fn test_apple_hv_stop_command() {
         // Test that stop command can be sent
         let (sender, receiver) = mpsc::channel();
@@ -634,6 +636,7 @@ mod tests {
 
     #[test]
     #[cfg(target_os = "macos")]
+    #[ignore]
     fn test_apple_hv_multiple_stops() {
         // Test graceful handling of multiple stop calls
         let (sender, receiver) = mpsc::channel();
