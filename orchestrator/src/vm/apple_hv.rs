@@ -23,9 +23,15 @@
 
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
+#[cfg(target_os = "macos")]
 use std::path::{Path, PathBuf};
+#[cfg(target_os = "macos")]
 use std::sync::{mpsc, Arc, Mutex};
+#[cfg(target_os = "macos")]
 use std::time::Instant;
+#[cfg(not(target_os = "macos"))]
+use tracing::info;
+#[cfg(target_os = "macos")]
 use tracing::info;
 
 use crate::vm::config::VmConfig;
