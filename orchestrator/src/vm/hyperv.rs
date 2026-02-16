@@ -89,7 +89,7 @@ impl HypervInstance {
                 };
 
                 let prop = WHV_PARTITION_PROPERTY {
-                    ProcessorCount: vcpu_count,
+                    ProcessorCount: vcpu_count as u32,
                 };
                 if let Err(e) = p.set_property(WHV_PARTITION_PROPERTY_CODE::WHvPartitionPropertyCodeProcessorCount, &prop) {
                     let _ = init_tx.send(Err(anyhow!("Failed to set vCPU count: {:?}", e)));
