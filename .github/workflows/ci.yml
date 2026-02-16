@@ -48,7 +48,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: orchestrator-bin
-          path: orchestrator/target/release/orchestrator
+          path: orchestrator/target/release/luminaguard
           retention-days: 1
 
   # Python tests
@@ -90,7 +90,7 @@ jobs:
           path: orchestrator/target/release/
 
       - name: Make orchestrator executable
-        run: chmod +x orchestrator/target/release/orchestrator
+        run: chmod +x orchestrator/target/release/luminaguard
 
       - name: Run pytest
         working-directory: agent
