@@ -164,6 +164,77 @@ def present_diff_card(action: ToolCall) -> bool:
 
 
 @dataclass
+class Session:
+    """Agent session - maintains state across multiple task executions"""
+    
+    session_id: str
+    created_at: float
+    last_activity: float
+    state: AgentState
+    metadata: Dict[str, Any]
+    
+    def is_expired(self, ttl_seconds: int = 3600) -> bool:
+        """Check if session has expired based on TTL"""
+        import time
+        return (time.time() - self.last_activity) > ttl_seconds
+    
+    def update_activity(self) -> None:
+        """Update last activity timestamp"""
+        import time
+        self.last_activity = time.time()
+
+
+class SessionManager:
+    """Manages agent sessions across multiple executions"""
+    
+    def __init__(self, ttl_seconds: int = 3600):
+        self.sessions: Dict[str, Session] = {}
+        self.ttl_seconds = ttl_seconds
+    
+    def create_session(self, session_id: str, tools: List[str]) -> Session:
+        """Create a new session"""
+        import time
+        state = AgentState(
+            messages=[],
+            tools=tools,
+            context={}
+        )
+        session = Session(
+            session_id=session_id,
+            created_at=time.time(),
+            last_activity=time.time(),
+            state=state,
+            metadata={}
+        )
+        self.sessions[session_id] = session
+        return session
+    
+    def get_session(self, session_id: str) -> Optional[Session]:
+        """Get existing session or None"""
+        session = self.sessions.get(session_id)
+        if session and session.is_expired(self.ttl_seconds):
+            del self.sessions[session_id]
+            return None
+        return session
+    
+    def remove_session(self, session_id: str) -> None:
+        """Remove a session"""
+        self.sessions.pop(session_id, None)
+    
+    def cleanup_expired(self) -> int:
+        """Remove expired sessions, return count removed"""
+        import time
+        current_time = time.time()
+        expired = [
+            sid for sid, sess in self.sessions.items()
+            if (current_time - sess.last_activity) > self.ttl_seconds
+        ]
+        for sid in expired:
+            del self.sessions[sid]
+        return len(expired)
+
+
+@dataclass
 class AgentState:
     """Current state of the agent"""
 
