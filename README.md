@@ -24,6 +24,8 @@ LuminaGuard replaces the insecure "vibe coding" paradigm with rigorous "Agentic 
 
 ### Installation
 
+#### Standard Installation
+
 ```bash
 # Clone the repository
 git clone https://github.com/anchapin/LuminaGuard.git
@@ -35,6 +37,18 @@ make install
 # Run tests to verify setup
 make test
 ```
+
+#### Hackable Installation (Developers)
+
+For developers who want hot-reload development, extensible architecture, and full source code control:
+
+```bash
+git clone https://github.com/anchapin/luminaguard.git
+cd luminaguard
+./scripts/install-dev-mode.sh
+```
+
+See [DEV_MODE_GUIDE.md](DEV_MODE_GUIDE.md) for full developer setup with hot-reload and debugging tools.
 
 ### Basic Usage
 

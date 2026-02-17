@@ -73,6 +73,25 @@ sudo modprobe kvm
 sudo modprobe kvm_intel  # or kvm_amd
 ```
 
+## Installation Modes
+
+LuminaGuard supports multiple installation modes:
+
+### Standard Installation
+Recommended for most users who want a stable, working installation.
+
+### **Hackable Installation Mode** (Developers)
+For developers who want full control, direct source code access, and custom modifications.
+
+**Quick start:**
+```bash
+git clone https://github.com/anchapin/luminaguard.git
+cd luminaguard
+./scripts/install-dev-mode.sh
+```
+
+See [DEV_MODE_GUIDE.md](DEV_MODE_GUIDE.md) for full developer setup.
+
 ## Installation Steps
 
 ### 1. Clone the Repository

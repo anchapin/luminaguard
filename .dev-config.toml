@@ -1,0 +1,26 @@
+[development]
+# Hot-reload settings
+auto_reload = true
+reload_delay_ms = 500
+
+# Logging
+log_level = "debug"
+pretty_print = true
+
+# Testing
+test_timeout = 30
+test_parallel = true
+coverage_threshold = 75
+
+# Rust specific
+rust_backtrace = "1"
+rust_log = "debug"
+
+# Python specific
+python_optimize = 0
+python_dont_write_bytecode = false
+
+[editor]
+format_on_save = true
+lint_on_save = true
+show_clippy_warnings = true
