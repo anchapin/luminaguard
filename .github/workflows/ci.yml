@@ -65,6 +65,19 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
+      - name: Debug - Show git status
+        run: |
+          echo "=== Git Status ==="
+          git status
+          echo "=== Git Version ==="
+          git --version
+          echo "=== Git Config ==="
+          git config --list
+          echo "=== Git Remote ==="
+          git remote -v
+          echo "=== Git Info ==="
+          git info
+
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
@@ -128,6 +141,17 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
+
+      - name: Debug - Show environment
+        run: |
+          echo "=== OS ==="
+          uname -a
+          echo "=== Rust Version ==="
+          rustc --version
+          cargo --version
+          echo "=== Git Status ==="
+          git status
+          git --version
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@4be9e76fd7c4901c61fb841f559994984270fce7
