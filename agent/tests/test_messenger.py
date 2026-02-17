@@ -2,7 +2,6 @@
 Unit tests for the Messenger Connector Framework
 """
 
-import asyncio
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
