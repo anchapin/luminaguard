@@ -107,6 +107,50 @@ class StateConfigData:
 
 
 @dataclass
+class IntegrationConfigData:
+    """External integration configuration"""
+    enabled: bool = True
+    
+    # Webhook configuration
+    webhook_enabled: bool = False
+    webhook_host: str = "127.0.0.1"
+    webhook_port: int = 9000
+    webhook_path: str = "/webhook"
+    webhook_secret: Optional[str] = None
+    
+    # RabbitMQ configuration
+    rabbitmq_enabled: bool = False
+    rabbitmq_host: str = "localhost"
+    rabbitmq_port: int = 5672
+    rabbitmq_username: str = "guest"
+    rabbitmq_password: str = "guest"
+    rabbitmq_vhost: str = "/"
+    rabbitmq_queue: str = "luminaguard.tasks"
+    rabbitmq_exchange: str = "luminaguard.events"
+    
+    # Redis configuration
+    redis_enabled: bool = False
+    redis_host: str = "localhost"
+    redis_port: int = 6379
+    redis_db: int = 0
+    redis_password: Optional[str] = None
+    redis_mode: str = "list"  # "list" or "pubsub"
+    redis_queue_key: str = "luminaguard:tasks"
+    
+    # Rate limiting
+    rate_limit_enabled: bool = True
+    rate_limit_max_per_second: int = 10
+    rate_limit_burst_size: int = 50
+    
+    # Retry policy
+    retry_enabled: bool = True
+    retry_max_attempts: int = 3
+    retry_initial_backoff: float = 1.0
+    retry_max_backoff: float = 60.0
+    retry_backoff_multiplier: float = 2.0
+
+
+@dataclass
 class DaemonConfig:
     """
     Main daemon configuration class.
@@ -130,6 +174,7 @@ class DaemonConfig:
     lifecycle: LifecycleConfigData = field(default_factory=LifecycleConfigData)
     messenger: MessengerConfigData = field(default_factory=MessengerConfigData)
     state: StateConfigData = field(default_factory=StateConfigData)
+    integration: IntegrationConfigData = field(default_factory=IntegrationConfigData)
     
     # Runtime settings (not persisted)
     _config_file: Optional[str] = field(default=None, repr=False)
@@ -166,6 +211,8 @@ class DaemonConfig:
                 sub_configs['messenger'] = MessengerConfigData(**value)
             elif key == 'state' and isinstance(value, dict):
                 sub_configs['state'] = StateConfigData(**value)
+            elif key == 'integration' and isinstance(value, dict):
+                sub_configs['integration'] = IntegrationConfigData(**value)
             else:
                 main_config[key] = value
         
