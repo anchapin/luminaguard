@@ -50,6 +50,17 @@ from .lifecycle import (
     create_lifecycle_manager,
 )
 
+from .state import (
+    StateManager,
+    BotState,
+    StateSnapshot,
+    StateEncryption,
+    ConversationMessage,
+    ScheduledTask,
+    StateVersion,
+    create_state_manager,
+)
+
 __all__ = [
     # Health
     "HealthCheck",
@@ -83,4 +94,13 @@ __all__ = [
     "PIDFile",
     "DaemonStateManager",
     "create_lifecycle_manager",
+    # State
+    "StateManager",
+    "BotState",
+    "StateSnapshot",
+    "StateEncryption",
+    "ConversationMessage",
+    "ScheduledTask",
+    "StateVersion",
+    "create_state_manager",
 ]
