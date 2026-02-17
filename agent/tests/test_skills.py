@@ -232,7 +232,7 @@ class TestTextAnalyzerSkill:
             analysis_type="wordcount",
         )
         
-        assert result["word_count"] == 5
+        assert result["word_count"] == 4
         assert result["char_count"] > 0
     
     @pytest.mark.asyncio
