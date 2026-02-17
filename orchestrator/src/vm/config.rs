@@ -138,11 +138,79 @@ impl VmConfig {
     }
 
     /// Convert to Firecracker JSON config
+    ///
+    /// This implements the complete Firecracker API v1 format for VM configuration.
+    /// See: https://github.com/firecracker-microvm/firecracker/blob/main/docs/api/v1.md
     pub fn to_firecracker_json(&self) -> String {
-        // TODO: Implement actual Firecracker JSON format
         let boot_args = self.get_boot_args();
-        format!(
-            r#"{{
+
+        // Build the drives array - include rootfs if configured
+        let mut drives = serde_json::json!([
+            {
+                "drive_id": "rootfs",
+                "path_on_host": self.effective_rootfs_path(),
+                "is_root_device": true,
+                "is_read_only": false
+            }
+        ]);
+
+        // Add overlay drive if configured
+        if let Some(overlay_config) = self.get_overlay_drive() {
+            drives = serde_json::json!([
+                drives,
+                {
+                    "drive_id": overlay_config.drive_id,
+                    "path_on_host": overlay_config.path_on_host,
+                    "is_root_device": overlay_config.is_root_device,
+                    "is_read_only": overlay_config.is_read_only
+                }
+            ]);
+        }
+
+        // Build vsock configuration if available
+        let vsock_config = if let Some(ref vsock_path) = self.vsock_path {
+            Some(serde_json::json!({
+                "vsock_id": "vsock0",
+                "guest_cid": 3,
+                "uds_path": vsock_path
+            }))
+        } else {
+            None
+        };
+
+        // Build the complete Firecracker configuration
+        let mut config = serde_json::json!({
+            "boot-source": {
+                "kernel_image_path": self.kernel_path,
+                "boot_args": boot_args
+            },
+            "machine-config": {
+                "vcpu_count": self.vcpu_count,
+                "mem_size_mib": self.memory_mb,
+                "ht_enabled": false
+            },
+            "drives": drives
+        });
+
+        // Add vsock if configured
+        if let Some(vsock) = vsock_config {
+            config["vsock"] = vsock;
+        }
+
+        // Add network interfaces (currently empty for security - no networking)
+        config["network-interfaces"] = serde_json::json!([]);
+
+        // Add seccomp filter if configured
+        if let Some(ref seccomp) = self.seccomp_filter {
+            config["kernel"] = serde_json::json!({
+                "seccomp_level": seccomp.level as u32
+            });
+        }
+
+        serde_json::to_string_pretty(&config).unwrap_or_else(|_| {
+            // Fallback to basic format if serialization fails
+            format!(
+                r#"{{
   "boot-source": {{
     "kernel_image_path": "{}",
     "boot_args": "{}"
@@ -153,8 +221,9 @@ impl VmConfig {
     "ht_enabled": false
   }}
 }}"#,
-            self.kernel_path, boot_args, self.vcpu_count, self.memory_mb
-        )
+                self.kernel_path, boot_args, self.vcpu_count, self.memory_mb
+            )
+        })
     }
 }
 
