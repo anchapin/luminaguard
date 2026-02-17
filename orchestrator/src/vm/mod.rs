@@ -55,9 +55,6 @@ mod e2e_tests;
 #[cfg(test)]
 mod reliability_tests;
 
-// Network partition tests (TODO: Uncomment when module is fixed)
-// #[cfg(test)]
-// mod network_partition_tests;
 
 // Performance validation tests (issue #373)
 #[cfg(test)]
