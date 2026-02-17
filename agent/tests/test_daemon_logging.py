@@ -3,6 +3,7 @@
 import pytest
 import logging
 import tempfile
+import time
 from pathlib import Path
 from daemon.daemon_logging import (
     DaemonLogger,

@@ -202,7 +202,8 @@ class RotatingFileHandler(logging.Handler):
         
         # Format and write message
         msg = self.format(record) + "\n"
-        self.filename.write_text(msg, append=True)
+        with self.filename.open("a") as f:
+            f.write(msg)
     
     def _rotate(self):
         """Rotate log files"""
