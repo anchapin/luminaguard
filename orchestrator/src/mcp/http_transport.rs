@@ -61,6 +61,35 @@ use std::sync::Mutex;
 use std::time::{Duration, Instant};
 use tracing::{debug, info, warn};
 
+/// Simple base64 encoding helper (no-std compatible)
+fn base64_encode(data: &[u8]) -> String {
+    const ALPHABET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut result = String::new();
+    
+    for chunk in data.chunks(3) {
+        let b0 = chunk[0] as usize;
+        let b1 = chunk.get(1).copied().unwrap_or(0) as usize;
+        let b2 = chunk.get(2).copied().unwrap_or(0) as usize;
+        
+        result.push(ALPHABET[b0 >> 2] as char);
+        result.push(ALPHABET[((b0 & 0x03) << 4) | (b1 >> 4)] as char);
+        
+        if chunk.len() > 1 {
+            result.push(ALPHABET[((b1 & 0x0f) << 2) | (b2 >> 6)] as char);
+        } else {
+            result.push('=');
+        }
+        
+        if chunk.len() > 2 {
+            result.push(ALPHABET[b2 & 0x3f] as char);
+        } else {
+            result.push('=');
+        }
+    }
+    
+    result
+}
+
 /// HTTP transport for remote MCP servers
 ///
 /// This transport uses HTTP POST requests to communicate with MCP servers.
@@ -394,6 +423,64 @@ impl HttpTransport {
     /// ```
     pub fn with_header(mut self, name: impl Into<String>, value: impl Into<String>) -> Self {
         self.custom_headers.push((name.into(), value.into()));
+        self
+    }
+
+    /// Add Bearer token authentication
+    ///
+    /// # Arguments
+    ///
+    /// * `token` - Bearer token value
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// let transport = HttpTransport::new("https://mcp.example.com")
+    ///     .with_bearer_token("your-token-here");
+    /// ```
+    pub fn with_bearer_token(mut self, token: impl Into<String>) -> Self {
+        self.custom_headers
+            .push(("Authorization".to_string(), format!("Bearer {}", token.into())));
+        self
+    }
+
+    /// Add Basic authentication
+    ///
+    /// # Arguments
+    ///
+    /// * `username` - Username
+    /// * `password` - Password
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// let transport = HttpTransport::new("https://mcp.example.com")
+    ///     .with_basic_auth("user", "pass");
+    /// ```
+    pub fn with_basic_auth(mut self, username: &str, password: &str) -> Self {
+        let credentials = format!("{}:{}", username, password);
+        let encoded = base64_encode(credentials.as_bytes());
+        self.custom_headers
+            .push(("Authorization".to_string(), format!("Basic {}", encoded)));
+        self
+    }
+
+    /// Add API key authentication (sent as a header)
+    ///
+    /// # Arguments
+    ///
+    /// * `header_name` - Header name for the API key (e.g., "X-API-Key")
+    /// * `api_key` - The API key value
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// let transport = HttpTransport::new("https://mcp.example.com")
+    ///     .with_api_key("X-API-Key", "your-api-key");
+    /// ```
+    pub fn with_api_key(mut self, header_name: &str, api_key: impl Into<String>) -> Self {
+        self.custom_headers
+            .push((header_name.to_string(), api_key.into()));
         self
     }
 
@@ -796,5 +883,57 @@ mod tests {
         assert_eq!(transport.urls().len(), 1);
         assert_eq!(transport.get_next_url(), "https://single");
         assert_eq!(transport.get_next_url(), "https://single"); // Should cycle
+    }
+
+    #[test]
+    fn test_http_transport_bearer_token_auth() {
+        let transport = HttpTransport::new("https://example.com/mcp")
+            .with_bearer_token("my-secret-token");
+        
+        assert_eq!(transport.custom_headers.len(), 1);
+        assert_eq!(transport.custom_headers[0].0, "Authorization");
+        assert_eq!(transport.custom_headers[0].1, "Bearer my-secret-token");
+    }
+
+    #[test]
+    fn test_http_transport_basic_auth() {
+        let transport = HttpTransport::new("https://example.com/mcp")
+            .with_basic_auth("user", "pass123");
+        
+        assert_eq!(transport.custom_headers.len(), 1);
+        assert_eq!(transport.custom_headers[0].0, "Authorization");
+        // Base64 of "user:pass123" = "dXNlcjpwYXNzMTIz"
+        assert_eq!(transport.custom_headers[0].1, "Basic dXNlcjpwYXNzMTIz");
+    }
+
+    #[test]
+    fn test_http_transport_api_key_auth() {
+        let transport = HttpTransport::new("https://example.com/mcp")
+            .with_api_key("X-API-Key", "my-api-key-123");
+        
+        assert_eq!(transport.custom_headers.len(), 1);
+        assert_eq!(transport.custom_headers[0].0, "X-API-Key");
+        assert_eq!(transport.custom_headers[0].1, "my-api-key-123");
+    }
+
+    #[test]
+    fn test_http_transport_multiple_auth_methods() {
+        let transport = HttpTransport::new("https://example.com/mcp")
+            .with_bearer_token("token")
+            .with_api_key("X-Request-ID", "req-123");
+        
+        assert_eq!(transport.custom_headers.len(), 2);
+        assert_eq!(transport.custom_headers[0].0, "Authorization");
+        assert_eq!(transport.custom_headers[1].0, "X-Request-ID");
+    }
+
+    #[test]
+    fn test_base64_encode() {
+        // Test known base64 values
+        assert_eq!(base64_encode(b"Hello"), "SGVsbG8=");
+        assert_eq!(base64_encode(b"Hello, World!"), "SGVsbG8sIFdvcmxkIQ==");
+        assert_eq!(base64_encode(b"a"), "YQ==");
+        assert_eq!(base64_encode(b"ab"), "YWI=");
+        assert_eq!(base64_encode(b"abc"), "YWJj");
     }
 }
