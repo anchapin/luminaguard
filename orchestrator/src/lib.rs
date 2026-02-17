@@ -7,6 +7,7 @@ pub mod agent_rpc;
 pub mod approval;
 pub mod mcp;
 pub mod mcp_command;
-pub mod vm;
 pub mod metrics;
 pub mod metrics_server;
+pub mod vm;
+pub mod webhooks;
