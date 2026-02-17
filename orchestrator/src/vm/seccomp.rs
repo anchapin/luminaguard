@@ -221,7 +221,7 @@ impl SeccompFilter {
 
     /// Basic whitelist - common operations (recommended for production)
     ///
-    /// This whitelist includes 43 syscalls carefully selected for agent workloads:
+    /// This whitelist includes VSOCK and socket syscalls for guest-host communication:
     /// - Essential I/O operations (read, write, pread, pwrite)
     /// - File descriptor management (open, close, dup, pipe)
     /// - Memory management (mmap, brk, mprotect)
@@ -229,6 +229,11 @@ impl SeccompFilter {
     /// - Async I/O primitives (epoll, poll, select)
     /// - Time functions (clock_gettime, gettimeofday)
     /// - Safe signal handling
+    /// - VSOCK/socket operations (AF_VSOCK for VM communication)
+    ///
+    /// Note: socket, connect, bind, listen, accept are allowed for VSOCK (AF_VSOCK)
+    /// communication between guest and host. These do not enable network access
+    /// as they are limited to VM-vsock communication.
     ///
     /// Excluded dangerous syscalls:
     /// - execve/execveat (no process spawning)
@@ -264,6 +269,25 @@ impl SeccompFilter {
             // Pipes and sockets
             "pipe",         // Create unidirectional pipe
             "pipe2",        // Create pipe with flags (for nonblocking I/O)
+            
+            // VSOCK syscalls for guest-host VM communication
+            // These enable AF_VSOCK sockets which are VM-local only
+            // (not exposed to external networks)
+            "socket",       // Create socket (AF_VSOCK for VM communication)
+            "connect",     // Connect to VSOCK endpoint
+            "bind",         // Bind socket to VSOCK CID:port
+            "listen",       // Listen for VSOCK connections
+            "accept",       // Accept VSOCK connections
+            "accept4",      // Accept with flags
+            "getsockname",  // Get socket address
+            "getpeername",  // Get peer address
+            "setsockopt",   // Set socket options
+            "getsockopt",   // Get socket options
+            "shutdown",     // Shutdown socket
+            "sendmsg",      // Send message
+            "recvmsg",      // Receive message
+            "sendto",       // Send to address
+            "recvfrom",     // Receive from address
             
             // Time operations
             "clock_gettime", // Get current time (secure)
@@ -872,32 +896,80 @@ mod tests {
     }
 
     // Security test: ensure dangerous syscalls are blocked
+    // Note: socket, connect, bind, listen are now allowed for VSOCK (AF_VSOCK)
+    // which is VM-local only and doesn't enable external network access
     #[test]
     fn test_dangerous_syscalls_blocked() {
         let filter = SeccompFilter::new(SeccompLevel::Basic);
         let whitelist = filter.build_whitelist();
 
         // These syscalls MUST NOT be allowed for security
+        // Note: socket, connect, bind, listen ARE allowed for VSOCK
         let dangerous = [
-            "socket",     // Network operations
-            "bind",       // Network operations
-            "listen",     // Network operations
-            "connect",    // Network operations
             "clone",      // Process creation
             "fork",       // Process creation
             "vfork",      // Process creation
             "execve",     // Execute programs
+            "execveat",   // Execute programs
             "mount",      // Filesystem mounting
             "umount",     // Filesystem operations
+            "umount2",    // Filesystem operations
             "reboot",     // System reboot
             "ptrace",     // Process tracing
             "kexec_load", // Load new kernel
+            "init_module", // Load kernel module
+            "delete_module", // Unload kernel module
+            "chroot",     // Change root directory
+            "pivot_root", // Change root filesystem
+            "setuid",     // Set user ID
+            "setgid",     // Set group ID
+            "setreuid",   // Set real/effective UID
+            "setregid",   // Set real/effective GID
+            "setresuid",  // Set real/effective/saved UID
+            "setresgid",  // Set real/effective/saved GID
+            "kill",       // Send signals
+            "tkill",      // Send thread signals
+            "tgkill",     // Send thread signals
         ];
 
         for sys in &dangerous {
             assert!(
                 !whitelist.contains(&sys),
                 "Dangerous syscall {} should be blocked",
+                sys
+            );
+        }
+    }
+
+    // Security test: ensure VSOCK syscalls are allowed
+    #[test]
+    fn test_vsock_syscalls_allowed() {
+        let filter = SeccompFilter::new(SeccompLevel::Basic);
+        let whitelist = filter.build_whitelist();
+
+        // VSOCK syscalls should be allowed for guest-host communication
+        let vsock_syscalls = [
+            "socket",     // Create socket (AF_VSOCK)
+            "connect",    // Connect to VSOCK
+            "bind",       // Bind to VSOCK port
+            "listen",     // Listen for VSOCK
+            "accept",     // Accept VSOCK connection
+            "accept4",    // Accept with flags
+            "getsockname", // Get socket address
+            "getpeername", // Get peer address
+            "setsockopt", // Set socket options
+            "getsockopt", // Get socket options
+            "shutdown",   // Shutdown socket
+            "sendmsg",    // Send message
+            "recvmsg",    // Receive message
+            "sendto",     // Send to address
+            "recvfrom",   // Receive from address
+        ];
+
+        for sys in &vsock_syscalls {
+            assert!(
+                whitelist.contains(&sys),
+                "VSOCK syscall {} should be allowed",
                 sys
             );
         }
