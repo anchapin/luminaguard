@@ -1,0 +1,16 @@
+{
+  "discord": {
+    "token": "YOUR_DISCORD_BOT_TOKEN",
+    "webhook_url": "https://your-domain.com/discord/webhook",
+    "webhook_port": 8080
+  },
+  "telegram": {
+    "token": "YOUR_TELEGRAM_BOT_TOKEN",
+    "webhook_url": "https://your-domain.com/telegram/webhook",
+    "webhook_secret": "your_webhook_secret",
+    "webhook_port": 8081
+  },
+  "logging": {
+    "level": "INFO"
+  }
+}
