@@ -16,6 +16,50 @@ import sys
 from typing import Dict, Optional
 
 
+def is_ci_environment() -> bool:
+    """
+    Check if we're running in a CI environment.
+    
+    Returns:
+        True if running in CI, False otherwise.
+    """
+    # Check common CI environment variables
+    ci_vars = [
+        "CI",  # Generic CI flag
+        "GITHUB_ACTIONS",  # GitHub Actions
+        "GITLAB_CI",  # GitLab CI
+        "JENKINS_URL",  # Jenkins
+        "CIRCLECI",  # CircleCI
+        "TRAVIS",  # Travis CI
+        "TWISTED",  # Twisted (for testing)
+        "CONTINUOUS_INTEGRATION",  # Generic
+    ]
+    return any(os.environ.get(var) for var in ci_vars)
+
+
+def is_vsock_available() -> bool:
+    """
+    Check if VSOCK socket is available (socket file exists).
+    
+    This function checks if the default or configured VSOCK socket
+    exists. If running in CI, this will return False since VSOCK
+    devices are typically not available in CI environments.
+    
+    Returns:
+        True if VSOCK is available, False otherwise.
+    """
+    # In CI environments, VSOCK is typically not available
+    if is_ci_environment():
+        return False
+    
+    # Check if socket file exists
+    socket_path = os.environ.get(
+        "LUMINAGUARD_VSOCK_PATH", 
+        "/tmp/luminaguard/vsock/host.sock"
+    )
+    return os.path.exists(socket_path)
+
+
 class VsockClient:
     """Client for communicating with host orchestrator via vsock/Unix socket"""
 

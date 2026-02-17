@@ -81,7 +81,7 @@ jobs:
         run: |
           python -m venv .venv
           .venv/bin/pip install --upgrade pip
-          .venv/bin/pip install pytest pytest-cov hypothesis black mypy pylint
+          .venv/bin/pip install pytest pytest-cov pytest-asyncio pytest-timeout hypothesis black mypy pylint
 
       - name: Download orchestrator binary
         uses: actions/download-artifact@v4
@@ -184,7 +184,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          cd agent && python -m venv .venv && .venv/bin/pip install pytest hypothesis
+          cd agent && python -m venv .venv && .venv/bin/pip install pytest pytest-asyncio pytest-timeout hypothesis
 
       - name: Run all tests
         run: |
