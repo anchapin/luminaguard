@@ -8,12 +8,13 @@
 //! - Interactive approval/rejection/cancel buttons
 //! - Keyboard navigation (↑↓ scroll, Y approve, N reject, Esc cancel)
 //! - Timeout mechanism (auto-reject after 5 minutes, configurable)
-//! - Audit logging of all approval decisions (integrated with ApprovalManager)
+//! - Audit logging of all approval decisions (integrated with ApprovalHistory)
 //! - Enhanced visual feedback and polished UI
 //!
 //! Works over SSH and requires no GUI dependencies.
 
 use crate::approval::diff::{Change, DiffCard};
+use crate::approval::history::{ApprovalDecision, ApprovalHistory, ApprovalRecord};
 use anyhow::Result;
 #[allow(unused_imports)]
 use ratatui::{
@@ -23,8 +24,10 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph, Wrap},
     Terminal,
 };
+use chrono::Utc;
 use std::time::{Duration, Instant};
 use tracing::{info, warn};
+use uuid::Uuid;
 
 /// Result of TUI approval prompt
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -312,6 +315,55 @@ pub async fn present_tui_approval(diff_card: &DiffCard) -> Result<TuiResult> {
     disable_raw_mode()?;
     println!();
 
+    Ok(result)
+}
+
+/// Present approval and record decision to audit history
+///
+/// This function combines TUI presentation with automatic audit logging.
+/// All approval decisions are recorded for compliance and auditing.
+///
+/// # Arguments
+/// * `diff_card` - The DiffCard to display
+/// * `history` - Mutable reference to ApprovalHistory for audit logging
+/// * `user` - Username of the user making the decision (or "system")
+///
+/// # Returns
+/// * `Ok(TuiResult)` - The user's decision
+pub async fn present_and_record_approval(
+    diff_card: &DiffCard,
+    history: &mut ApprovalHistory,
+    user: &str,
+) -> Result<TuiResult> {
+    // Get initial decision from TUI
+    let result = present_tui_approval(diff_card).await?;
+    
+    // Convert TuiResult to ApprovalDecision
+    let decision = match result {
+        TuiResult::Approved => ApprovalDecision::Approved,
+        TuiResult::Rejected => ApprovalDecision::Denied,
+        TuiResult::Cancelled => ApprovalDecision::DeferredToLater,
+    };
+    
+    // Create audit record
+    let record = ApprovalRecord {
+        id: Uuid::new_v4().to_string(),
+        timestamp: Utc::now(),
+        action_description: diff_card.description.clone(),
+        decision,
+        approved_by: user.to_string(),
+        justification: None,
+        execution_result: None,
+    };
+    
+    // Record to history
+    history.record_decision(record)?;
+    
+    info!(
+        "Approval decision recorded: {} - {:?} by {}",
+        diff_card.description, result, user
+    );
+    
     Ok(result)
 }
 

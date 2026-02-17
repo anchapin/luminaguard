@@ -16,7 +16,9 @@ use std::path::PathBuf;
 #[cfg(unix)]
 use tokio::fs;
 #[cfg(unix)]
-use tokio::io::{AsyncReadExt, AsyncWriteExt, BufReader};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+#[cfg(unix)]
+use tokio::io::BufReader;
 use tokio::net::{UnixListener, UnixStream};
 
 /// vsock communication protocol version
@@ -342,9 +344,22 @@ impl VsockClient {
 }
 
 /// vsock client connection (for sending messages from guest to host)
+///
+/// # Important Design Note
+///
+/// The `BufReader` is stored persistently in the connection struct rather than
+/// being created fresh for each request. This is critical to prevent data loss:
+/// if we created a new `BufReader` for each request, any bytes left in the
+/// previous reader's buffer (e.g., from a partial read or extra data from the OS)
+/// would be discarded, potentially causing protocol desynchronization.
+///
+/// We store only the `BufReader` and access the underlying socket via `get_ref()`
+/// for writing. This ensures the buffer is preserved between requests.
+///
+/// See: https://github.com/anchapin/luminaguard/issues/417
 #[cfg(unix)]
 pub struct VsockClientConnection {
-    socket: UnixStream,
+    reader: BufReader<UnixStream>,
     next_id: u64,
 }
 
@@ -352,10 +367,21 @@ pub struct VsockClientConnection {
 impl VsockClientConnection {
     /// Create a new client connection
     fn new(socket: UnixStream) -> Self {
-        Self { socket, next_id: 1 }
+        Self {
+            reader: BufReader::new(socket),
+            next_id: 1,
+        }
+    }
+
+    /// Get mutable reference to the underlying socket for writing
+    fn socket_mut(&mut self) -> &mut UnixStream {
+        self.reader.get_mut()
     }
 
     /// Send a request and wait for response
+    ///
+    /// Note: Uses the persistent `BufReader` stored in the connection to avoid
+    /// potential data loss from discarding buffered bytes between requests.
     pub async fn send_request(
         &mut self,
         method: &str,
@@ -366,12 +392,11 @@ impl VsockClientConnection {
 
         let msg = VsockMessage::request(id.clone(), method.to_string(), params);
 
-        VsockConnection::write_message(&mut self.socket, &msg).await?;
+        VsockConnection::write_message(self.socket_mut(), &msg).await?;
 
-        // Wait for response
-        let mut reader = BufReader::new(&mut self.socket);
+        // Wait for response using the persistent reader (prevents data loss)
         loop {
-            match VsockConnection::read_message(&mut reader).await? {
+            match VsockConnection::read_message(&mut self.reader).await? {
                 Some(VsockMessage::Response {
                     id: resp_id,
                     result,
@@ -383,10 +408,15 @@ impl VsockClientConnection {
                         }
                         return result.context("Response missing result");
                     }
-                    // Ignore responses to other requests
+                    // Ignore responses to other requests (shouldn't happen in practice)
                 }
-                Some(_) => {
-                    // Ignore other message types
+                Some(VsockMessage::Request { .. }) => {
+                    // Unexpected: shouldn't receive a request on a client connection
+                    tracing::warn!("Unexpected request message received on client connection");
+                }
+                Some(VsockMessage::Notification { .. }) => {
+                    // Unexpected: shouldn't receive a notification on a client connection
+                    tracing::warn!("Unexpected notification received on client connection");
                 }
                 None => {
                     anyhow::bail!("Connection closed while waiting for response");
@@ -403,7 +433,7 @@ impl VsockClientConnection {
     ) -> Result<()> {
         let msg = VsockMessage::notification(method.to_string(), params);
 
-        VsockConnection::write_message(&mut self.socket, &msg).await?;
+        VsockConnection::write_message(self.socket_mut(), &msg).await?;
         Ok(())
     }
 }
