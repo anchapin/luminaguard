@@ -156,8 +156,11 @@ async fn run_agent(task: String) -> Result<()> {
     }
     
     // Step 3: Launch Python reasoning loop
-    // For now, run on host with approval cliff integration
-    // TODO: Move inside VM for true isolation
+    // Currently runs on host with approval cliff integration
+    // Note: True VM isolation requires:
+    // 1. Python interpreter bundled in VM rootfs
+    // 2. VSOCK-based communication for agent <-> orchestrator
+    // 3. This is a Phase 2+ architectural change
     info!("🚀 Launching Python reasoning loop with Approval Cliff...");
     
     // Build path to Python agent
