@@ -1,0 +1,106 @@
+# LuminaGuard Daemon Configuration Example
+# Save this file as ~/.luminaguard/config.yaml or /etc/luminaguard/config.yaml
+
+# Basic daemon settings
+name: luminaguard
+version: 1.0.0
+
+# Server configuration
+host: 127.0.0.1
+port: 8000
+
+# Execution mode: "host" (direct) or "vm" (isolated Firecracker)
+execution_mode: vm
+
+# Enable daemon mode (24/7 service)
+enable_daemon: false
+
+# Logging configuration
+logging:
+  # Log level: debug, info, warning, error, critical
+  level: info
+  
+  # Log format
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  
+  # Log file path (optional, uses stderr if not set)
+  file: ~/.luminaguard/logs/luminaguard.log
+  
+  # Max log file size in MB
+  max_size_mb: 100
+  
+  # Number of backup log files to keep
+  backup_count: 5
+  
+  # Pretty print logs (colors, formatting)
+  pretty_print: true
+
+# Security configuration
+security:
+  # Require approval for destructive actions
+  approval_required_by_default: true
+  
+  # Timeout for approval prompt (seconds)
+  approval_timeout_seconds: 300
+  
+  # Audit log path (optional)
+  audit_log_path: ~/.luminaguard/logs/audit.log
+  
+  # Enable audit logging of all actions
+  enable_audit_logging: true
+  
+  # Secure subprocess execution (prevents shell injection)
+  secure_subprocess: true
+
+# VM/Firecracker configuration
+vm:
+  # Enable VM mode
+  enabled: true
+  
+  # Number of virtual CPUs
+  vcpu_count: 2
+  
+  # Memory in MB
+  memory_mb: 512
+  
+  # Kernel image path
+  kernel_path: /opt/firecracker/vmlinux.bin
+  
+  # Root filesystem path
+  rootfs_path: /opt/firecracker/rootfs.ext4
+  
+  # VM creation timeout (seconds)
+  timeout_seconds: 60
+
+# MCP (Model Context Protocol) configuration
+mcp:
+  # Enable MCP support
+  enabled: true
+  
+  # MCP servers to auto-start
+  servers:
+    - name: filesystem
+      command: npx
+      args:
+        - "-y"
+        - "@modelcontextprotocol/server-filesystem"
+        - "/tmp"
+    
+    - name: github
+      command: npx
+      args:
+        - "-y"
+        - "@modelcontextprotocol/server-github"
+        - "/path/to/repo"
+  
+  # MCP connection timeout (seconds)
+  timeout_seconds: 30
+  
+  # Auto-start MCP servers on daemon start
+  auto_start: true
+
+# Environment-specific overrides can be set via environment variables:
+# LUMINAGUARD_PORT=9000
+# LUMINAGUARD_HOST=0.0.0.0
+# LUMINAGUARD_MODE=vm
+# LUMINAGUARD_DAEMON=true
