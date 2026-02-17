@@ -135,14 +135,33 @@ jobs:
             mv .tmp .coverage-baseline.json
           fi
 
+      - name: Configure git for CI
+        run: |
+          git config --global --add safe.directory "${GITHUB_WORKSPACE}"
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+
       - name: Commit updated ratchet
         if: github.event_name == 'push'
         run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
           git add .coverage-baseline.json
-          git diff --staged --quiet || git commit -m "chore: update coverage ratchet [skip ci]"
-          git push || true
+          if ! git diff --staged --quiet; then
+            echo "Committing coverage ratchet update..."
+            git commit -m "chore: update coverage ratchet [skip ci]" --no-verify || {
+              echo "❌ Git commit failed"
+              echo "Current branch: $(git rev-parse --abbrev-ref HEAD)"
+              echo "Git status:"
+              git status
+              exit 1
+            }
+            echo "Pushing changes..."
+            git push || {
+              echo "⚠️  Git push failed (may retry later)"
+              # Don't fail the job - coverage measurement is still valid
+            }
+          else
+            echo "No coverage changes to commit"
+          fi
 
   # Documentation freshness
   doc-freshness:
