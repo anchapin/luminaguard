@@ -6,7 +6,6 @@ Supports bot mode with Discord's HTTP API and webhooks for receiving events.
 """
 
 from typing import Any, Optional
-import asyncio
 import aiohttp
 import logging
 

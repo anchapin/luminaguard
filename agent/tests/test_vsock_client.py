@@ -7,7 +7,6 @@ import pytest
 import sys
 import os
 import json
-import socket
 import struct
 from unittest.mock import patch, MagicMock, mock_open
 

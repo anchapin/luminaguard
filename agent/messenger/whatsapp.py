@@ -12,8 +12,6 @@ import logging
 import hashlib
 import hmac
 import json
-import base64
-import time
 
 from . import (
     BotEvent,
