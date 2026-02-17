@@ -4,6 +4,7 @@
 Additional tests for loop.py to improve coverage
 """
 
+import sys
 import pytest
 from unittest.mock import MagicMock, patch
 
@@ -227,22 +228,32 @@ def test_execute_tool_vm_error():
     assert "Connection failed" in result["error"]
 
 
-# Test present_diff_card fallback
+# Test present_diff_card fallback - uses input() when approval_client unavailable
 def test_present_diff_card_red_approves_yes():
     from loop import present_diff_card, ToolCall, ActionKind
     
-    with patch('builtins.input', return_value='y'):
-        action = ToolCall("delete_file", {"path": "test.txt"}, ActionKind.RED)
-        result = present_diff_card(action)
-        assert result is True
+    # Mock the approval_client import to force fallback to input()
+    with patch('builtins.__import__', side_effect=lambda name, *args, **kwargs: 
+               (_ for _ in ()).throw(ImportError("approval_client")) if name == 'approval_client' 
+               else __import__(name, *args, **kwargs)):
+        with patch('builtins.input', return_value='y'):
+            action = ToolCall("delete_file", {"path": "test.txt"}, ActionKind.RED)
+            result = present_diff_card(action)
+            # Should return True for approval
+            assert result is True
 
 def test_present_diff_card_red_rejects_no():
     from loop import present_diff_card, ToolCall, ActionKind
     
-    with patch('builtins.input', return_value='n'):
-        action = ToolCall("delete_file", {"path": "test.txt"}, ActionKind.RED)
-        result = present_diff_card(action)
-        assert result is False
+    # Mock the approval_client import to force fallback to input()
+    with patch('builtins.__import__', side_effect=lambda name, *args, **kwargs: 
+               (_ for _ in ()).throw(ImportError("approval_client")) if name == 'approval_client' 
+               else __import__(name, *args, **kwargs)):
+        with patch('builtins.input', return_value='n'):
+            action = ToolCall("delete_file", {"path": "test.txt"}, ActionKind.RED)
+            result = present_diff_card(action)
+            # Should return False for rejection
+            assert result is False
 
 
 # Test run_loop with execution mode
