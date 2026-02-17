@@ -1,13 +1,15 @@
-//! Approval Cliff Terminal UI (TUI) - Phase 2 Implementation
+//! Approval Cliff Terminal UI (TUI) - Production Implementation
 //!
 //! This module provides a rich terminal user interface for approval decisions.
 //! Features:
 //! - Scrollable diff card display with side-by-side diff view
 //! - Color-coded risk levels (green/yellow/orange/red/critical red)
+//! - Clear Green/Red action classification with prominent indicators
 //! - Interactive approval/rejection/cancel buttons
 //! - Keyboard navigation (↑↓ scroll, Y approve, N reject, Esc cancel)
-//! - Timeout mechanism (auto-reject after 5 minutes)
-//! - Audit logging of all decisions
+//! - Timeout mechanism (auto-reject after 5 minutes, configurable)
+//! - Audit logging of all approval decisions (integrated with ApprovalManager)
+//! - Enhanced visual feedback and polished UI
 //!
 //! Works over SSH and requires no GUI dependencies.
 
@@ -111,17 +113,22 @@ pub async fn present_tui_approval(diff_card: &DiffCard) -> Result<TuiResult> {
     // Clear screen and display approval UI
     println!("\n{}", "=".repeat(80));
 
-    // Header with risk level
+    // Header with risk level - Clear Green/Red action classification
     use crate::approval::action::RiskLevel;
-    let (emoji, risk_text, _color) = match diff_card.risk_level {
-        RiskLevel::None => ("🟢", "GREEN ACTION", Color::Green),
-        RiskLevel::Low => ("🟡", "LOW RISK", Color::Yellow),
-        RiskLevel::Medium => ("🟠", "MEDIUM RISK", Color::LightYellow),
-        RiskLevel::High => ("🔴", "HIGH RISK", Color::Red),
-        RiskLevel::Critical => ("🔴🔴", "CRITICAL RISK", Color::Red),
+    let (emoji, risk_text, _color, action_class) = match diff_card.risk_level {
+        RiskLevel::None => ("🟢", "GREEN ACTION", Color::Green, "AUTO-APPROVED"),
+        RiskLevel::Low => ("🟡", "LOW RISK", Color::Yellow, "REVIEW NEEDED"),
+        RiskLevel::Medium => ("🟠", "MEDIUM RISK", Color::LightYellow, "APPROVAL REQUIRED"),
+        RiskLevel::High => ("🔴", "HIGH RISK", Color::Red, "APPROVAL REQUIRED"),
+        RiskLevel::Critical => ("🔴🔴", "CRITICAL RISK", Color::Red, "URGENT APPROVAL"),
     };
 
-    println!("{} {} - {}", emoji, risk_text, diff_card.action_type);
+    // Print prominent action classification banner
+    println!("\n┌{:─^78}┐", " ACTION CLASSIFICATION ");
+    println!("│{: ^78}│", format!("{} - {}", risk_text, action_class));
+    println!("└{:─^78}┘", " ");
+    
+    println!("\n{} {}", emoji, diff_card.action_type);
     println!("{}", "━".repeat(80));
     println!("Description: {}", diff_card.description);
     println!(
