@@ -4,8 +4,7 @@
 
 use crate::vm::rootfs::RootfsConfig;
 use crate::vm::seccomp::SeccompFilter;
-use serde::Deserialize;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 /// VM configuration for Firecracker
@@ -138,23 +137,66 @@ impl VmConfig {
     }
 
     /// Convert to Firecracker JSON config
+    ///
+    /// Returns a JSON string that can be sent to the Firecracker API.
+    /// Format follows Firecracker v1 API specification.
     pub fn to_firecracker_json(&self) -> String {
-        // TODO: Implement actual Firecracker JSON format
-        let boot_args = self.get_boot_args();
-        format!(
-            r#"{{
-  "boot-source": {{
-    "kernel_image_path": "{}",
-    "boot_args": "{}"
-  }},
-  "machine-config": {{
-    "vcpu_count": {},
-    "mem_size_mib": {},
-    "ht_enabled": false
-  }}
-}}"#,
-            self.kernel_path, boot_args, self.vcpu_count, self.memory_mb
-        )
+        use serde_json::json;
+
+        // Build drives array - start with rootfs drive
+        let mut drives = vec![
+            json!({
+                "drive_id": "rootfs",
+                "path_on_host": self.effective_rootfs_path(),
+                "is_root_device": true,
+                "is_read_only": false
+            })
+        ];
+
+        // Add overlay drive if configured (push to array, not nest)
+        if let Some(overlay_config) = self.get_overlay_drive() {
+            drives.push(json!({
+                "drive_id": overlay_config.drive_id,
+                "path_on_host": overlay_config.path_on_host,
+                "is_root_device": overlay_config.is_root_device,
+                "is_read_only": overlay_config.is_read_only
+            }));
+        }
+
+        // Build the full config
+        let mut config = json!({
+            "boot-source": {
+                "kernel_image_path": self.kernel_path,
+                "boot_args": self.get_boot_args()
+            },
+            "machine-config": {
+                "vcpu_count": self.vcpu_count,
+                "mem_size_mib": self.memory_mb,
+                "ht_enabled": false
+            },
+            "drives": drives,
+            "vsock": {
+                "guest_cid": 3,
+                "socket_path": self.vsock_path.clone().unwrap_or_default()
+            },
+            "network-interfaces": json!([])
+        });
+
+        // Add seccomp filter under correct key (not "kernel")
+        // Firecracker v1 uses top-level "seccomp" key
+        if let Some(ref seccomp) = self.seccomp_filter {
+            // Get the seccomp filter JSON from the filter itself
+            if let Ok(seccomp_json) = seccomp.to_firecracker_json() {
+                if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&seccomp_json) {
+                    config["seccomp"] = parsed;
+                }
+            }
+        }
+
+        // Serialize to string
+        serde_json::to_string_pretty(&config).unwrap_or_else(|e| {
+            format!("{{\"error\": \"Failed to serialize config: {}\"}}", e)
+        })
     }
 }
 
