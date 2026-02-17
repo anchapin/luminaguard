@@ -16,6 +16,7 @@ use luminaguard_orchestrator::mcp::{McpClient, StdioTransport};
 use luminaguard_orchestrator::approval::action::ActionType;
 use luminaguard_orchestrator::approval::action::RiskLevel;
 use luminaguard_orchestrator::vm::{self, destroy_vm};
+use luminaguard_orchestrator::metrics_server;
 use serde_json::json;
 use std::fs;
 use tracing::{error, info, Level};
@@ -48,6 +49,12 @@ enum Commands {
     Chat,
     /// Spawn a new JIT Micro-VM
     SpawnVm,
+    /// Start daemon mode with metrics server
+    Daemon {
+        /// Port for metrics server (default: 9090)
+        #[arg(short, long, default_value = "9090")]
+        metrics_port: u16,
+    },
     /// Test MCP connection
     TestMcp {
         /// Command to spawn the MCP server (default: "npx" with filesystem server)
@@ -108,6 +115,10 @@ async fn main() -> Result<()> {
         Some(Commands::SpawnVm) => {
             info!("Spawning JIT Micro-VM...");
             spawn_vm().await?;
+        }
+        Some(Commands::Daemon { metrics_port }) => {
+            info!("Starting daemon mode with metrics server on port {}", metrics_port);
+            metrics_server::start_metrics_server(metrics_port).await?;
         }
         Some(Commands::TestMcp {
             command,
