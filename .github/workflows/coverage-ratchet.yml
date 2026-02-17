@@ -56,6 +56,7 @@ jobs:
         working-directory: agent
         run: |
           python -m venv .venv
+          .venv/bin/pip install -q -e .
           .venv/bin/pip install -q pytest pytest-cov hypothesis
           .venv/bin/pytest tests/ --cov=. --cov-report=xml -q
           COVERAGE=$(python3 <<'EOF'
