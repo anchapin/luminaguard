@@ -1,9 +1,9 @@
 Security Validation Summary
 =========================
 Total Tests: 12
-Blocked: 12
-Failed: 0
-Security Score: 100.0%
-Execution Time: 28.81ms
+Blocked: 8
+Failed: 4
+Security Score: 66.7%
+Execution Time: 0.11ms
 
-✅ ALL ESCAPE ATTEMPTS BLOCKED - SYSTEM SECURE
+❌ MULTIPLE ESCAPE VECTORS NOT BLOCKED - CRITICAL SECURITY ISSUES
