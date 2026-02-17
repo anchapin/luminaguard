@@ -20,6 +20,7 @@ classifiers = [
 dependencies = [
     "aiohttp>=3.9",
     "cryptography>=42.0",
+    "croniter>=2.0",
 ]
 
 [project.optional-dependencies]
