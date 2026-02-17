@@ -24,7 +24,7 @@ use crate::vm::network_partition::{
 /// # Example
 ///
 /// ```no_run
-/// use luminaguard_orchestrator::vm::run_network_partition_tests;
+/// use luminaguard_orchestrator::vm::network_partition_tests::run_network_partition_tests;
 ///
 /// #[tokio::main]
 /// async fn main() -> anyhow::Result<()> {
