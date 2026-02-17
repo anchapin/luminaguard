@@ -40,6 +40,16 @@ from .tools import (
     create_daemon_tools,
 )
 
+from .lifecycle import (
+    LifecycleManager,
+    LifecycleConfig,
+    LifecycleMetrics,
+    DaemonState,
+    PIDFile,
+    DaemonStateManager,
+    create_lifecycle_manager,
+)
+
 __all__ = [
     # Health
     "HealthCheck",
@@ -65,4 +75,12 @@ __all__ = [
     "WebTool",
     "CurlTool",
     "create_daemon_tools",
+    # Lifecycle
+    "LifecycleManager",
+    "LifecycleConfig",
+    "LifecycleMetrics",
+    "DaemonState",
+    "PIDFile",
+    "DaemonStateManager",
+    "create_lifecycle_manager",
 ]
