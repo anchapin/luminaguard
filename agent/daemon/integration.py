@@ -15,12 +15,13 @@ Issue: #448 - External Integration API (webhooks, message queues)
 from __future__ import annotations
 
 import asyncio
+import inspect
 import json
 import logging
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Callable, Dict, List, Optional, Tuple
 from enum import Enum
 from collections import deque
@@ -69,7 +70,7 @@ class ExternalEvent:
     event_type: str
     source: str
     payload: Dict[str, Any]
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     priority: EventPriority = EventPriority.NORMAL
     retries: int = 0
     metadata: Dict[str, Any] = field(default_factory=dict)
@@ -95,7 +96,7 @@ class ExternalEvent:
             event_type=data.get("event_type"),
             source=data.get("source"),
             payload=data.get("payload", {}),
-            timestamp=datetime.fromisoformat(data.get("timestamp", datetime.utcnow().isoformat())),
+            timestamp=datetime.fromisoformat(data.get("timestamp", datetime.now(timezone.utc).isoformat())),
             priority=EventPriority[data.get("priority", "NORMAL")],
             retries=data.get("retries", 0),
             metadata=data.get("metadata", {}),
@@ -223,7 +224,7 @@ class MessageQueueConsumer(ABC):
             results = []
             for handler in handlers:
                 try:
-                    if asyncio.iscoroutinefunction(handler):
+                    if inspect.iscoroutinefunction(handler):
                         result = await handler(event)
                     else:
                         result = handler(event)
@@ -619,7 +620,7 @@ class WebhookReceiver:
             results = []
             for handler in handlers:
                 try:
-                    if asyncio.iscoroutinefunction(handler):
+                    if inspect.iscoroutinefunction(handler):
                         result = await handler(event)
                     else:
                         result = handler(event)

@@ -11,7 +11,7 @@ Tests for:
 import pytest
 import asyncio
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import sys
@@ -78,7 +78,7 @@ class TestExternalEvent:
             "payload": {"task_id": "123"},
             "priority": "HIGH",
             "retries": 2,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
         event = ExternalEvent.from_dict(data)
