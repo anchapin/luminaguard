@@ -294,8 +294,6 @@ class TelegramConnector(MessengerConnector):
                     message_type = MessageType.TEXT
                     break
 
-        from datetime import datetime
-
         msg = Message(
             id=str(message.get("message_id", "")),
             chat_id=str(message.get("chat", {}).get("id", "")),
