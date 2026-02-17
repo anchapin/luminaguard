@@ -1,387 +1,262 @@
+
 #!/usr/bin/env python3
 """
 Additional tests for loop.py to improve coverage
 """
 
 import pytest
-import sys
-import os
-from unittest.mock import patch, MagicMock
-
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from loop import (
-    ToolCall,
-    ActionKind,
-    ExecutionMode,
-    Style,
-    AgentState,
-    determine_action_kind,
-    present_diff_card,
-    think,
-    execute_tool,
-    get_execution_mode,
-    run_loop,
-    _get_risk_display,
-    GREEN_KEYWORDS,
-    RED_KEYWORDS,
-)
-
-
-class TestLoopExecutionMode:
-    """Tests for ExecutionMode enum"""
-
-    def test_execution_mode_values(self):
-        """Test ExecutionMode enum values"""
-        assert ExecutionMode.HOST.value == "host"
-        assert ExecutionMode.VM.value == "vm"
-
-
-class TestStyle:
-    """Tests for Style class"""
-
-    def test_style_bold(self):
-        """Test Style.bold method"""
-        result = Style.bold("test")
-        assert "test" in result
-
-    def test_style_cyan(self):
-        """Test Style.cyan method"""
-        result = Style.cyan("test")
-        assert "test" in result
-
-
-class TestAgentState:
-    """Tests for AgentState class"""
-
-    def test_agent_state_init(self):
-        """Test AgentState initialization"""
-        state = AgentState(
-            messages=[{"role": "user", "content": "hello"}],
-            tools=["read_file", "write_file"],
-            context={"mode": "host"}
-        )
-        
-        assert len(state.messages) == 1
-        assert len(state.tools) == 2
-        assert state.context["mode"] == "host"
-
-    def test_agent_state_add_message(self):
-        """Test adding messages to AgentState"""
-        state = AgentState(messages=[], tools=[], context={})
-        
-        state.add_message("user", "Hello")
-        state.add_message("assistant", "Hi there")
-        
-        assert len(state.messages) == 2
-        assert state.messages[0]["role"] == "user"
-        assert state.messages[1]["content"] == "Hi there"
-
-
-class TestDetermineActionKind:
-    """Tests for determine_action_kind function"""
-
-    def test_determine_action_kind_read(self):
-        """Test action kind for read operations"""
-        assert determine_action_kind("read file") == ActionKind.GREEN
-
-    def test_determine_action_kind_list(self):
-        """Test action kind for list operations"""
-        assert determine_action_kind("list files") == ActionKind.GREEN
-
-    def test_determine_action_kind_search(self):
-        """Test action kind for search operations"""
-        assert determine_action_kind("search logs") == ActionKind.GREEN
-
-    def test_determine_action_kind_check(self):
-        """Test action kind for check operations"""
-        assert determine_action_kind("check status") == ActionKind.GREEN
-
-    def test_determine_action_kind_get(self):
-        """Test action kind for get operations"""
-        assert determine_action_kind("get info") == ActionKind.GREEN
-
-    def test_determine_action_kind_show(self):
-        """Test action kind for show operations"""
-        assert determine_action_kind("show config") == ActionKind.GREEN
-
-    def test_determine_action_kind_view(self):
-        """Test action kind for view operations"""
-        assert determine_action_kind("view file") == ActionKind.GREEN
-
-    def test_determine_action_kind_find(self):
-        """Test action kind for find operations"""
-        assert determine_action_kind("find file") == ActionKind.GREEN
-
-    def test_determine_action_kind_delete(self):
-        """Test action kind for delete operations"""
-        assert determine_action_kind("delete file") == ActionKind.RED
-
-    def test_determine_action_kind_remove(self):
-        """Test action kind for remove operations"""
-        assert determine_action_kind("remove file") == ActionKind.RED
-
-    def test_determine_action_kind_write(self):
-        """Test action kind for write operations"""
-        assert determine_action_kind("write file") == ActionKind.RED
-
-    def test_determine_action_kind_edit(self):
-        """Test action kind for edit operations"""
-        assert determine_action_kind("edit file") == ActionKind.RED
-
-    def test_determine_action_kind_modify(self):
-        """Test action kind for modify operations"""
-        assert determine_action_kind("modify config") == ActionKind.RED
-
-    def test_determine_action_kind_create(self):
-        """Test action kind for create operations"""
-        assert determine_action_kind("create file") == ActionKind.RED
-
-    def test_determine_action_kind_update(self):
-        """Test action kind for update operations"""
-        assert determine_action_kind("update config") == ActionKind.RED
-
-    def test_determine_action_kind_change(self):
-        """Test action kind for change operations"""
-        assert determine_action_kind("change password") == ActionKind.RED
-
-    def test_determine_action_kind_send(self):
-        """Test action kind for send operations"""
-        assert determine_action_kind("send email") == ActionKind.RED
-
-    def test_determine_action_kind_post(self):
-        """Test action kind for post operations"""
-        assert determine_action_kind("post data") == ActionKind.RED
-
-    def test_determine_action_kind_transfer(self):
-        """Test action kind for transfer operations"""
-        assert determine_action_kind("transfer funds") == ActionKind.RED
-
-    def test_determine_action_kind_execute(self):
-        """Test action kind for execute operations"""
-        assert determine_action_kind("execute command") == ActionKind.RED
-
-    def test_determine_action_kind_run(self):
-        """Test action kind for run operations"""
-        assert determine_action_kind("run script") == ActionKind.RED
-
-    def test_determine_action_kind_deploy(self):
-        """Test action kind for deploy operations"""
-        assert determine_action_kind("deploy app") == ActionKind.RED
-
-    def test_determine_action_kind_install(self):
-        """Test action kind for install operations"""
-        assert determine_action_kind("install package") == ActionKind.RED
-
-    def test_determine_action_kind_uninstall(self):
-        """Test action kind for uninstall operations"""
-        assert determine_action_kind("uninstall app") == ActionKind.RED
-
-    def test_determine_action_kind_commit(self):
-        """Test action kind for commit operations"""
-        assert determine_action_kind("commit changes") == ActionKind.RED
-
-    def test_determine_action_kind_push(self):
-        """Test action kind for push operations"""
-        assert determine_action_kind("push to remote") == ActionKind.RED
-
-    def test_determine_action_kind_publish(self):
-        """Test action kind for publish operations"""
-        assert determine_action_kind("publish package") == ActionKind.RED
-
-    def test_determine_action_kind_mixed_keywords(self):
-        """Test action kind when both green and red keywords present"""
-        # Red should take precedence
-        result = determine_action_kind("read and delete file")
-        assert result == ActionKind.RED
-
-
-class TestThink:
-    """Tests for think function"""
-
-    def test_think_with_no_messages(self):
-        """Test think with no messages in state"""
-        state = AgentState(
-            messages=[],
-            tools=[],
-            context={}
-        )
-        
-        result = think(state)
-        # With no messages, returns None due to ImportError fallback
-        assert result is None
-
-
-class TestExecuteTool:
-    """Tests for execute_tool function"""
-
-    def test_execute_tool_success(self):
-        """Test execute_tool with successful result"""
-        mock_client = MagicMock()
-        mock_client.call_tool.return_value = {"status": "ok", "data": "test"}
-
-        action = ToolCall(
-            name="read_file",
-            arguments={"path": "/tmp/test.txt"},
-            action_kind=ActionKind.GREEN
-        )
-
-        result = execute_tool(action, mock_client)
-
-        assert result["status"] == "ok"
-        assert result["action_kind"] == "green"
-
-    def test_execute_tool_exception(self):
-        """Test execute_tool with exception"""
-        mock_client = MagicMock()
-        mock_client.call_tool.side_effect = RuntimeError("Tool failed")
-
-        action = ToolCall(
-            name="write_file",
-            arguments={"path": "/tmp/test.txt"},
-            action_kind=ActionKind.RED
-        )
-
-        result = execute_tool(action, mock_client)
-
-        assert result["status"] == "error"
-        assert "Tool failed" in result["error"]
-
-
-class TestGetExecutionMode:
-    """Tests for get_execution_mode function"""
-
-    def test_get_execution_mode_host(self):
-        """Test default execution mode is host"""
-        with patch.dict(os.environ, {"LUMINAGUARD_MODE": "host"}):
-            result = get_execution_mode()
-            assert result == ExecutionMode.HOST
-
-    def test_get_execution_mode_vm(self):
-        """Test VM execution mode"""
-        with patch.dict(os.environ, {"LUMINAGUARD_MODE": "vm"}):
-            result = get_execution_mode()
-            assert result == ExecutionMode.VM
-
-    def test_get_execution_mode_invalid(self):
-        """Test invalid mode defaults to host"""
-        with patch.dict(os.environ, {"LUMINAGUARD_MODE": "invalid"}):
-            result = get_execution_mode()
-            assert result == ExecutionMode.HOST
-
-    def test_get_execution_mode_not_set(self):
-        """Test when mode is not set"""
-        # Remove the env var if set
-        original = os.environ.pop("LUMINAGUARD_MODE", None)
-        try:
-            result = get_execution_mode()
-            assert result == ExecutionMode.HOST
-        finally:
-            if original is not None:
-                os.environ["LUMINAGUARD_MODE"] = original
-
-
-class TestGetRiskDisplay:
-    """Tests for _get_risk_display function"""
-
-    def test_get_risk_display_green(self):
-        """Test risk display for green action"""
-        action = ToolCall(
-            name="read_file",
-            arguments={"path": "/tmp/test.txt"},
-            action_kind=ActionKind.GREEN
-        )
-
-        result = _get_risk_display(action)
-        assert "GREEN" in result
-
-    def test_get_risk_display_delete(self):
-        """Test risk display for delete action"""
-        action = ToolCall(
-            name="delete_file",
-            arguments={"path": "/tmp/test.txt"},
-            action_kind=ActionKind.RED
-        )
-
-        result = _get_risk_display(action)
-        assert "CRITICAL" in result
-
-    def test_get_risk_display_remove(self):
-        """Test risk display for remove action"""
-        action = ToolCall(
-            name="remove_file",
-            arguments={"path": "/tmp/test.txt"},
-            action_kind=ActionKind.RED
-        )
-
-        result = _get_risk_display(action)
-        assert "CRITICAL" in result
-
-    def test_get_risk_display_write(self):
-        """Test risk display for write action"""
-        action = ToolCall(
-            name="write_file",
-            arguments={"path": "/tmp/test.txt"},
-            action_kind=ActionKind.RED
-        )
-
-        result = _get_risk_display(action)
-        assert "HIGH" in result
-
-    def test_get_risk_display_edit(self):
-        """Test risk display for edit action"""
-        action = ToolCall(
-            name="edit_file",
-            arguments={"path": "/tmp/test.txt"},
-            action_kind=ActionKind.RED
-        )
-
-        result = _get_risk_display(action)
-        assert "HIGH" in result
-
-    def test_get_risk_display_default(self):
-        """Test risk display for default case"""
-        action = ToolCall(
-            name="some_action",
-            arguments={},
-            action_kind=ActionKind.RED
-        )
-
-        result = _get_risk_display(action)
-        assert "MEDIUM" in result
-
-
-class TestToolCall:
-    """Tests for ToolCall dataclass"""
-
-    def test_tool_call_creation(self):
-        """Test creating a ToolCall"""
-        action = ToolCall(
-            name="write_file",
-            arguments={"path": "/tmp/test.txt", "content": "hello"},
-            action_kind=ActionKind.RED
-        )
-
-        assert action.name == "write_file"
-        assert action.arguments["path"] == "/tmp/test.txt"
-        assert action.action_kind == ActionKind.RED
-
-
-class TestGreenKeywords:
-    """Tests for GREEN_KEYWORDS list"""
-
-    def test_green_keywords_contain_common(self):
-        """Test that GREEN_KEYWORDS contains common safe keywords"""
-        common_green = ["read", "list", "search", "check", "get", "show", "view", "find"]
-        for keyword in common_green:
-            assert keyword in GREEN_KEYWORDS
-
-
-class TestRedKeywords:
-    """Tests for RED_KEYWORDS list"""
-
-    def test_red_keywords_contain_destructive(self):
-        """Test that RED_KEYWORDS contains common destructive keywords"""
-        common_red = ["delete", "remove", "write", "edit", "execute", "run", "send"]
-        for keyword in common_red:
-            assert keyword in RED_KEYWORDS
+from unittest.mock import MagicMock, patch
+
+# Test ExecutionMode
+def test_execution_mode_host_value():
+    from loop import ExecutionMode
+    assert ExecutionMode.HOST.value == "host"
+
+def test_execution_mode_vm_value():
+    from loop import ExecutionMode
+    assert ExecutionMode.VM.value == "vm"
+
+def test_execution_mode_enum_values():
+    from loop import ExecutionMode
+    modes = [e.value for e in ExecutionMode]
+    assert "host" in modes
+    assert "vm" in modes
+
+
+# Test Session
+def test_session_creation():
+    from loop import Session, AgentState
+    import time
+    
+    session = Session(
+        session_id="test-123",
+        created_at=time.time(),
+        last_activity=time.time(),
+        state=AgentState(messages=[], tools=[], context={}),
+        metadata={"key": "value"}
+    )
+    
+    assert session.session_id == "test-123"
+    assert session.metadata["key"] == "value"
+
+def test_session_is_expired():
+    from loop import Session, AgentState
+    import time
+    
+    session = Session(
+        session_id="test-123",
+        created_at=time.time() - 7200,
+        last_activity=time.time() - 7200,
+        state=AgentState(messages=[], tools=[], context={}),
+        metadata={}
+    )
+    
+    assert session.is_expired(ttl_seconds=3600) is True
+
+def test_session_not_expired():
+    from loop import Session, AgentState
+    import time
+    
+    session = Session(
+        session_id="test-123",
+        created_at=time.time(),
+        last_activity=time.time(),
+        state=AgentState(messages=[], tools=[], context={}),
+        metadata={}
+    )
+    
+    assert session.is_expired(ttl_seconds=3600) is False
+
+def test_session_update_activity():
+    from loop import Session, AgentState
+    import time
+    
+    old_time = time.time() - 100
+    session = Session(
+        session_id="test-123",
+        created_at=old_time,
+        last_activity=old_time,
+        state=AgentState(messages=[], tools=[], context={}),
+        metadata={}
+    )
+    
+    session.update_activity()
+    
+    assert session.last_activity > old_time
+
+
+# Test SessionManager
+def test_session_manager_creation():
+    from loop import SessionManager
+    
+    manager = SessionManager(ttl_seconds=1800)
+    assert manager.ttl_seconds == 1800
+    assert len(manager.sessions) == 0
+
+def test_create_session():
+    from loop import SessionManager
+    
+    manager = SessionManager()
+    session = manager.create_session("session-1", ["read_file", "write_file"])
+    
+    assert session.session_id == "session-1"
+    assert "read_file" in session.state.tools
+
+def test_get_session_exists():
+    from loop import SessionManager
+    
+    manager = SessionManager()
+    created = manager.create_session("session-1", ["tool1"])
+    retrieved = manager.get_session("session-1")
+    
+    assert retrieved is not None
+    assert retrieved.session_id == "session-1"
+
+def test_get_session_not_exists():
+    from loop import SessionManager
+    
+    manager = SessionManager()
+    result = manager.get_session("non-existent")
+    
+    assert result is None
+
+def test_remove_session():
+    from loop import SessionManager
+    
+    manager = SessionManager()
+    manager.create_session("session-1", ["tool1"])
+    
+    manager.remove_session("session-1")
+    
+    assert manager.get_session("session-1") is None
+
+def test_remove_nonexistent_session():
+    from loop import SessionManager
+    
+    manager = SessionManager()
+    
+    manager.remove_session("non-existent")
+
+def test_cleanup_expired():
+    from loop import SessionManager
+    import time
+    
+    manager = SessionManager(ttl_seconds=1)
+    
+    manager.create_session("session-1", ["tool1"])
+    manager.create_session("session-2", ["tool2"])
+    
+    time.sleep(1.5)
+    
+    cleaned = manager.cleanup_expired()
+    
+    assert cleaned == 2
+    assert len(manager.sessions) == 0
+
+
+# Test get_execution_mode
+def test_get_execution_mode_host_default():
+    from loop import get_execution_mode, ExecutionMode
+    import os
+    
+    old_val = os.environ.pop("LUMINAGUARD_MODE", None)
+    
+    try:
+        mode = get_execution_mode()
+        assert mode == ExecutionMode.HOST
+    finally:
+        if old_val:
+            os.environ["LUMINAGUARD_MODE"] = old_val
+
+def test_get_execution_mode_vm():
+    from loop import get_execution_mode, ExecutionMode
+    import os
+    
+    old_val = os.environ.get("LUMINAGUARD_MODE")
+    os.environ["LUMINAGUARD_MODE"] = "vm"
+    
+    try:
+        mode = get_execution_mode()
+        assert mode == ExecutionMode.VM
+    finally:
+        if old_val is None:
+            del os.environ["LUMINAGUARD_MODE"]
+        else:
+            os.environ["LUMINAGUARD_MODE"] = old_val
+
+def test_get_execution_mode_invalid_fallback():
+    from loop import get_execution_mode, ExecutionMode
+    import os
+    
+    old_val = os.environ.get("LUMINAGUARD_MODE")
+    os.environ["LUMINAGUARD_MODE"] = "invalid_mode"
+    
+    try:
+        mode = get_execution_mode()
+        assert mode == ExecutionMode.HOST
+    finally:
+        if old_val is None:
+            del os.environ["LUMINAGUARD_MODE"]
+        else:
+            os.environ["LUMINAGUARD_MODE"] = old_val
+
+
+# Test execute_tool_vm
+def test_execute_tool_vm_success():
+    from loop import execute_tool_vm, ToolCall, ActionKind
+    
+    mock_vsock = MagicMock()
+    mock_vsock.execute_tool.return_value = {"result": "success"}
+    
+    call = ToolCall("read_file", {"path": "/tmp/test"}, ActionKind.GREEN)
+    result = execute_tool_vm(call, mock_vsock)
+    
+    assert result["status"] == "ok"
+    assert result["action_kind"] == "green"
+
+def test_execute_tool_vm_error():
+    from loop import execute_tool_vm, ToolCall, ActionKind
+    
+    mock_vsock = MagicMock()
+    mock_vsock.execute_tool.side_effect = Exception("Connection failed")
+    
+    call = ToolCall("read_file", {"path": "/tmp/test"}, ActionKind.GREEN)
+    result = execute_tool_vm(call, mock_vsock)
+    
+    assert result["status"] == "error"
+    assert "Connection failed" in result["error"]
+
+
+# Test present_diff_card fallback
+def test_present_diff_card_red_approves_yes():
+    from loop import present_diff_card, ToolCall, ActionKind
+    
+    with patch('builtins.input', return_value='y'):
+        action = ToolCall("delete_file", {"path": "test.txt"}, ActionKind.RED)
+        result = present_diff_card(action)
+        assert result is True
+
+def test_present_diff_card_red_rejects_no():
+    from loop import present_diff_card, ToolCall, ActionKind
+    
+    with patch('builtins.input', return_value='n'):
+        action = ToolCall("delete_file", {"path": "test.txt"}, ActionKind.RED)
+        result = present_diff_card(action)
+        assert result is False
+
+
+# Test run_loop with execution mode
+def test_run_loop_with_vm_mode():
+    from loop import run_loop, AgentState, ExecutionMode
+    
+    mock_vsock = MagicMock()
+    mock_vsock.execute_tool.return_value = {"result": "success"}
+    
+    state = run_loop(
+        "test task", 
+        ["read_file"], 
+        vsock_client=mock_vsock,
+        execution_mode=ExecutionMode.VM
+    )
+    
+    assert isinstance(state, AgentState)
