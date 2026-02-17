@@ -40,6 +40,60 @@ from .tools import (
     create_daemon_tools,
 )
 
+from .lifecycle import (
+    DaemonLifecycle,
+    LifecycleConfig,
+    RestartPolicy,
+    PIDFileManager,
+    GracefulShutdown,
+    SystemdManager,
+    DaemonState,
+    ShutdownReason,
+    create_daemon_lifecycle,
+    run_daemon,
+)
+
+from .config import (
+    DaemonConfig,
+    ConfigLoader,
+    HotReloadConfig,
+    ConfigFormat,
+    ConfigWatcher,
+    HealthConfigData,
+    SchedulerConfigData,
+    LoggingConfigData,
+    LifecycleConfigData,
+    MessengerConfigData,
+    StateConfigData,
+    create_config_loader,
+    create_hot_reload_config,
+    load_config,
+)
+
+from .daemon_logging import (
+    DaemonLogger,
+    DaemonMetrics,
+    LogLevel,
+    LogFormat,
+    LogRotationConfig,
+    MetricsConfig,
+    LogForwarder,
+    create_logger,
+)
+
+from .state import (
+    PersistentStateManager,
+    ConversationHistory,
+    ConversationMessage,
+    TaskState,
+    StateSnapshot,
+    StateEncryption,
+    StateStorage,
+    TaskQueue,
+    StateType,
+    create_state_manager,
+)
+
 __all__ = [
     # Health
     "HealthCheck",
@@ -65,4 +119,50 @@ __all__ = [
     "WebTool",
     "CurlTool",
     "create_daemon_tools",
+    # Lifecycle
+    "DaemonLifecycle",
+    "LifecycleConfig",
+    "RestartPolicy",
+    "PIDFileManager",
+    "GracefulShutdown",
+    "SystemdManager",
+    "DaemonState",
+    "ShutdownReason",
+    "create_daemon_lifecycle",
+    "run_daemon",
+    # Config
+    "DaemonConfig",
+    "ConfigLoader",
+    "HotReloadConfig",
+    "ConfigFormat",
+    "ConfigWatcher",
+    "HealthConfigData",
+    "SchedulerConfigData",
+    "LoggingConfigData",
+    "LifecycleConfigData",
+    "MessengerConfigData",
+    "StateConfigData",
+    "create_config_loader",
+    "create_hot_reload_config",
+    "load_config",
+    # Logging
+    "DaemonLogger",
+    "DaemonMetrics",
+    "LogLevel",
+    "LogFormat",
+    "LogRotationConfig",
+    "MetricsConfig",
+    "LogForwarder",
+    "create_logger",
+    # State
+    "PersistentStateManager",
+    "ConversationHistory",
+    "ConversationMessage",
+    "TaskState",
+    "StateSnapshot",
+    "StateEncryption",
+    "StateStorage",
+    "TaskQueue",
+    "StateType",
+    "create_state_manager",
 ]
