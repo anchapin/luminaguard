@@ -98,20 +98,30 @@ async fn test_vm_spawn_time_baseline() {
 /// Test that validates snapshot pool can meet 10-50ms target
 #[tokio::test]
 async fn test_snapshot_pool_fast_spawn() {
-    let temp_dir = match tempfile::TempDir::new() {
-        Ok(t) => t,
-        Err(e) => {
-            println!("⏭️  Skipping: Cannot create temp directory: {}", e);
-            return;
-        }
-    };
-    let snapshot_path = temp_dir.path().to_path_buf();
+    // Use a unique path for this test to avoid conflicts
+    let snapshot_path = std::env::temp_dir().join(format!("luminaguard-test-pool-{}", uuid::Uuid::new_v4()));
     
     // Set env var so snapshot module uses our temp directory
     std::env::set_var("LUMINAGUARD_SNAPSHOT_PATH", snapshot_path.to_str().unwrap());
     
+    // Clean up on exit
+    struct Cleanup;
+    impl Drop for Cleanup {
+        fn drop(&mut self) {
+            std::env::remove_var("LUMINAGUARD_SNAPSHOT_PATH");
+            let _ = std::fs::remove_dir_all(std::env::temp_dir().join("luminaguard-test-pool-"));
+        }
+    }
+    let _cleanup = Cleanup;
+    
+    // Create snapshot directory
+    if let Err(e) = std::fs::create_dir_all(&snapshot_path) {
+        println!("⏭️  Skipping: Cannot create snapshot directory: {}", e);
+        return;
+    }
+    
     let config = PoolConfig {
-        snapshot_path,
+        snapshot_path: snapshot_path.clone(),
         pool_size: 2,
         refresh_interval_secs: 3600,
         max_snapshot_age_secs: 3600,
