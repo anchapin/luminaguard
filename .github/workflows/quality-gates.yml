@@ -104,24 +104,6 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Debug - Show git status
-        run: |
-          echo "=== Git Status ==="
-          git status
-          echo "=== Git Version ==="
-          git --version
-          echo "=== Git Config ==="
-          git config --list
-          echo "=== Git Remote ==="
-          git remote -v
-
-      - name: Debug - Show Python environment
-        run: |
-          echo "=== Python Version ==="
-          python --version
-          echo "=== Pip Version ==="
-          pip --version
-
       - name: Install autoflake
         run: pip install autoflake
 
