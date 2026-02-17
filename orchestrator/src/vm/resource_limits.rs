@@ -18,7 +18,7 @@ use std::path::PathBuf;
 use std::time::Instant;
 use tracing::{error, info, warn};
 
-#[cfg(all(unix, not(windows)))]
+#[cfg(unix)]
 use crate::vm::jailer::JailerConfig;
 
 /// Resource limit test result

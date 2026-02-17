@@ -71,7 +71,7 @@ use tokio::sync::{Mutex, OnceCell};
 use crate::vm::config::VmConfig;
 use crate::vm::firewall::FirewallManager;
 use crate::vm::hypervisor::{Hypervisor, VmInstance};
-#[cfg(unix)]
+#[cfg(all(unix, not(windows)))]
 use crate::vm::jailer::{start_jailed_firecracker, verify_jailer_installed, JailerConfig};
 use crate::vm::pool::{PoolConfig, SnapshotPool};
 use crate::vm::seccomp::{SeccompFilter, SeccompLevel};
@@ -498,7 +498,7 @@ pub fn verify_network_isolation(handle: &VmHandle) -> Result<bool> {
 ///     Ok(())
 /// }
 /// ```
-#[cfg(unix)]
+#[cfg(all(unix, not(windows)))]
 pub async fn spawn_vm_jailed(
     task_id: &str,
     vm_config: &VmConfig,
@@ -582,7 +582,7 @@ pub async fn spawn_vm_jailed(
 ///     Ok(())
 /// }
 /// ```
-#[cfg(unix)]
+#[cfg(all(unix, not(windows)))]
 pub async fn destroy_vm_jailed(handle: VmHandle, _jailer_config: &JailerConfig) -> Result<()> {
     tracing::info!("Destroying JAILED VM: {}", handle.id);
 
