@@ -666,8 +666,10 @@ class WebhookReceiver:
 
     async def _aiohttp_handler(self, request) -> Any:
         """aiohttp request handler"""
+        from aiohttp import web
+        
         status, response = await self.handle_webhook(request)
-        return aiohttp(status=status, json=response)
+        return web.json_response(response, status=status)
 
 
 class IntegrationManager:
