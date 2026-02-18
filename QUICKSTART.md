@@ -60,12 +60,17 @@ Please setup environment variables for your LLM
 **Enable AI responses** by configuring an LLM provider:
 
 ```bash
-# Recommended: copy the example env file and fill in your key(s)
+# Recommended: copy the example env file to the project root and fill in your key(s)
+# Run this from the project root (not from inside agent/)
 cp .env.example .env
 # Edit .env and set at least one of:
 #   OPENAI_API_KEY, ANTHROPIC_API_KEY, or OLLAMA_HOST
-source .env   # or use a tool like direnv / python-dotenv
+```
 
+> **Note:** The bot automatically loads `.env` from the project root — no need
+> to `source` it manually. Just edit the file and run the bot.
+
+```bash
 # Alternatively, export directly in your shell:
 export OPENAI_API_KEY=sk-…          # OpenAI / GPT
 export ANTHROPIC_API_KEY=sk-ant-…   # Anthropic / Claude
