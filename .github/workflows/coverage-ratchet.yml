@@ -56,7 +56,7 @@ jobs:
         working-directory: agent
         run: |
           python -m venv .venv
-          .venv/bin/pip install -q pytest pytest-cov pytest-asyncio pytest-timeout hypothesis cryptography
+          .venv/bin/pip install -q -e ".[dev]"
           .venv/bin/pytest tests/ --cov=. --cov-report=xml -q
           COVERAGE=$(python3 <<'EOF'
           import xml.etree.ElementTree as ET

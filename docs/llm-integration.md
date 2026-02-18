@@ -97,11 +97,23 @@ if action:
 
 ### Production Usage (OpenAI)
 
+First, configure your API key. The recommended approach is to copy the
+project's example env file and fill in your key:
+
+```bash
+# From the repository root
+cp .env.example .env
+# Edit .env and set OPENAI_API_KEY (or ANTHROPIC_API_KEY / OLLAMA_HOST)
+```
+
+Then load it in your shell (`source .env`) or use a library like
+[`python-dotenv`](https://pypi.org/project/python-dotenv/).
+
 ```python
 from loop import AgentState, think, run_loop
 from llm_client import LLMConfig, LLMProvider, create_llm_client
 
-# Create OpenAI client
+# Create OpenAI client — key is read from the environment
 config = LLMConfig(
     provider=LLMProvider.OPENAI,
     model="gpt-4",

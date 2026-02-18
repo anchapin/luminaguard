@@ -11,15 +11,19 @@ Key Features:
 - Deterministic outputs via temperature=0
 - Configurable provider selection
 - Mock LLM for testing
+- Fallback mechanism: tries multiple API keys/clients when one fails
 """
 
 from __future__ import annotations
 
 import json
+import logging
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
+
+logger = logging.getLogger(__name__)
 
 from loop import ToolCall, ActionKind
 
@@ -217,6 +221,39 @@ class MockLLMClient(LLMClient):
             return {}
 
 
+# Error codes that indicate a key is exhausted/rate-limited and a fallback
+# should be attempted.  These are checked against the string representation
+# of the exception so we don't need to import provider-specific exception
+# types at module level.
+_RETRYABLE_ERROR_CODES = frozenset(
+    [
+        "insufficient_quota",   # OpenAI: quota exceeded
+        "rate_limit_exceeded",  # OpenAI / Anthropic: rate limit
+        "429",                  # HTTP 429 Too Many Requests
+        "overloaded",           # Anthropic: server overloaded
+        "quota_exceeded",       # Generic quota error
+    ]
+)
+
+
+def _is_retryable_error(exc: Exception) -> bool:
+    """Return True if *exc* is a transient/quota error worth retrying."""
+    exc_str = str(exc).lower()
+    return any(code in exc_str for code in _RETRYABLE_ERROR_CODES)
+
+
+class LLMClientError(Exception):
+    """Raised by LLM clients when a call fails and should not be retried."""
+
+
+class LLMClientRetryableError(Exception):
+    """
+    Raised by LLM clients when a call fails due to quota/rate-limiting.
+
+    The :class:`FallbackLLMClient` catches this and tries the next client.
+    """
+
+
 class OpenAILLMClient(LLMClient):
     """
     OpenAI GPT client for production use.
@@ -247,6 +284,11 @@ class OpenAILLMClient(LLMClient):
         Use OpenAI API to decide next action.
 
         Uses function calling to request structured tool selection.
+
+        Raises:
+            LLMClientRetryableError: on quota / rate-limit errors so that a
+                :class:`FallbackLLMClient` can try the next key.
+            LLMClientError: on non-retryable API errors.
         """
         system_prompt = self._build_system_prompt(available_tools, context)
 
@@ -294,13 +336,9 @@ class OpenAILLMClient(LLMClient):
                 )
 
         except Exception as e:
-            # Fall back to complete on error
-            return LLMResponse(
-                None,
-                {},
-                f"LLM error: {str(e)}. Task stopped.",
-                is_complete=True,
-            )
+            if _is_retryable_error(e):
+                raise LLMClientRetryableError(str(e)) from e
+            raise LLMClientError(str(e)) from e
 
     def _build_system_prompt(
         self, available_tools: List[str], context: Dict[str, Any]
@@ -412,6 +450,262 @@ Return "NO_TOOL" if the task is complete or doesn't require a tool.
         ]
 
 
+class AnthropicLLMClient(LLMClient):
+    """
+    Anthropic Claude client for production use.
+
+    Requires ANTHROPIC_API_KEY environment variable.
+    """
+
+    def __init__(self, config: LLMConfig):
+        self.config = config
+        try:
+            import anthropic
+
+            self.client = anthropic.Anthropic(api_key=config.api_key)
+            self.anthropic = anthropic
+        except ImportError:
+            raise ImportError(
+                "anthropic package not installed. "
+                "Install with: pip install anthropic"
+            )
+
+    def decide_action(
+        self,
+        messages: List[Dict[str, Any]],
+        available_tools: List[str],
+        context: Dict[str, Any],
+    ) -> LLMResponse:
+        """
+        Use Anthropic API to decide next action.
+
+        Uses tool_use blocks to request structured tool selection.
+
+        Raises:
+            LLMClientRetryableError: on quota / rate-limit / overload errors so
+                that a :class:`FallbackLLMClient` can try the next key.
+            LLMClientError: on non-retryable API errors.
+        """
+        system_prompt = self._build_system_prompt(available_tools, context)
+
+        # Convert messages to Anthropic format (user/assistant only)
+        anthropic_messages = []
+        for msg in messages:
+            if msg["role"] in ["user", "assistant"]:
+                anthropic_messages.append(
+                    {"role": msg["role"], "content": msg["content"]}
+                )
+
+        if not anthropic_messages:
+            return LLMResponse(None, {}, "No messages to process", is_complete=True)
+
+        # Define tools for tool_use
+        tools = self._build_tool_definitions(available_tools)
+
+        try:
+            kwargs: Dict[str, Any] = dict(
+                model=self.config.model,
+                max_tokens=self.config.max_tokens,
+                system=system_prompt,
+                messages=anthropic_messages,
+                temperature=self.config.temperature,
+            )
+            if tools:
+                kwargs["tools"] = tools
+
+            response = self.client.messages.create(**kwargs)
+
+            # Check for tool_use blocks
+            for block in response.content:
+                if block.type == "tool_use":
+                    return LLMResponse(
+                        tool_name=block.name,
+                        arguments=block.input,
+                        reasoning=f"Selected {block.name} based on context",
+                        is_complete=False,
+                    )
+
+            # No tool call – extract text response
+            text = ""
+            for block in response.content:
+                if hasattr(block, "text"):
+                    text = block.text
+                    break
+
+            return LLMResponse(
+                None,
+                {},
+                text or "No action needed",
+                is_complete=True,
+            )
+
+        except Exception as e:
+            if _is_retryable_error(e):
+                raise LLMClientRetryableError(str(e)) from e
+            raise LLMClientError(str(e)) from e
+
+    def _build_system_prompt(
+        self, available_tools: List[str], context: Dict[str, Any]
+    ) -> str:
+        """Build system prompt for LLM."""
+        tools_str = "\n  - ".join(available_tools)
+        context_str = json.dumps(context, indent=2) if context else "{}"
+
+        return f"""You are LuminaGuard, an AI assistant that helps with tasks using tools.
+
+Available tools:
+  - {tools_str}
+
+Context:
+{context_str}
+
+Your role:
+1. Analyze the user's request
+2. Select the appropriate tool if needed
+3. Extract required arguments from the request
+4. If no tool is needed, respond with a helpful message
+
+Return a plain text response if the task is complete or doesn't require a tool.
+"""
+
+    def _build_tool_definitions(
+        self, available_tools: List[str]
+    ) -> List[Dict[str, Any]]:
+        """Build Anthropic tool definitions."""
+        all_tools = [
+            {
+                "name": "read_file",
+                "description": "Read the contents of a file",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "Path to the file to read",
+                        }
+                    },
+                    "required": ["path"],
+                },
+            },
+            {
+                "name": "write_file",
+                "description": "Write content to a file",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "Path to the file",
+                        },
+                        "content": {
+                            "type": "string",
+                            "description": "Content to write",
+                        },
+                    },
+                    "required": ["path", "content"],
+                },
+            },
+            {
+                "name": "search",
+                "description": "Search for text in files",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "query": {
+                            "type": "string",
+                            "description": "Search query",
+                        }
+                    },
+                    "required": ["query"],
+                },
+            },
+            {
+                "name": "list_directory",
+                "description": "List files in a directory",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "Directory path",
+                        }
+                    },
+                    "required": ["path"],
+                },
+            },
+        ]
+
+        return [t for t in all_tools if t["name"] in available_tools]
+
+
+class FallbackLLMClient(LLMClient):
+    """
+    A composite LLM client that tries multiple underlying clients in order.
+
+    When a client raises :class:`LLMClientRetryableError` (quota exceeded,
+    rate-limited, etc.) the next client in the chain is tried automatically.
+    If all clients are exhausted the last error is surfaced as a graceful
+    ``is_complete=True`` response so the bot keeps running.
+
+    Example – two OpenAI keys with an Anthropic key as final fallback::
+
+        from llm_client import FallbackLLMClient, OpenAILLMClient, LLMConfig, LLMProvider
+
+        clients = [
+            OpenAILLMClient(LLMConfig(provider=LLMProvider.OPENAI, api_key="sk-key1")),
+            OpenAILLMClient(LLMConfig(provider=LLMProvider.OPENAI, api_key="sk-key2")),
+        ]
+        client = FallbackLLMClient(clients)
+        response = client.decide_action(messages, tools, context)
+    """
+
+    def __init__(self, clients: List[LLMClient]):
+        if not clients:
+            raise ValueError("FallbackLLMClient requires at least one client")
+        self.clients = clients
+
+    def decide_action(
+        self,
+        messages: List[Dict[str, Any]],
+        available_tools: List[str],
+        context: Dict[str, Any],
+    ) -> LLMResponse:
+        """
+        Try each client in order, falling back on retryable errors.
+
+        Returns the first successful response.  If all clients fail with
+        retryable errors the last error message is returned as a completed
+        (non-crashing) response.
+        """
+        last_error: Optional[str] = None
+
+        for idx, client in enumerate(self.clients):
+            try:
+                return client.decide_action(messages, available_tools, context)
+            except LLMClientRetryableError as exc:
+                last_error = str(exc)
+                logger.warning(
+                    "LLM client %d/%d failed with retryable error (%s); "
+                    "trying next key.",
+                    idx + 1,
+                    len(self.clients),
+                    last_error,
+                )
+            except LLMClientError as exc:
+                # Non-retryable – surface immediately
+                last_error = str(exc)
+                logger.error("LLM client %d/%d failed: %s", idx + 1, len(self.clients), last_error)
+                break
+
+        # All clients exhausted or non-retryable error encountered
+        return LLMResponse(
+            None,
+            {},
+            f"All LLM API keys exhausted or failed. Last error: {last_error}",
+            is_complete=True,
+        )
+
+
 def create_llm_client(config: Optional[LLMConfig] = None) -> LLMClient:
     """
     Factory function to create LLM client based on configuration.
@@ -429,6 +723,236 @@ def create_llm_client(config: Optional[LLMConfig] = None) -> LLMClient:
         return MockLLMClient(config)
     elif config.provider == LLMProvider.OPENAI:
         return OpenAILLMClient(config)
-    # Add other providers here as needed
+    elif config.provider == LLMProvider.ANTHROPIC:
+        return AnthropicLLMClient(config)
     else:
         raise ValueError(f"Unsupported LLM provider: {config.provider}")
+
+
+# ---------------------------------------------------------------------------
+# Environment variable names for supported LLM providers.
+#
+# Fallback keys follow the pattern  <BASE_VAR>_2, <BASE_VAR>_3, …
+# e.g.  OPENAI_API_KEY, OPENAI_API_KEY_2, OPENAI_API_KEY_3
+# ---------------------------------------------------------------------------
+
+# Primary env-var names (one per provider)
+_LLM_ENV_VARS = [
+    "OPENAI_API_KEY",
+    "ANTHROPIC_API_KEY",
+    "OLLAMA_HOST",
+    "LUMINAGUARD_LLM_API_KEY",
+    "LLM_API_KEY",
+]
+
+# Provider-specific base names that support numbered fallback keys
+_PROVIDER_KEY_BASES: Dict[str, LLMProvider] = {
+    "OPENAI_API_KEY": LLMProvider.OPENAI,
+    "ANTHROPIC_API_KEY": LLMProvider.ANTHROPIC,
+}
+
+NO_LLM_CONFIGURED_MESSAGE = "Please setup environment variables for your LLM"
+
+# Maximum number of numbered fallback keys to look for (e.g. _2 … _N)
+_MAX_FALLBACK_KEYS = 10
+
+
+def _collect_openai_keys() -> List[str]:
+    """
+    Return all OpenAI API keys found in the environment.
+
+    Checks ``OPENAI_API_KEY`` first, then ``OPENAI_API_KEY_2`` …
+    ``OPENAI_API_KEY_<_MAX_FALLBACK_KEYS>``.
+    """
+    import os
+
+    keys: List[str] = []
+    primary = os.environ.get("OPENAI_API_KEY", "").strip()
+    if primary:
+        keys.append(primary)
+    for i in range(2, _MAX_FALLBACK_KEYS + 1):
+        key = os.environ.get(f"OPENAI_API_KEY_{i}", "").strip()
+        if key:
+            keys.append(key)
+    return keys
+
+
+def _collect_anthropic_keys() -> List[str]:
+    """
+    Return all Anthropic API keys found in the environment.
+
+    Checks ``ANTHROPIC_API_KEY`` first, then ``ANTHROPIC_API_KEY_2`` …
+    ``ANTHROPIC_API_KEY_<_MAX_FALLBACK_KEYS>``.
+    """
+    import os
+
+    keys: List[str] = []
+    primary = os.environ.get("ANTHROPIC_API_KEY", "").strip()
+    if primary:
+        keys.append(primary)
+    for i in range(2, _MAX_FALLBACK_KEYS + 1):
+        key = os.environ.get(f"ANTHROPIC_API_KEY_{i}", "").strip()
+        if key:
+            keys.append(key)
+    return keys
+
+
+def build_fallback_client(base_config: Optional[LLMConfig] = None) -> Optional[LLMClient]:
+    """
+    Build a :class:`FallbackLLMClient` from all API keys found in the
+    environment, or return a single client when only one key is available.
+
+    Key discovery order (highest priority first):
+      1. OpenAI keys  – ``OPENAI_API_KEY``, ``OPENAI_API_KEY_2``, …
+      2. Anthropic keys – ``ANTHROPIC_API_KEY``, ``ANTHROPIC_API_KEY_2``, …
+      3. Ollama host  – ``OLLAMA_HOST``
+
+    Returns ``None`` when no keys are configured.
+
+    Args:
+        base_config: Optional base :class:`LLMConfig` used to inherit
+            ``model``, ``temperature``, ``max_tokens``, and ``timeout``
+            settings.  Provider and ``api_key`` are overridden per key.
+
+    Returns:
+        A :class:`FallbackLLMClient` (multiple keys), a single
+        :class:`LLMClient`, or ``None`` if nothing is configured.
+    """
+    import os
+
+    base = base_config or LLMConfig()
+    clients: List[LLMClient] = []
+
+    # --- OpenAI keys ---------------------------------------------------------
+    for key in _collect_openai_keys():
+        cfg = LLMConfig(
+            provider=LLMProvider.OPENAI,
+            api_key=key,
+            model=base.model if base.provider == LLMProvider.OPENAI else "gpt-4o-mini",
+            temperature=base.temperature,
+            max_tokens=base.max_tokens,
+            timeout=base.timeout,
+        )
+        try:
+            clients.append(OpenAILLMClient(cfg))
+        except ImportError:
+            logger.warning("openai package not installed; skipping OpenAI keys.")
+            break
+
+    # --- Anthropic keys ------------------------------------------------------
+    for key in _collect_anthropic_keys():
+        cfg = LLMConfig(
+            provider=LLMProvider.ANTHROPIC,
+            api_key=key,
+            model=base.model if base.provider == LLMProvider.ANTHROPIC else "claude-3-haiku-20240307",
+            temperature=base.temperature,
+            max_tokens=base.max_tokens,
+            timeout=base.timeout,
+        )
+        try:
+            clients.append(AnthropicLLMClient(cfg))
+        except ImportError:
+            logger.warning("anthropic package not installed; skipping Anthropic keys.")
+            break
+
+    # --- Ollama --------------------------------------------------------------
+    ollama_host = os.environ.get("OLLAMA_HOST", "").strip()
+    if ollama_host:
+        cfg = LLMConfig(
+            provider=LLMProvider.OLLAMA,
+            base_url=ollama_host,
+            model=base.model if base.provider == LLMProvider.OLLAMA else "llama3",
+            temperature=base.temperature,
+            max_tokens=base.max_tokens,
+            timeout=base.timeout,
+        )
+        # Ollama client not yet implemented; skip gracefully
+        logger.debug("Ollama client not yet implemented; skipping.")
+
+    if not clients:
+        return None
+    if len(clients) == 1:
+        return clients[0]
+    return FallbackLLMClient(clients)
+
+
+def is_llm_configured() -> bool:
+    """
+    Check whether any LLM provider environment variables are set.
+
+    Also checks numbered fallback keys (e.g. ``OPENAI_API_KEY_2``).
+
+    Returns:
+        True if at least one LLM provider env var is configured.
+    """
+    import os
+
+    if any(os.environ.get(var) for var in _LLM_ENV_VARS):
+        return True
+    # Check numbered fallback keys
+    for base in _PROVIDER_KEY_BASES:
+        for i in range(2, _MAX_FALLBACK_KEYS + 1):
+            if os.environ.get(f"{base}_{i}"):
+                return True
+    return False
+
+
+def get_bot_response(prompt: str, config: Optional[LLMConfig] = None) -> str:
+    """
+    Get a response from the 24/7 bot for a given prompt.
+
+    If no LLM environment variables are configured, returns a setup
+    instruction message instead of attempting an LLM call.
+
+    When multiple API keys are available (e.g. ``OPENAI_API_KEY`` and
+    ``OPENAI_API_KEY_2``) a :class:`FallbackLLMClient` is used so that
+    quota/rate-limit errors on one key automatically fall back to the next.
+
+    Args:
+        prompt: The user's input prompt.
+        config: Optional LLMConfig. If None, auto-detects from environment.
+
+    Returns:
+        Bot response string.
+    """
+    if not is_llm_configured():
+        return NO_LLM_CONFIGURED_MESSAGE
+
+    # If an explicit MOCK config is provided (e.g. from tests), use it directly
+    # without attempting real API calls.
+    if config is not None and config.provider == LLMProvider.MOCK:
+        client = create_llm_client(config)
+        messages = [{"role": "user", "content": prompt}]
+        try:
+            response = client.decide_action(messages, [], {})
+            return response.reasoning or NO_LLM_CONFIGURED_MESSAGE
+        except (LLMClientError, LLMClientRetryableError) as exc:
+            return f"LLM error: {exc}"
+
+    # For all real providers (or when config is None), always build a
+    # fallback-aware client from all available env keys so that quota /
+    # rate-limit errors on one key automatically fall back to the next.
+    # build_fallback_client uses base_config only for model/temperature/etc.
+    # settings; it discovers keys from the environment itself.
+    fallback_client = build_fallback_client(config)
+    if fallback_client is not None:
+        messages = [{"role": "user", "content": prompt}]
+        try:
+            response = fallback_client.decide_action(messages, [], {})
+            return response.reasoning or NO_LLM_CONFIGURED_MESSAGE
+        except (LLMClientError, LLMClientRetryableError) as exc:
+            return f"LLM error: {exc}"
+
+    # build_fallback_client returned None (no keys found despite is_llm_configured
+    # returning True – e.g. only OLLAMA_HOST is set but Ollama client is not yet
+    # implemented).  Fall back to the single-config path as a last resort.
+    if config is not None:
+        client = create_llm_client(config)
+        messages = [{"role": "user", "content": prompt}]
+        try:
+            response = client.decide_action(messages, [], {})
+            return response.reasoning or NO_LLM_CONFIGURED_MESSAGE
+        except (LLMClientError, LLMClientRetryableError) as exc:
+            return f"LLM error: {exc}"
+
+    return NO_LLM_CONFIGURED_MESSAGE

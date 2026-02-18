@@ -70,6 +70,12 @@ tarpaulin-report.json
 # Logs
 *.log
 
+# Environment / secrets — never commit real credentials
+.env
+.env.local
+.env.*.local
+# .env.example is intentionally tracked (safe template with no real values)
+
 # Temporary files
 *.tmp
 *.temp

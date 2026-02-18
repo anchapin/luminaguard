@@ -2,6 +2,13 @@
 
 This directory contains example scripts demonstrating LuminaGuard's agent capabilities.
 
+> **New to LuminaGuard?** The fastest way to get started is the 24/7 bot factory:
+> ```bash
+> cd agent
+> python create_bot.py --message "Hello"
+> ```
+> See [`agent/README.md`](../README.md) for the full onboarding guide.
+
 ## Examples
 
 ### MCP Client Integration
