@@ -918,25 +918,41 @@ def get_bot_response(prompt: str, config: Optional[LLMConfig] = None) -> str:
     if not is_llm_configured():
         return NO_LLM_CONFIGURED_MESSAGE
 
-    # Try to build a fallback-aware client from all available env keys.
-    # Fall back to the legacy single-config path when a specific config is
-    # provided (e.g. from BotFactory with an explicit provider override).
-    if config is None or config.provider == LLMProvider.MOCK:
-        fallback_client = build_fallback_client(config)
-        if fallback_client is not None:
-            messages = [{"role": "user", "content": prompt}]
-            try:
-                response = fallback_client.decide_action(messages, [], {})
-                return response.reasoning or NO_LLM_CONFIGURED_MESSAGE
-            except (LLMClientError, LLMClientRetryableError) as exc:
-                return f"LLM error: {exc}"
+    # If an explicit MOCK config is provided (e.g. from tests), use it directly
+    # without attempting real API calls.
+    if config is not None and config.provider == LLMProvider.MOCK:
+        client = create_llm_client(config)
+        messages = [{"role": "user", "content": prompt}]
+        try:
+            response = client.decide_action(messages, [], {})
+            return response.reasoning or NO_LLM_CONFIGURED_MESSAGE
+        except (LLMClientError, LLMClientRetryableError) as exc:
+            return f"LLM error: {exc}"
 
-    # Explicit single-provider config path (e.g. MOCK for tests, or a
-    # BotFactory override with a specific provider).
-    client = create_llm_client(config)
-    messages = [{"role": "user", "content": prompt}]
-    try:
-        response = client.decide_action(messages, [], {})
-        return response.reasoning or NO_LLM_CONFIGURED_MESSAGE
-    except (LLMClientError, LLMClientRetryableError) as exc:
-        return f"LLM error: {exc}"
+    # For all real providers (or when config is None), always build a
+    # fallback-aware client from all available env keys so that quota /
+    # rate-limit errors on one key automatically fall back to the next.
+    # build_fallback_client uses base_config only for model/temperature/etc.
+    # settings; it discovers keys from the environment itself.
+    fallback_client = build_fallback_client(config)
+    if fallback_client is not None:
+        messages = [{"role": "user", "content": prompt}]
+        try:
+            response = fallback_client.decide_action(messages, [], {})
+            return response.reasoning or NO_LLM_CONFIGURED_MESSAGE
+        except (LLMClientError, LLMClientRetryableError) as exc:
+            return f"LLM error: {exc}"
+
+    # build_fallback_client returned None (no keys found despite is_llm_configured
+    # returning True – e.g. only OLLAMA_HOST is set but Ollama client is not yet
+    # implemented).  Fall back to the single-config path as a last resort.
+    if config is not None:
+        client = create_llm_client(config)
+        messages = [{"role": "user", "content": prompt}]
+        try:
+            response = client.decide_action(messages, [], {})
+            return response.reasoning or NO_LLM_CONFIGURED_MESSAGE
+        except (LLMClientError, LLMClientRetryableError) as exc:
+            return f"LLM error: {exc}"
+
+    return NO_LLM_CONFIGURED_MESSAGE
