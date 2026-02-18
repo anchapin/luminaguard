@@ -94,6 +94,54 @@ from .state import (
     create_state_manager,
 )
 
+from .advanced_features import (
+    # Rate Limiting
+    RateLimiterAdvanced,
+    RateLimitConfig,
+    RateLimitScope,
+    RateLimitEntry,
+    # Permissions
+    PermissionManager,
+    Permission,
+    Role,
+    DEFAULT_ROLES,
+    # Cooldowns
+    CooldownManager,
+    CooldownConfig,
+    # Message Queue
+    MessageQueue,
+    QueuedMessage,
+    # Typing Indicator
+    TypingIndicatorManager,
+    # Threading
+    ThreadManager,
+    ThreadMetadata,
+    # Reactions
+    ReactionManager,
+    Reaction,
+    ReactionType,
+    # Scheduled Messages
+    ScheduledMessageManager,
+    ScheduledMessage,
+    # Audit Logging
+    AuditLogger,
+    AuditEvent,
+    AuditEventType,
+    # Circuit Breaker
+    CircuitBreaker,
+    CircuitState,
+    CircuitStats,
+    # Deduplication
+    MessageDeduplicator,
+    # Plugin System
+    PluginManager,
+    BotPlugin,
+    PluginInfo,
+    # Facade
+    AdvancedBotFeatures,
+    create_advanced_features,
+)
+
 __all__ = [
     # Health
     "HealthCheck",
@@ -165,4 +213,49 @@ __all__ = [
     "TaskQueue",
     "StateType",
     "create_state_manager",
+    # Advanced Features - Rate Limiting
+    "RateLimiterAdvanced",
+    "RateLimitConfig",
+    "RateLimitScope",
+    "RateLimitEntry",
+    # Advanced Features - Permissions
+    "PermissionManager",
+    "Permission",
+    "Role",
+    "DEFAULT_ROLES",
+    # Advanced Features - Cooldowns
+    "CooldownManager",
+    "CooldownConfig",
+    # Advanced Features - Message Queue
+    "MessageQueue",
+    "QueuedMessage",
+    # Advanced Features - Typing Indicator
+    "TypingIndicatorManager",
+    # Advanced Features - Threading
+    "ThreadManager",
+    "ThreadMetadata",
+    # Advanced Features - Reactions
+    "ReactionManager",
+    "Reaction",
+    "ReactionType",
+    # Advanced Features - Scheduled Messages
+    "ScheduledMessageManager",
+    "ScheduledMessage",
+    # Advanced Features - Audit Logging
+    "AuditLogger",
+    "AuditEvent",
+    "AuditEventType",
+    # Advanced Features - Circuit Breaker
+    "CircuitBreaker",
+    "CircuitState",
+    "CircuitStats",
+    # Advanced Features - Deduplication
+    "MessageDeduplicator",
+    # Advanced Features - Plugin System
+    "PluginManager",
+    "BotPlugin",
+    "PluginInfo",
+    # Advanced Features - Facade
+    "AdvancedBotFeatures",
+    "create_advanced_features",
 ]
