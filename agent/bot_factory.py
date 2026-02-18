@@ -91,6 +91,7 @@ from llm_client import (
     LLMProvider,
     MockLLMClient,
     NO_LLM_CONFIGURED_MESSAGE,
+    build_fallback_client,
     create_llm_client,
     get_bot_response,
     is_llm_configured,
