@@ -450,6 +450,194 @@ Return "NO_TOOL" if the task is complete or doesn't require a tool.
         ]
 
 
+class AnthropicLLMClient(LLMClient):
+    """
+    Anthropic Claude client for production use.
+
+    Requires ANTHROPIC_API_KEY environment variable.
+    """
+
+    def __init__(self, config: LLMConfig):
+        self.config = config
+        try:
+            import anthropic
+
+            self.client = anthropic.Anthropic(api_key=config.api_key)
+            self.anthropic = anthropic
+        except ImportError:
+            raise ImportError(
+                "anthropic package not installed. "
+                "Install with: pip install anthropic"
+            )
+
+    def decide_action(
+        self,
+        messages: List[Dict[str, Any]],
+        available_tools: List[str],
+        context: Dict[str, Any],
+    ) -> LLMResponse:
+        """
+        Use Anthropic API to decide next action.
+
+        Uses tool_use blocks to request structured tool selection.
+
+        Raises:
+            LLMClientRetryableError: on quota / rate-limit / overload errors so
+                that a :class:`FallbackLLMClient` can try the next key.
+            LLMClientError: on non-retryable API errors.
+        """
+        system_prompt = self._build_system_prompt(available_tools, context)
+
+        # Convert messages to Anthropic format (user/assistant only)
+        anthropic_messages = []
+        for msg in messages:
+            if msg["role"] in ["user", "assistant"]:
+                anthropic_messages.append(
+                    {"role": msg["role"], "content": msg["content"]}
+                )
+
+        if not anthropic_messages:
+            return LLMResponse(None, {}, "No messages to process", is_complete=True)
+
+        # Define tools for tool_use
+        tools = self._build_tool_definitions(available_tools)
+
+        try:
+            kwargs: Dict[str, Any] = dict(
+                model=self.config.model,
+                max_tokens=self.config.max_tokens,
+                system=system_prompt,
+                messages=anthropic_messages,
+                temperature=self.config.temperature,
+            )
+            if tools:
+                kwargs["tools"] = tools
+
+            response = self.client.messages.create(**kwargs)
+
+            # Check for tool_use blocks
+            for block in response.content:
+                if block.type == "tool_use":
+                    return LLMResponse(
+                        tool_name=block.name,
+                        arguments=block.input,
+                        reasoning=f"Selected {block.name} based on context",
+                        is_complete=False,
+                    )
+
+            # No tool call – extract text response
+            text = ""
+            for block in response.content:
+                if hasattr(block, "text"):
+                    text = block.text
+                    break
+
+            return LLMResponse(
+                None,
+                {},
+                text or "No action needed",
+                is_complete=True,
+            )
+
+        except Exception as e:
+            if _is_retryable_error(e):
+                raise LLMClientRetryableError(str(e)) from e
+            raise LLMClientError(str(e)) from e
+
+    def _build_system_prompt(
+        self, available_tools: List[str], context: Dict[str, Any]
+    ) -> str:
+        """Build system prompt for LLM."""
+        tools_str = "\n  - ".join(available_tools)
+        context_str = json.dumps(context, indent=2) if context else "{}"
+
+        return f"""You are LuminaGuard, an AI assistant that helps with tasks using tools.
+
+Available tools:
+  - {tools_str}
+
+Context:
+{context_str}
+
+Your role:
+1. Analyze the user's request
+2. Select the appropriate tool if needed
+3. Extract required arguments from the request
+4. If no tool is needed, respond with a helpful message
+
+Return a plain text response if the task is complete or doesn't require a tool.
+"""
+
+    def _build_tool_definitions(
+        self, available_tools: List[str]
+    ) -> List[Dict[str, Any]]:
+        """Build Anthropic tool definitions."""
+        all_tools = [
+            {
+                "name": "read_file",
+                "description": "Read the contents of a file",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "Path to the file to read",
+                        }
+                    },
+                    "required": ["path"],
+                },
+            },
+            {
+                "name": "write_file",
+                "description": "Write content to a file",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "Path to the file",
+                        },
+                        "content": {
+                            "type": "string",
+                            "description": "Content to write",
+                        },
+                    },
+                    "required": ["path", "content"],
+                },
+            },
+            {
+                "name": "search",
+                "description": "Search for text in files",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "query": {
+                            "type": "string",
+                            "description": "Search query",
+                        }
+                    },
+                    "required": ["query"],
+                },
+            },
+            {
+                "name": "list_directory",
+                "description": "List files in a directory",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "Directory path",
+                        }
+                    },
+                    "required": ["path"],
+                },
+            },
+        ]
+
+        return [t for t in all_tools if t["name"] in available_tools]
+
+
 class FallbackLLMClient(LLMClient):
     """
     A composite LLM client that tries multiple underlying clients in order.
@@ -535,7 +723,8 @@ def create_llm_client(config: Optional[LLMConfig] = None) -> LLMClient:
         return MockLLMClient(config)
     elif config.provider == LLMProvider.OPENAI:
         return OpenAILLMClient(config)
-    # Add other providers here as needed
+    elif config.provider == LLMProvider.ANTHROPIC:
+        return AnthropicLLMClient(config)
     else:
         raise ValueError(f"Unsupported LLM provider: {config.provider}")
 
@@ -660,9 +849,11 @@ def build_fallback_client(base_config: Optional[LLMConfig] = None) -> Optional[L
             max_tokens=base.max_tokens,
             timeout=base.timeout,
         )
-        # Anthropic client not yet implemented; skip gracefully
-        logger.debug("Anthropic client not yet implemented; skipping key.")
-        break  # remove this break when AnthropicLLMClient is added
+        try:
+            clients.append(AnthropicLLMClient(cfg))
+        except ImportError:
+            logger.warning("anthropic package not installed; skipping Anthropic keys.")
+            break
 
     # --- Ollama --------------------------------------------------------------
     ollama_host = os.environ.get("OLLAMA_HOST", "").strip()

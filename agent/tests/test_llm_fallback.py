@@ -29,6 +29,7 @@ AGENT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(AGENT_ROOT))
 
 from llm_client import (
+    AnthropicLLMClient,
     FallbackLLMClient,
     LLMClient,
     LLMClientError,
@@ -529,6 +530,197 @@ class TestOpenAILLMClientErrorClassification:
         with patch.object(client.client.chat.completions, "create", side_effect=generic_exc):
             with pytest.raises(LLMClientError):
                 client.decide_action([{"role": "user", "content": "hi"}], [], {})
+
+
+# ---------------------------------------------------------------------------
+# AnthropicLLMClient error classification
+# ---------------------------------------------------------------------------
+
+class TestAnthropicLLMClientInit:
+    """Verify AnthropicLLMClient initialises correctly."""
+
+    def _make_client(self) -> AnthropicLLMClient:
+        try:
+            return AnthropicLLMClient(
+                LLMConfig(provider=LLMProvider.ANTHROPIC, api_key="sk-ant-test")
+            )
+        except ImportError:
+            pytest.skip("anthropic package not installed")
+
+    def test_initialization(self):
+        client = self._make_client()
+        assert client.config.provider == LLMProvider.ANTHROPIC
+        assert client.config.api_key == "sk-ant-test"
+
+    def test_import_error_raised_when_package_missing(self):
+        cfg = LLMConfig(provider=LLMProvider.ANTHROPIC, api_key="sk-ant-test")
+        with patch.dict("sys.modules", {"anthropic": None}):
+            with pytest.raises(ImportError, match="anthropic package not installed"):
+                AnthropicLLMClient(cfg)
+
+
+class TestAnthropicLLMClientErrorClassification:
+    """
+    Verify that AnthropicLLMClient raises the right exception types so that
+    FallbackLLMClient can distinguish retryable from fatal errors.
+    """
+
+    def _make_client(self) -> AnthropicLLMClient:
+        try:
+            return AnthropicLLMClient(
+                LLMConfig(provider=LLMProvider.ANTHROPIC, api_key="sk-ant-test")
+            )
+        except ImportError:
+            pytest.skip("anthropic package not installed")
+
+    def test_overloaded_raises_retryable(self):
+        client = self._make_client()
+        overloaded_exc = Exception("Anthropic API overloaded, please retry")
+        with patch.object(client.client.messages, "create", side_effect=overloaded_exc):
+            with pytest.raises(LLMClientRetryableError):
+                client.decide_action([{"role": "user", "content": "hi"}], [], {})
+
+    def test_rate_limit_raises_retryable(self):
+        client = self._make_client()
+        rate_exc = Exception("rate_limit_exceeded: too many requests")
+        with patch.object(client.client.messages, "create", side_effect=rate_exc):
+            with pytest.raises(LLMClientRetryableError):
+                client.decide_action([{"role": "user", "content": "hi"}], [], {})
+
+    def test_http_429_raises_retryable(self):
+        client = self._make_client()
+        exc_429 = Exception("HTTP 429 Too Many Requests")
+        with patch.object(client.client.messages, "create", side_effect=exc_429):
+            with pytest.raises(LLMClientRetryableError):
+                client.decide_action([{"role": "user", "content": "hi"}], [], {})
+
+    def test_auth_error_raises_llm_client_error(self):
+        client = self._make_client()
+        auth_exc = Exception("Invalid API key provided")
+        with patch.object(client.client.messages, "create", side_effect=auth_exc):
+            with pytest.raises(LLMClientError):
+                client.decide_action([{"role": "user", "content": "hi"}], [], {})
+
+    def test_generic_error_raises_llm_client_error(self):
+        client = self._make_client()
+        generic_exc = Exception("Something went wrong")
+        with patch.object(client.client.messages, "create", side_effect=generic_exc):
+            with pytest.raises(LLMClientError):
+                client.decide_action([{"role": "user", "content": "hi"}], [], {})
+
+    def test_no_messages_returns_complete(self):
+        """Empty message list → graceful is_complete response without API call."""
+        client = self._make_client()
+        resp = client.decide_action([], [], {})
+        assert resp.is_complete is True
+        assert resp.tool_name is None
+
+    def test_text_response_returned_as_reasoning(self):
+        """Plain text response from Anthropic is surfaced as reasoning."""
+        client = self._make_client()
+
+        # Build a mock response with a text block
+        mock_block = MagicMock()
+        mock_block.type = "text"
+        mock_block.text = "Sure, I can help with that!"
+        mock_response = MagicMock()
+        mock_response.content = [mock_block]
+
+        with patch.object(client.client.messages, "create", return_value=mock_response):
+            resp = client.decide_action(
+                [{"role": "user", "content": "Can I give you a new name?"}], [], {}
+            )
+
+        assert resp.is_complete is True
+        assert resp.reasoning == "Sure, I can help with that!"
+
+    def test_tool_use_response_returned_correctly(self):
+        """tool_use block from Anthropic is surfaced as a tool call."""
+        client = self._make_client()
+
+        mock_block = MagicMock()
+        mock_block.type = "tool_use"
+        mock_block.name = "read_file"
+        mock_block.input = {"path": "/tmp/test.txt"}
+        mock_response = MagicMock()
+        mock_response.content = [mock_block]
+
+        with patch.object(client.client.messages, "create", return_value=mock_response):
+            resp = client.decide_action(
+                [{"role": "user", "content": "Read the file"}],
+                ["read_file"],
+                {},
+            )
+
+        assert resp.is_complete is False
+        assert resp.tool_name == "read_file"
+        assert resp.arguments == {"path": "/tmp/test.txt"}
+
+
+# ---------------------------------------------------------------------------
+# build_fallback_client – Anthropic integration
+# ---------------------------------------------------------------------------
+
+class TestBuildFallbackClientAnthropic:
+    """Tests for Anthropic key handling in build_fallback_client."""
+
+    def test_single_anthropic_key_returns_single_client(self):
+        """One Anthropic key (no OpenAI) → plain AnthropicLLMClient."""
+        env = {"ANTHROPIC_API_KEY": "sk-ant-only"}
+        with patch.dict(os.environ, env, clear=True):
+            try:
+                result = build_fallback_client()
+            except ImportError:
+                pytest.skip("anthropic package not installed")
+        assert isinstance(result, AnthropicLLMClient)
+
+    def test_openai_and_anthropic_keys_returns_fallback_client(self):
+        """OpenAI key + Anthropic key → FallbackLLMClient with both."""
+        env = {"OPENAI_API_KEY": "sk-openai", "ANTHROPIC_API_KEY": "sk-ant-1"}
+        with patch.dict(os.environ, env, clear=True):
+            try:
+                result = build_fallback_client()
+            except ImportError:
+                pytest.skip("openai or anthropic package not installed")
+        assert isinstance(result, FallbackLLMClient)
+        assert len(result.clients) == 2
+        assert isinstance(result.clients[0], OpenAILLMClient)
+        assert isinstance(result.clients[1], AnthropicLLMClient)
+
+    def test_openai_exhausted_falls_back_to_anthropic(self):
+        """
+        When OpenAI raises a retryable error, the FallbackLLMClient should
+        try the Anthropic client next.
+        """
+        openai_client = _RetryableErrorClient("openai quota exceeded")
+        anthropic_client = _SuccessClient("anthropic succeeded")
+
+        fb = FallbackLLMClient([openai_client, anthropic_client])
+        resp = fb.decide_action([{"role": "user", "content": "Hello"}], [], {})
+
+        assert resp.reasoning == "anthropic succeeded"
+        assert openai_client.call_count == 1
+        assert anthropic_client.call_count == 1
+
+    def test_anthropic_import_error_skips_gracefully(self):
+        """If anthropic package is missing, Anthropic keys are skipped."""
+        env = {"ANTHROPIC_API_KEY": "sk-ant-1"}
+        with patch.dict(os.environ, env, clear=True):
+            with patch("llm_client.AnthropicLLMClient", side_effect=ImportError("no anthropic")):
+                result = build_fallback_client()
+        assert result is None
+
+    def test_two_anthropic_keys_returns_fallback_client(self):
+        """Two Anthropic keys → FallbackLLMClient wrapping two AnthropicLLMClients."""
+        env = {"ANTHROPIC_API_KEY": "sk-ant-1", "ANTHROPIC_API_KEY_2": "sk-ant-2"}
+        with patch.dict(os.environ, env, clear=True):
+            try:
+                result = build_fallback_client()
+            except ImportError:
+                pytest.skip("anthropic package not installed")
+        assert isinstance(result, FallbackLLMClient)
+        assert len(result.clients) == 2
+        assert all(isinstance(c, AnthropicLLMClient) for c in result.clients)
 
 
 if __name__ == "__main__":
