@@ -144,7 +144,66 @@ make test-python  # Python agent tests
 
 ## Quick Start
 
-### Basic Usage
+### 🤖 Create a 24/7 Bot (Fastest Path — No VM Required)
+
+The quickest way to get started. Works immediately after installation, no Firecracker or KVM needed:
+
+```bash
+cd agent
+
+# Check your LLM setup status
+python create_bot.py --status
+
+# Send a one-shot message
+python create_bot.py --message "Hello"
+# Output: Please setup environment variables for your LLM
+
+# Start an interactive REPL
+python create_bot.py
+```
+
+**Enable AI responses** by configuring an LLM provider:
+
+```bash
+# Recommended: copy the example env file and fill in your key(s)
+cp .env.example .env
+# Edit .env and set at least one of:
+#   OPENAI_API_KEY, ANTHROPIC_API_KEY, or OLLAMA_HOST
+source .env   # or use direnv / python-dotenv
+
+# Alternatively, export directly in your shell:
+export OPENAI_API_KEY=sk-…          # OpenAI / GPT
+export ANTHROPIC_API_KEY=sk-ant-…   # Anthropic / Claude
+export OLLAMA_HOST=http://localhost:11434  # Local Ollama (free, no API key)
+```
+
+See [`.env.example`](.env.example) for the full list of supported variables.
+
+**From Python:**
+
+```python
+from bot_factory import create_bot
+
+# Zero-config — auto-detects LLM from environment
+bot = create_bot()
+print(bot.chat("Hello"))
+
+# Custom bot
+bot = create_bot(bot_name="MyBot", username="alice", use_case="monitoring")
+bot.run_repl()  # interactive REPL
+```
+
+`BotFactory` handles all setup steps automatically:
+1. Daemon configuration (sensible defaults)
+2. Persona & onboarding profile (persisted to `~/.luminaguard/bot/`)
+3. LLM client (auto-detected from env vars, falls back to mock)
+4. Message router wired to the LLM
+
+See [`agent/bot_factory.py`](agent/bot_factory.py) for the full API.
+
+---
+
+### Rust Orchestrator Usage
 
 ```bash
 # Run the agent with a task
@@ -178,11 +237,26 @@ cargo run --release -- test-mcp --command npx --args "-y" "@modelcontextprotocol
 
 ### Environment Variables
 
+Copy [`.env.example`](.env.example) to `.env` and edit it to configure LuminaGuard:
+
+```bash
+cp .env.example .env
+```
+
+Key variables:
+
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `LUMINAGUARD_APPROVAL_TIMEOUT` | 300 | Approval timeout in seconds |
-| `RUST_LOG` | info | Logging level |
-| `RUST_BACKTRACE` | 1 | Enable backtrace on panic |
+| `OPENAI_API_KEY` | _(unset)_ | OpenAI API key (enables GPT models) |
+| `ANTHROPIC_API_KEY` | _(unset)_ | Anthropic API key (enables Claude models) |
+| `OLLAMA_HOST` | _(unset)_ | Ollama server URL (e.g. `http://localhost:11434`) |
+| `LUMINAGUARD_APPROVAL_TIMEOUT` | `300` | Approval timeout in seconds |
+| `LUMINAGUARD_LOG_LEVEL` | `INFO` | Logging level |
+| `LUMINAGUARD_MODE` | `host` | Execution mode: `host` or `vm` |
+| `RUST_LOG` | `info` | Rust log verbosity |
+| `RUST_BACKTRACE` | `1` | Enable backtrace on panic |
+
+See [`.env.example`](.env.example) for the complete list with descriptions.
 
 ### VM Configuration
 

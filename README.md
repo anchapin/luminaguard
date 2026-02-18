@@ -50,9 +50,53 @@ cd luminaguard
 
 See [DEV_MODE_GUIDE.md](DEV_MODE_GUIDE.md) for full developer setup with hot-reload and debugging tools.
 
-### Basic Usage
+### 🤖 Create a 24/7 Bot (Fastest Path)
 
-#### Python Agent with MCP
+The quickest way to get a LuminaGuard bot running — no Firecracker or KVM required:
+
+```bash
+# One-shot: send a message and see the reply
+python agent/create_bot.py --message "Hello"
+
+# Interactive REPL
+python agent/create_bot.py
+
+# Check setup status
+python agent/create_bot.py --status
+```
+
+Or from Python:
+
+```python
+from bot_factory import create_bot
+
+bot = create_bot()
+print(bot.chat("Hello"))
+# → "Please setup environment variables for your LLM"
+#   (set OPENAI_API_KEY or another LLM env var to enable AI responses)
+```
+
+Set an LLM provider to enable real AI responses:
+
+```bash
+# Copy the example env file and add your key(s)
+cp .env.example .env
+# Then edit .env — set at least one of:
+#   OPENAI_API_KEY, ANTHROPIC_API_KEY, or OLLAMA_HOST
+
+# Or export directly in your shell:
+export OPENAI_API_KEY=sk-…          # OpenAI / GPT
+export ANTHROPIC_API_KEY=sk-ant-…   # Anthropic / Claude
+export OLLAMA_HOST=http://localhost:11434  # Local Ollama (free)
+```
+
+See [`.env.example`](.env.example) for the full list of configurable variables.
+
+See [agent/bot_factory.py](agent/bot_factory.py) for the full API and [agent/create_bot.py](agent/create_bot.py) for CLI options.
+
+---
+
+### Python Agent with MCP
 
 ```python
 from mcp_client import McpClient

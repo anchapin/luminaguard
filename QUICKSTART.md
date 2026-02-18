@@ -35,9 +35,62 @@ This installs:
 
 ---
 
-## 2️⃣ Quick Test (No VM)
+## 2️⃣ Create a 24/7 Bot (No VM Required)
 
-Test the agent right away without Firecracker:
+The fastest way to get a LuminaGuard bot running — works immediately after cloning, no Firecracker or KVM needed:
+
+```bash
+cd agent
+
+# Check your setup status
+python create_bot.py --status
+
+# Send a one-shot message
+python create_bot.py --message "Hello"
+
+# Start an interactive REPL
+python create_bot.py
+```
+
+**Expected output (no LLM configured yet):**
+```
+Please setup environment variables for your LLM
+```
+
+**Enable AI responses** by configuring an LLM provider:
+
+```bash
+# Recommended: copy the example env file and fill in your key(s)
+cp .env.example .env
+# Edit .env and set at least one of:
+#   OPENAI_API_KEY, ANTHROPIC_API_KEY, or OLLAMA_HOST
+source .env   # or use a tool like direnv / python-dotenv
+
+# Alternatively, export directly in your shell:
+export OPENAI_API_KEY=sk-…          # OpenAI / GPT
+export ANTHROPIC_API_KEY=sk-ant-…   # Anthropic / Claude
+export OLLAMA_HOST=http://localhost:11434  # Local Ollama (free, no key needed)
+```
+
+See [`.env.example`](.env.example) for the full list of supported variables.
+
+Then run again — the bot will use your LLM automatically.
+
+**From Python:**
+```python
+from bot_factory import create_bot
+
+bot = create_bot(bot_name="MyBot", username="alice")
+print(bot.chat("Hello"))
+```
+
+See [`agent/bot_factory.py`](agent/bot_factory.py) for the full `BotFactory` / `ReadyBot` API.
+
+---
+
+## 3️⃣ Quick Test (No VM)
+
+Test the Rust orchestrator without Firecracker:
 
 ```bash
 # Run the agent with a simple task
@@ -53,7 +106,7 @@ You should see:
 
 ---
 
-## 3️⃣ Test with MCP Tools
+## 4️⃣ Test with MCP Tools
 
 ```bash
 # Start the agent with filesystem access
@@ -64,7 +117,7 @@ This starts an MCP server and lists available tools.
 
 ---
 
-## 4️⃣ Full Workflow (Requires Firecracker + KVM)
+## 5️⃣ Full Workflow (Requires Firecracker + KVM)
 
 If you have Firecracker and KVM installed:
 
