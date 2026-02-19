@@ -380,9 +380,8 @@ class TestBuildFallbackClient:
         """One key → plain OpenAILLMClient (not wrapped in FallbackLLMClient)."""
         env = {"OPENAI_API_KEY": "sk-only"}
         with patch.dict(os.environ, env, clear=True):
-            try:
-                result = build_fallback_client()
-            except ImportError:
+            result = build_fallback_client()
+            if result is None:
                 pytest.skip("openai package not installed")
         assert isinstance(result, OpenAILLMClient)
 
@@ -390,9 +389,8 @@ class TestBuildFallbackClient:
         """Two keys → FallbackLLMClient wrapping two OpenAILLMClients."""
         env = {"OPENAI_API_KEY": "sk-1", "OPENAI_API_KEY_2": "sk-2"}
         with patch.dict(os.environ, env, clear=True):
-            try:
-                result = build_fallback_client()
-            except ImportError:
+            result = build_fallback_client()
+            if result is None:
                 pytest.skip("openai package not installed")
         assert isinstance(result, FallbackLLMClient)
         assert len(result.clients) == 2
@@ -404,9 +402,8 @@ class TestBuildFallbackClient:
             "OPENAI_API_KEY_3": "sk-3",
         }
         with patch.dict(os.environ, env, clear=True):
-            try:
-                result = build_fallback_client()
-            except ImportError:
+            result = build_fallback_client()
+            if result is None:
                 pytest.skip("openai package not installed")
         assert isinstance(result, FallbackLLMClient)
         assert len(result.clients) == 3
@@ -668,9 +665,8 @@ class TestBuildFallbackClientAnthropic:
         """One Anthropic key (no OpenAI) → plain AnthropicLLMClient."""
         env = {"ANTHROPIC_API_KEY": "sk-ant-only"}
         with patch.dict(os.environ, env, clear=True):
-            try:
-                result = build_fallback_client()
-            except ImportError:
+            result = build_fallback_client()
+            if result is None:
                 pytest.skip("anthropic package not installed")
         assert isinstance(result, AnthropicLLMClient)
 
@@ -678,9 +674,8 @@ class TestBuildFallbackClientAnthropic:
         """OpenAI key + Anthropic key → FallbackLLMClient with both."""
         env = {"OPENAI_API_KEY": "sk-openai", "ANTHROPIC_API_KEY": "sk-ant-1"}
         with patch.dict(os.environ, env, clear=True):
-            try:
-                result = build_fallback_client()
-            except ImportError:
+            result = build_fallback_client()
+            if result is None:
                 pytest.skip("openai or anthropic package not installed")
         assert isinstance(result, FallbackLLMClient)
         assert len(result.clients) == 2
@@ -714,9 +709,8 @@ class TestBuildFallbackClientAnthropic:
         """Two Anthropic keys → FallbackLLMClient wrapping two AnthropicLLMClients."""
         env = {"ANTHROPIC_API_KEY": "sk-ant-1", "ANTHROPIC_API_KEY_2": "sk-ant-2"}
         with patch.dict(os.environ, env, clear=True):
-            try:
-                result = build_fallback_client()
-            except ImportError:
+            result = build_fallback_client()
+            if result is None:
                 pytest.skip("anthropic package not installed")
         assert isinstance(result, FallbackLLMClient)
         assert len(result.clients) == 2

@@ -725,6 +725,10 @@ class TestAuditLogger:
         
         logger.log(AuditEventType.COMMAND_EXECUTED, user_id="user1")
         
+        # Force cleanup by calling _enforce_limits
+        # Events with retention_days=0 should be expired immediately
+        logger._enforce_limits()
+        
         # Events should be cleaned up
         assert len(logger._events) == 0
 

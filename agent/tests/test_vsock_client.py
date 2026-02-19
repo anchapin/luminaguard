@@ -8,11 +8,18 @@ import sys
 import os
 import json
 import struct
+import platform
 from unittest.mock import MagicMock, mock_open, patch
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from vsock_client import VsockClient, create_vm_client
+
+# Skip all tests in this module on Windows (no AF_UNIX support)
+pytestmark = pytest.mark.skipif(
+    platform.system() == "Windows",
+    reason="AF_UNIX sockets not available on Windows"
+)
 
 
 class TestVsockClient:

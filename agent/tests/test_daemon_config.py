@@ -126,16 +126,17 @@ class TestConfigLoader:
                 }
             }, f)
             f.flush()
+            f_name = f.name
+        
+        try:
+            loader = ConfigLoader(f_name)
+            config = loader.load()
             
-            try:
-                loader = ConfigLoader(f.name)
-                config = loader.load()
-                
-                assert config.name == "test-daemon"
-                assert config.port == 9000
-                assert config.execution_mode == "vm"
-            finally:
-                os.unlink(f.name)
+            assert config.name == "test-daemon"
+            assert config.port == 9000
+            assert config.execution_mode == "vm"
+        finally:
+            os.unlink(f_name)
     
     def test_load_yaml_config(self):
         """Test loading YAML configuration file"""
@@ -310,24 +311,25 @@ class TestConfigManager:
                 "port": 8000
             }, f)
             f.flush()
+            f_name = f.name
+        
+        try:
+            manager = ConfigManager(f_name)
+            original_name = manager.get("name")
             
-            try:
-                manager = ConfigManager(f.name)
-                original_name = manager.get("name")
-                
-                # Update the file
-                with open(f.name, "w") as f2:
-                    json.dump({
-                        "name": "updated",
-                        "port": 9999
-                    }, f2)
-                
-                manager.reload()
-                
-                assert manager.get("name") == "updated"
-                assert manager.get("port") == 9999
-            finally:
-                os.unlink(f.name)
+            # Update the file
+            with open(f_name, "w") as f2:
+                json.dump({
+                    "name": "updated",
+                    "port": 9999
+                }, f2)
+            
+            manager.reload()
+            
+            assert manager.get("name") == "updated"
+            assert manager.get("port") == 9999
+        finally:
+            os.unlink(f_name)
 
 
 class TestLogLevelEnum:
@@ -390,17 +392,18 @@ class TestConfigIntegration:
                 "execution_mode": "host"
             }, f)
             f.flush()
-            
-            try:
-                with patch.dict(os.environ, {
-                    "LUMINAGUARD_PORT": "9999",
-                    "LUMINAGUARD_MODE": "vm"
-                }):
-                    loader = ConfigLoader(f.name)
-                    config = loader.load()
-                    
-                    assert config.name == "env-test"
-                    assert config.port == 9999  # Overridden
-                    assert config.execution_mode == "vm"  # Overridden
-            finally:
-                os.unlink(f.name)
+            f_name = f.name
+        
+        try:
+            with patch.dict(os.environ, {
+                "LUMINAGUARD_PORT": "9999",
+                "LUMINAGUARD_MODE": "vm"
+            }):
+                loader = ConfigLoader(f_name)
+                config = loader.load()
+                
+                assert config.name == "env-test"
+                assert config.port == 9999  # Overridden
+                assert config.execution_mode == "vm"  # Overridden
+        finally:
+            os.unlink(f_name)
