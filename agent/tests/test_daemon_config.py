@@ -366,7 +366,9 @@ class TestConfigIntegration:
         with tempfile.TemporaryDirectory() as tmpdir:
             f_name = os.path.join(tmpdir, "config.json")
             with open(f_name, "w") as f:
-                json.dump({"name": "env-test", "port": 8000, "execution_mode": "host"}, f)
+                json.dump(
+                    {"name": "env-test", "port": 8000, "execution_mode": "host"}, f
+                )
 
             with patch.dict(
                 os.environ, {"LUMINAGUARD_PORT": "9999", "LUMINAGUARD_MODE": "vm"}
