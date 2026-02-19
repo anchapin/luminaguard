@@ -352,7 +352,7 @@ pub async fn start_firecracker_from_snapshot(
     }
 
     // Connect and load snapshot via Firecracker API
-    let mut client = match FirecrackerClient::new(&socket_path).await {
+    let _client = match FirecrackerClient::new(&socket_path).await {
         Ok(client) => client,
         Err(e) => {
             let _ = child.kill().await;

@@ -165,7 +165,7 @@ pub async fn present_tui_approval(diff_card: &DiffCard) -> Result<TuiResult> {
                     
                     // Show line-by-line diff
                     let diff_lines = format_file_diff(before, after);
-                    for (line_idx, diff_line) in diff_lines.iter().take(10).enumerate() {
+                    for diff_line in diff_lines.iter().take(10) {
                         if diff_line.starts_with('-') {
                             println!("     \x1b[31m{}\x1b[0m", diff_line); // Red for deletions
                         } else if diff_line.starts_with('+') {
@@ -275,16 +275,13 @@ pub async fn present_tui_approval(diff_card: &DiffCard) -> Result<TuiResult> {
 
     enable_raw_mode()?;
 
-    let mut result = TuiResult::Cancelled;  // Will be set in the loop
-
-    loop {
+    let result = loop {
         // Check timeout
         let elapsed = start_time.elapsed().as_secs();
         if elapsed >= timeout_seconds {
             warn!("Approval timeout after {} seconds", elapsed);
             println!("\n⚠️  TIMEOUT EXCEEDED - Action automatically rejected");
-            result = TuiResult::Rejected;
-            break;
+            break TuiResult::Rejected;
         }
 
         // Poll for events
@@ -293,24 +290,21 @@ pub async fn present_tui_approval(diff_card: &DiffCard) -> Result<TuiResult> {
                 match key.code {
                     KeyCode::Char('y') | KeyCode::Char('Y') => {
                         info!("User approved action: {}", diff_card.description);
-                        result = TuiResult::Approved;
-                        break;
+                        break TuiResult::Approved;
                     }
                     KeyCode::Char('n') | KeyCode::Char('N') => {
                         info!("User rejected action: {}", diff_card.description);
-                        result = TuiResult::Rejected;
-                        break;
+                        break TuiResult::Rejected;
                     }
                     KeyCode::Esc => {
                         info!("User cancelled approval: {}", diff_card.description);
-                        result = TuiResult::Cancelled;
-                        break;
+                        break TuiResult::Cancelled;
                     }
                     _ => {}
                 }
             }
         }
-    }
+    };
 
     disable_raw_mode()?;
     println!();

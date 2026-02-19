@@ -316,6 +316,7 @@ pub struct ChaosTestHarness {
     /// Rootfs path for test VMs
     rootfs_path: String,
     /// Temporary directory for test data
+    #[allow(dead_code)]
     temp_dir: PathBuf,
     /// Results storage path
     results_path: PathBuf,

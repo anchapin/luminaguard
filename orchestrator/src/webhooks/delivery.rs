@@ -118,8 +118,7 @@ impl DeliveryExecutor {
         }
 
         // Send request
-        let response_time_ms = {
-            match request.send().await {
+        match request.send().await {
                 Ok(response) => {
                     let status = response.status().as_u16();
                     let elapsed = start.elapsed().as_millis() as u64;
@@ -129,7 +128,7 @@ impl DeliveryExecutor {
                         config.id, attempt, status, elapsed
                     );
 
-                    let success = status >= 200 && status < 300;
+                    let success = (200..300).contains(&status);
                     let retry_decision = if success {
                         RetryDecision::GiveUp // Success, no retry needed
                     } else if is_retryable_status(status) {
@@ -138,13 +137,13 @@ impl DeliveryExecutor {
                         RetryDecision::GiveUp // Non-retryable error
                     };
 
-                    return DeliveryResult {
+                    DeliveryResult {
                         success,
                         status_code: Some(status),
                         response_time_ms: elapsed,
                         error: if success { None } else { Some(format!("HTTP {}", status)) },
                         retry_decision,
-                    };
+                    }
                 }
                 Err(e) => {
                     let elapsed = start.elapsed().as_millis() as u64;
@@ -157,16 +156,15 @@ impl DeliveryExecutor {
 
                     let retry_decision = calculate_retry_delay(attempt, &config.retry_config);
 
-                    return DeliveryResult {
+                    DeliveryResult {
                         success: false,
                         status_code: None,
                         response_time_ms: elapsed,
                         error: Some(error_msg),
                         retry_decision,
-                    };
+                    }
                 }
             }
-        };
     }
 }
 
@@ -192,6 +190,7 @@ fn is_retryable_status(status: u16) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::Utc;
 
     #[test]
     fn test_webhook_config_new() {

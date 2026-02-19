@@ -47,6 +47,7 @@ pub struct ResourceLimitsTestHarness {
     /// Test results
     pub results: Vec<ResourceLimitTestResult>,
     /// Output directory for reports
+    #[allow(dead_code)]
     output_dir: PathBuf,
 }
 

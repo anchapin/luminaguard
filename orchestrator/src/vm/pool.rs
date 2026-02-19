@@ -18,7 +18,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, SystemTime};
 use tokio::sync::Mutex;
 
-use crate::vm::snapshot::{create_snapshot, create_snapshot_with_api, load_snapshot, load_snapshot_with_api, SnapshotMetadata};
+use crate::vm::snapshot::{create_snapshot, load_snapshot, SnapshotMetadata};
 
 /// Default pool size
 const DEFAULT_POOL_SIZE: usize = 5;

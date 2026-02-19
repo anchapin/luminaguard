@@ -79,7 +79,7 @@ impl WebhookManager {
     /// Deliver event to a specific webhook with retries
     async fn deliver_to_webhook(&self, webhook: &WebhookConfig, event: &WebhookEvent) -> bool {
         let mut attempt = 0;
-        let max_retries = webhook.retry_config.max_retries;
+        let _max_retries = webhook.retry_config.max_retries;
 
         loop {
             debug!(

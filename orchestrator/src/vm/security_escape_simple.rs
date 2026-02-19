@@ -31,6 +31,12 @@ pub struct SecurityTestHarness {
     pub results: Vec<SecurityTestResult>,
 }
 
+impl Default for SecurityTestHarness {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SecurityTestHarness {
     /// Create a new security test harness
     pub fn new() -> Self {
@@ -264,7 +270,7 @@ impl SecurityTestHarness {
         let filter = SeccompFilter::new(crate::vm::seccomp::SeccompLevel::Basic);
         let whitelist = filter.build_whitelist();
 
-        let blocked = !whitelist.iter().any(|&s| s == "bind");
+        let blocked = !whitelist.contains(&"bind");
 
         let elapsed = start.elapsed();
 
@@ -301,7 +307,7 @@ impl SecurityTestHarness {
         let filter = SeccompFilter::new(crate::vm::seccomp::SeccompLevel::Basic);
         let whitelist = filter.build_whitelist();
 
-        let blocked = !whitelist.iter().any(|&s| s == "socket");
+        let blocked = !whitelist.contains(&"socket");
 
         let elapsed = start.elapsed();
 
@@ -338,7 +344,7 @@ impl SecurityTestHarness {
         let filter = SeccompFilter::new(crate::vm::seccomp::SeccompLevel::Basic);
         let whitelist = filter.build_whitelist();
 
-        let blocked = !whitelist.iter().any(|&s| s == "bind");
+        let blocked = !whitelist.contains(&"bind");
 
         let elapsed = start.elapsed();
 
@@ -375,7 +381,7 @@ impl SecurityTestHarness {
         let filter = SeccompFilter::new(crate::vm::seccomp::SeccompLevel::Basic);
         let whitelist = filter.build_whitelist();
 
-        let blocked = !whitelist.iter().any(|&s| s == "connect");
+        let blocked = !whitelist.contains(&"connect");
 
         let elapsed = start.elapsed();
 
@@ -469,7 +475,7 @@ impl SecurityTestHarness {
         let filter = SeccompFilter::new(crate::vm::seccomp::SeccompLevel::Basic);
         let whitelist = filter.build_whitelist();
 
-        let blocked = !whitelist.iter().any(|&s| s == "ptrace");
+        let blocked = !whitelist.contains(&"ptrace");
 
         let elapsed = start.elapsed();
 
@@ -506,7 +512,7 @@ impl SecurityTestHarness {
         let filter = SeccompFilter::new(crate::vm::seccomp::SeccompLevel::Basic);
         let whitelist = filter.build_whitelist();
 
-        let blocked = !whitelist.iter().any(|&s| s == "reboot");
+        let blocked = !whitelist.contains(&"reboot");
 
         let elapsed = start.elapsed();
 
@@ -546,7 +552,7 @@ impl SecurityTestHarness {
         let filter = SeccompFilter::new(crate::vm::seccomp::SeccompLevel::Basic);
         let whitelist = filter.build_whitelist();
 
-        let blocked = !whitelist.iter().any(|&s| s == "kexec_load");
+        let blocked = !whitelist.contains(&"kexec_load");
 
         let elapsed = start.elapsed();
 

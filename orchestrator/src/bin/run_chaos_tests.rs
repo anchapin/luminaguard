@@ -22,7 +22,7 @@ use luminaguard_orchestrator::vm::chaos::ChaosTestHarness;
 #[tokio::main]
 async fn main() -> Result<()> {
     // Initialize logging
-    let _subscriber = FmtSubscriber::builder()
+    FmtSubscriber::builder()
         .init();
 
     // Parse arguments

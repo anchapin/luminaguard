@@ -80,11 +80,10 @@ pub fn calculate_retry_delay(attempt: u32, config: &RetryConfig) -> RetryDecisio
     let delay_ms = if config.use_jitter && delay_ms > 0 {
         let jitter_percent = 0.2;
         let jitter = (delay_ms as f64 * jitter_percent) as u64;
-        let mut rng = rand::thread_rng();
-        let random_jitter = rng.gen_range(0..=jitter);
+        let random_jitter = rand::rng().random_range(0..=jitter);
         
         // 50% chance to add or subtract jitter
-        if rng.gen_bool(0.5) {
+        if rand::rng().random_bool(0.5) {
             delay_ms.saturating_add(random_jitter)
         } else {
             delay_ms.saturating_sub(random_jitter)

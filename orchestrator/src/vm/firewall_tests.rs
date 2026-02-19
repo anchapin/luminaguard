@@ -1166,6 +1166,7 @@ impl FirewallTestHarness {
         Ok(chain_count >= 2) // At least 2 VMs
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn add_test_result(
         &mut self,
         test_name: String,
