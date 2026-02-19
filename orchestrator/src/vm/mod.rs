@@ -7,10 +7,10 @@
 // - Ephemeral: VM destroyed after task completion
 // - Security: No host execution, full isolation
 
-#[cfg(unix)]
-pub mod approval_handler;
 pub mod apple_hv;
 pub mod approval_cliff_tests;
+#[cfg(unix)]
+pub mod approval_handler;
 pub mod chaos;
 pub mod config;
 #[cfg(unix)]
@@ -35,6 +35,7 @@ pub mod security_escape_simple;
 pub mod security_integration_tests;
 // pub mod security_validation;
 pub mod snapshot;
+pub mod snapshot_error;
 pub mod startup_optimizer;
 #[cfg(unix)]
 pub mod vsock;
