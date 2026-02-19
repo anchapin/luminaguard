@@ -262,6 +262,7 @@ where
 }
 
 /// Network partition test harness
+#[allow(dead_code)]
 pub struct NetworkPartitionTestHarness {
     /// Temporary directory for test data
     temp_dir: PathBuf,
@@ -411,7 +412,7 @@ impl NetworkPartitionTestHarness {
             error_message: if passed { None } else { Some("Test failed".to_string()) },
             metrics: NetworkPartitionMetrics {
                 connection_loss_time_ms: partition_duration_ms,
-                recovery_time_ms: recovery_time_ms,
+                recovery_time_ms,
                 requests_before_partition: metrics.requests_before_partition,
                 requests_after_partition: metrics.requests_after_partition,
                 queued_operations: metrics.queued_operations,
@@ -687,14 +688,14 @@ impl NetworkPartitionTestHarness {
             error_message: if passed { None } else { Some("Test failed".to_string()) },
             metrics: NetworkPartitionMetrics {
                 connection_loss_time_ms: partition_duration_ms,
-                recovery_time_ms: recovery_time_ms,
+                recovery_time_ms,
                 requests_before_partition: metrics.requests_before_partition,
                 requests_after_partition: metrics.requests_after_partition,
                 queued_operations: metrics.queued_operations,
                 cached_responses: 0,
                 successful_requests_before_recovery: 0,
                 failed_requests_during_partition: metrics.failed_requests as u32,
-                recovery_attempts: recovery_requests as u32,
+                recovery_attempts: recovery_requests,
             },
         };
 

@@ -49,6 +49,7 @@ pub struct IntegrationTestHarness {
 
 impl IntegrationTestHarness {
     /// Create a new test harness
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self {
             test_results: Vec::new(),
@@ -144,7 +145,7 @@ impl IntegrationTestHarness {
             "Attempt direct command injection into approval process".to_string(),
             "red_team_attack_simulation".to_string(),
             passed,
-            vec!["approval", "seccomp"].iter().map(|s| s.to_string()).collect(),
+            ["approval", "seccomp"].iter().map(|s| s.to_string()).collect(),
         );
     }
 
@@ -174,7 +175,7 @@ impl IntegrationTestHarness {
             "Attempt to poison environment variables to bypass controls".to_string(),
             "red_team_attack_simulation".to_string(),
             passed,
-            vec!["seccomp", "firewall"].iter().map(|s| s.to_string()).collect(),
+            ["seccomp", "firewall"].iter().map(|s| s.to_string()).collect(),
         );
     }
 
@@ -204,7 +205,7 @@ impl IntegrationTestHarness {
             "Fuzz action arguments with malicious payloads".to_string(),
             "red_team_attack_simulation".to_string(),
             passed,
-            vec!["approval"].iter().map(|s| s.to_string()).collect(),
+            ["approval"].iter().map(|s| s.to_string()).collect(),
         );
     }
 
@@ -234,7 +235,7 @@ impl IntegrationTestHarness {
             "Attempt ../ path traversal in action arguments".to_string(),
             "red_team_attack_simulation".to_string(),
             passed,
-            vec!["seccomp", "firewall"].iter().map(|s| s.to_string()).collect(),
+            ["seccomp", "firewall"].iter().map(|s| s.to_string()).collect(),
         );
     }
 
@@ -264,7 +265,7 @@ impl IntegrationTestHarness {
             "Attempt inline shellcode execution".to_string(),
             "red_team_attack_simulation".to_string(),
             passed,
-            vec!["seccomp"].iter().map(|s| s.to_string()).collect(),
+            ["seccomp"].iter().map(|s| s.to_string()).collect(),
         );
     }
 
@@ -298,7 +299,7 @@ impl IntegrationTestHarness {
             "Attempt multiple approvals simultaneously to bypass controls".to_string(),
             "multi_vector_attacks".to_string(),
             passed,
-            vec!["approval"].iter().map(|s| s.to_string()).collect(),
+            ["approval"].iter().map(|s| s.to_string()).collect(),
         );
     }
 
@@ -328,7 +329,7 @@ impl IntegrationTestHarness {
             "Attack both firewall and seccomp layers simultaneously".to_string(),
             "multi_vector_attacks".to_string(),
             passed,
-            vec!["firewall", "seccomp"].iter().map(|s| s.to_string()).collect(),
+            ["firewall", "seccomp"].iter().map(|s| s.to_string()).collect(),
         );
     }
 
@@ -358,7 +359,7 @@ impl IntegrationTestHarness {
             "Resource exhaustion + execution escape attempt".to_string(),
             "multi_vector_attacks".to_string(),
             passed,
-            vec!["resource_limits", "seccomp"]
+            ["resource_limits", "seccomp"]
                 .iter()
                 .map(|s| s.to_string())
                 .collect(),
@@ -391,7 +392,7 @@ impl IntegrationTestHarness {
             "Race condition in approval timeout mechanism".to_string(),
             "multi_vector_attacks".to_string(),
             passed,
-            vec!["approval"].iter().map(|s| s.to_string()).collect(),
+            ["approval"].iter().map(|s| s.to_string()).collect(),
         );
     }
 
@@ -421,7 +422,7 @@ impl IntegrationTestHarness {
             "One system failing doesn't compromise others".to_string(),
             "multi_vector_attacks".to_string(),
             passed,
-            vec!["firewall", "seccomp", "approval"]
+            ["firewall", "seccomp", "approval"]
                 .iter()
                 .map(|s| s.to_string())
                 .collect(),
@@ -454,7 +455,7 @@ impl IntegrationTestHarness {
             "Attempt to break out of VM and escalate privileges".to_string(),
             "multi_vector_attacks".to_string(),
             passed,
-            vec!["firewall", "seccomp"].iter().map(|s| s.to_string()).collect(),
+            ["firewall", "seccomp"].iter().map(|s| s.to_string()).collect(),
         );
     }
 
@@ -488,7 +489,7 @@ impl IntegrationTestHarness {
             "Kill VM mid-execution and verify cleanup".to_string(),
             "chaos_engineering".to_string(),
             true,
-            vec!["firewall"].iter().map(|s| s.to_string()).collect(),
+            ["firewall"].iter().map(|s| s.to_string()).collect(),
         );
     }
 
@@ -518,7 +519,7 @@ impl IntegrationTestHarness {
             "Partition network and verify recovery".to_string(),
             "chaos_engineering".to_string(),
             true,
-            vec!["firewall"].iter().map(|s| s.to_string()).collect(),
+            ["firewall"].iter().map(|s| s.to_string()).collect(),
         );
     }
 
@@ -548,7 +549,7 @@ impl IntegrationTestHarness {
             "Exhaust CPU/memory and verify limits enforced".to_string(),
             "chaos_engineering".to_string(),
             true,
-            vec!["resource_limits"].iter().map(|s| s.to_string()).collect(),
+            ["resource_limits"].iter().map(|s| s.to_string()).collect(),
         );
     }
 
@@ -578,7 +579,7 @@ impl IntegrationTestHarness {
             "Random approval server timeouts and failures".to_string(),
             "chaos_engineering".to_string(),
             true,
-            vec!["approval"].iter().map(|s| s.to_string()).collect(),
+            ["approval"].iter().map(|s| s.to_string()).collect(),
         );
     }
 
@@ -608,7 +609,7 @@ impl IntegrationTestHarness {
             "Disable firewall rules mid-operation and verify recovery".to_string(),
             "chaos_engineering".to_string(),
             true,
-            vec!["firewall"].iter().map(|s| s.to_string()).collect(),
+            ["firewall"].iter().map(|s| s.to_string()).collect(),
         );
     }
 
@@ -638,7 +639,7 @@ impl IntegrationTestHarness {
             "Multiple chaos events simultaneously".to_string(),
             "chaos_engineering".to_string(),
             true,
-            vec!["firewall", "seccomp", "approval", "resource_limits"]
+            ["firewall", "seccomp", "approval", "resource_limits"]
                 .iter()
                 .map(|s| s.to_string())
                 .collect(),
@@ -671,7 +672,7 @@ impl IntegrationTestHarness {
             "System recovers to safe state after chaos".to_string(),
             "chaos_engineering".to_string(),
             true,
-            vec!["firewall", "seccomp", "approval", "resource_limits"]
+            ["firewall", "seccomp", "approval", "resource_limits"]
                 .iter()
                 .map(|s| s.to_string())
                 .collect(),
@@ -708,7 +709,7 @@ impl IntegrationTestHarness {
             "Both firewall and seccomp block attack together".to_string(),
             "cross_layer_validation".to_string(),
             passed,
-            vec!["firewall", "seccomp"].iter().map(|s| s.to_string()).collect(),
+            ["firewall", "seccomp"].iter().map(|s| s.to_string()).collect(),
         );
     }
 
@@ -738,7 +739,7 @@ impl IntegrationTestHarness {
             "Approval decision reflected in firewall rules".to_string(),
             "cross_layer_validation".to_string(),
             passed,
-            vec!["approval", "firewall"].iter().map(|s| s.to_string()).collect(),
+            ["approval", "firewall"].iter().map(|s| s.to_string()).collect(),
         );
     }
 
@@ -768,7 +769,7 @@ impl IntegrationTestHarness {
             "Seccomp enforces approval cliff decisions".to_string(),
             "cross_layer_validation".to_string(),
             passed,
-            vec!["seccomp", "approval"].iter().map(|s| s.to_string()).collect(),
+            ["seccomp", "approval"].iter().map(|s| s.to_string()).collect(),
         );
     }
 
@@ -798,7 +799,7 @@ impl IntegrationTestHarness {
             "Resource limits and seccomp work together".to_string(),
             "cross_layer_validation".to_string(),
             passed,
-            vec!["resource_limits", "seccomp"]
+            ["resource_limits", "seccomp"]
                 .iter()
                 .map(|s| s.to_string())
                 .collect(),
@@ -831,7 +832,7 @@ impl IntegrationTestHarness {
             "Approval cliff stops destructive RED actions".to_string(),
             "cross_layer_validation".to_string(),
             passed,
-            vec!["approval"].iter().map(|s| s.to_string()).collect(),
+            ["approval"].iter().map(|s| s.to_string()).collect(),
         );
     }
 
@@ -861,7 +862,7 @@ impl IntegrationTestHarness {
             "All security layers needed to prevent escape".to_string(),
             "cross_layer_validation".to_string(),
             passed,
-            vec!["firewall", "seccomp", "approval", "resource_limits"]
+            ["firewall", "seccomp", "approval", "resource_limits"]
                 .iter()
                 .map(|s| s.to_string())
                 .collect(),
@@ -894,7 +895,7 @@ impl IntegrationTestHarness {
             "All layers logged coordinated".to_string(),
             "cross_layer_validation".to_string(),
             passed,
-            vec!["firewall", "seccomp", "approval"]
+            ["firewall", "seccomp", "approval"]
                 .iter()
                 .map(|s| s.to_string())
                 .collect(),
@@ -931,7 +932,7 @@ impl IntegrationTestHarness {
             "Failed approval attempts recorded".to_string(),
             "attack_detection_logging".to_string(),
             true,
-            vec!["approval"].iter().map(|s| s.to_string()).collect(),
+            ["approval"].iter().map(|s| s.to_string()).collect(),
         );
     }
 
@@ -961,7 +962,7 @@ impl IntegrationTestHarness {
             "Suspicious patterns detected".to_string(),
             "attack_detection_logging".to_string(),
             true,
-            vec!["firewall", "seccomp", "approval"]
+            ["firewall", "seccomp", "approval"]
                 .iter()
                 .map(|s| s.to_string())
                 .collect(),
@@ -994,7 +995,7 @@ impl IntegrationTestHarness {
             "Logs can't be tampered with".to_string(),
             "attack_detection_logging".to_string(),
             true,
-            vec!["approval"].iter().map(|s| s.to_string()).collect(),
+            ["approval"].iter().map(|s| s.to_string()).collect(),
         );
     }
 
@@ -1024,7 +1025,7 @@ impl IntegrationTestHarness {
             "Can replay attack sequence from logs".to_string(),
             "attack_detection_logging".to_string(),
             true,
-            vec!["firewall", "seccomp", "approval"]
+            ["firewall", "seccomp", "approval"]
                 .iter()
                 .map(|s| s.to_string())
                 .collect(),
@@ -1057,7 +1058,7 @@ impl IntegrationTestHarness {
             "Related events linked together".to_string(),
             "attack_detection_logging".to_string(),
             true,
-            vec!["firewall", "seccomp", "approval"]
+            ["firewall", "seccomp", "approval"]
                 .iter()
                 .map(|s| s.to_string())
                 .collect(),
@@ -1094,7 +1095,7 @@ impl IntegrationTestHarness {
             "System degrades safely under attack".to_string(),
             "system_resilience".to_string(),
             true,
-            vec!["firewall", "seccomp", "approval"]
+            ["firewall", "seccomp", "approval"]
                 .iter()
                 .map(|s| s.to_string())
                 .collect(),
@@ -1127,7 +1128,7 @@ impl IntegrationTestHarness {
             "Blocking attack doesn't break legitimate use".to_string(),
             "system_resilience".to_string(),
             true,
-            vec!["firewall", "seccomp", "approval"]
+            ["firewall", "seccomp", "approval"]
                 .iter()
                 .map(|s| s.to_string())
                 .collect(),
@@ -1160,7 +1161,7 @@ impl IntegrationTestHarness {
             "System recovers quickly after attack".to_string(),
             "system_resilience".to_string(),
             true,
-            vec!["firewall", "seccomp", "approval"]
+            ["firewall", "seccomp", "approval"]
                 .iter()
                 .map(|s| s.to_string())
                 .collect(),
@@ -1193,7 +1194,7 @@ impl IntegrationTestHarness {
             "State remains consistent after attacks".to_string(),
             "system_resilience".to_string(),
             true,
-            vec!["firewall", "seccomp", "approval", "resource_limits"]
+            ["firewall", "seccomp", "approval", "resource_limits"]
                 .iter()
                 .map(|s| s.to_string())
                 .collect(),
@@ -1226,7 +1227,7 @@ impl IntegrationTestHarness {
             "Performance acceptable under attack load".to_string(),
             "system_resilience".to_string(),
             true,
-            vec!["firewall", "seccomp", "approval"]
+            ["firewall", "seccomp", "approval"]
                 .iter()
                 .map(|s| s.to_string())
                 .collect(),
@@ -1565,7 +1566,7 @@ impl IntegrationTestHarness {
         let whitelist = filter.build_whitelist();
         
         // Shellcode execution typically attempts these syscalls
-        let shellcode_syscalls = [
+        let _shellcode_syscalls = [
             "execve",       // Execute program
             "execveat",     // Execute program (extended)
             "fork",         // Fork process
@@ -1935,7 +1936,7 @@ impl IntegrationTestHarness {
         
         // These should be allowed (needed for timeout functionality)
         // but we verify they're not used maliciously via audit
-        let audit_whitelist = filter.get_audit_whitelist();
+        let _audit_whitelist = filter.get_audit_whitelist();
         
         for syscall in &timing_syscalls {
             // These should be in whitelist for basic operation
@@ -3145,10 +3146,10 @@ impl IntegrationTestHarness {
         }
         
         // Verify syscalls that could tamper with logs are blocked
-        let whitelist = filter.build_whitelist();
+        let _whitelist = filter.build_whitelist();
         
         // Syscalls that could potentially tamper with logs
-        let log_tamper_syscalls = [
+        let _log_tamper_syscalls = [
             "chmod",   // Could change log permissions
             "fchmod",  // Could change log file permissions
             "chown",   // Could change log ownership
@@ -3426,6 +3427,7 @@ impl IntegrationTestHarness {
     // Report Generation
     // ============================================================================
 
+    #[allow(clippy::too_many_arguments)]
     fn add_test_result(
         &mut self,
         test_name: String,

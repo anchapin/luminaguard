@@ -20,9 +20,6 @@ use tokio::sync::Mutex;
 
 use crate::vm::snapshot::{create_snapshot, load_snapshot, SnapshotMetadata};
 
-#[cfg(unix)]
-use crate::vm::snapshot::{create_snapshot_with_api, load_snapshot_with_api};
-
 /// Default pool size
 const DEFAULT_POOL_SIZE: usize = 5;
 

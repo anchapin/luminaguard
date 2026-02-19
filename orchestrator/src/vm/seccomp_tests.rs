@@ -52,6 +52,7 @@ pub struct SeccompTestHarness {
 
 impl SeccompTestHarness {
     /// Create a new test harness
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self {
             test_results: Vec::new(),
@@ -143,7 +144,7 @@ impl SeccompTestHarness {
             "Verify basic filter level allows essential syscalls".to_string(),
             "syscall_filtering".to_string(),
             "Basic".to_string(),
-            vec!["read", "write", "open", "close"]
+            ["read", "write", "open", "close"]
                 .iter()
                 .map(|s| s.to_string())
                 .collect(),
@@ -177,7 +178,7 @@ impl SeccompTestHarness {
             "Verify read, write, exit, mmap, brk are allowed".to_string(),
             "syscall_filtering".to_string(),
             "Basic".to_string(),
-            vec!["read", "write", "exit", "mmap", "brk"]
+            ["read", "write", "exit", "mmap", "brk"]
                 .iter()
                 .map(|s| s.to_string())
                 .collect(),
@@ -211,7 +212,7 @@ impl SeccompTestHarness {
             "Verify socket, clone, execve, mount are blocked at basic level".to_string(),
             "syscall_filtering".to_string(),
             "Basic".to_string(),
-            vec!["socket", "clone", "execve", "mount"]
+            ["socket", "clone", "execve", "mount"]
                 .iter()
                 .map(|s| s.to_string())
                 .collect(),
@@ -245,7 +246,7 @@ impl SeccompTestHarness {
             "Verify read, write, readv, writev syscalls are allowed".to_string(),
             "syscall_filtering".to_string(),
             "Basic".to_string(),
-            vec!["read", "write", "readv", "writev", "pread64", "pwrite64"]
+            ["read", "write", "readv", "writev", "pread64", "pwrite64"]
                 .iter()
                 .map(|s| s.to_string())
                 .collect(),
@@ -279,7 +280,7 @@ impl SeccompTestHarness {
             "Verify mmap, munmap, mprotect, brk are allowed".to_string(),
             "syscall_filtering".to_string(),
             "Basic".to_string(),
-            vec!["mmap", "munmap", "mprotect", "brk"]
+            ["mmap", "munmap", "mprotect", "brk"]
                 .iter()
                 .map(|s| s.to_string())
                 .collect(),
@@ -317,7 +318,7 @@ impl SeccompTestHarness {
             "Verify minimal filter level allows only 13 syscalls".to_string(),
             "filter_levels".to_string(),
             "Minimal".to_string(),
-            vec!["read", "write", "exit", "mmap", "brk", "fstat"]
+            ["read", "write", "exit", "mmap", "brk", "fstat"]
                 .iter()
                 .map(|s| s.to_string())
                 .collect(),
@@ -351,7 +352,7 @@ impl SeccompTestHarness {
             "Verify basic filter level allows 40+ syscalls".to_string(),
             "filter_levels".to_string(),
             "Basic".to_string(),
-            vec!["open", "openat", "access", "epoll_wait", "pipe"]
+            ["open", "openat", "access", "epoll_wait", "pipe"]
                 .iter()
                 .map(|s| s.to_string())
                 .collect(),
@@ -385,7 +386,7 @@ impl SeccompTestHarness {
             "Verify permissive filter level allows 100+ syscalls (testing only)".to_string(),
             "filter_levels".to_string(),
             "Permissive".to_string(),
-            vec!["socket", "connect", "bind"]
+            ["socket", "connect", "bind"]
                 .iter()
                 .map(|s| s.to_string())
                 .collect(),
@@ -419,7 +420,7 @@ impl SeccompTestHarness {
             "Verify Minimal < Basic < Permissive (syscall counts)".to_string(),
             "filter_levels".to_string(),
             "All".to_string(),
-            vec!["Minimal", "Basic", "Permissive"]
+            ["Minimal", "Basic", "Permissive"]
                 .iter()
                 .map(|s| s.to_string())
                 .collect(),
@@ -453,7 +454,7 @@ impl SeccompTestHarness {
             "Verify filters can transition from one level to another".to_string(),
             "filter_levels".to_string(),
             "All".to_string(),
-            vec!["transition", "level", "change"]
+            ["transition", "level", "change"]
                 .iter()
                 .map(|s| s.to_string())
                 .collect(),
@@ -491,7 +492,7 @@ impl SeccompTestHarness {
             "Verify socket, bind, listen, connect are blocked".to_string(),
             "dangerous_blocking".to_string(),
             "Basic".to_string(),
-            vec!["socket", "bind", "listen", "connect"]
+            ["socket", "bind", "listen", "connect"]
                 .iter()
                 .map(|s| s.to_string())
                 .collect(),
@@ -525,7 +526,7 @@ impl SeccompTestHarness {
             "Verify clone, fork, vfork are blocked".to_string(),
             "dangerous_blocking".to_string(),
             "Basic".to_string(),
-            vec!["clone", "fork", "vfork"]
+            ["clone", "fork", "vfork"]
                 .iter()
                 .map(|s| s.to_string())
                 .collect(),
@@ -559,7 +560,7 @@ impl SeccompTestHarness {
             "Verify setuid, setgid, setreuid are blocked".to_string(),
             "dangerous_blocking".to_string(),
             "Basic".to_string(),
-            vec!["setuid", "setgid", "setreuid", "setregid"]
+            ["setuid", "setgid", "setreuid", "setregid"]
                 .iter()
                 .map(|s| s.to_string())
                 .collect(),
@@ -593,7 +594,7 @@ impl SeccompTestHarness {
             "Verify mount, umount, pivot_root, chroot are blocked".to_string(),
             "dangerous_blocking".to_string(),
             "Basic".to_string(),
-            vec!["mount", "umount", "pivot_root", "chroot"]
+            ["mount", "umount", "pivot_root", "chroot"]
                 .iter()
                 .map(|s| s.to_string())
                 .collect(),
@@ -627,7 +628,7 @@ impl SeccompTestHarness {
             "Verify reboot, ptrace, kexec_load, seccomp are blocked".to_string(),
             "dangerous_blocking".to_string(),
             "Basic".to_string(),
-            vec!["reboot", "ptrace", "kexec_load", "seccomp"]
+            ["reboot", "ptrace", "kexec_load", "seccomp"]
                 .iter()
                 .map(|s| s.to_string())
                 .collect(),
@@ -664,7 +665,7 @@ impl SeccompTestHarness {
             "Verify read, write, readv, writev are allowed at basic level".to_string(),
             "allowed_syscalls".to_string(),
             "Basic".to_string(),
-            vec!["read", "write", "readv", "writev"]
+            ["read", "write", "readv", "writev"]
                 .iter()
                 .map(|s| s.to_string())
                 .collect(),
@@ -697,7 +698,7 @@ impl SeccompTestHarness {
             "Verify rt_sigreturn, rt_sigprocmask are allowed".to_string(),
             "allowed_syscalls".to_string(),
             "Basic".to_string(),
-            vec!["rt_sigreturn", "rt_sigprocmask", "sigaltstack"]
+            ["rt_sigreturn", "rt_sigprocmask", "sigaltstack"]
                 .iter()
                 .map(|s| s.to_string())
                 .collect(),
@@ -730,7 +731,7 @@ impl SeccompTestHarness {
             "Verify clock_gettime, gettimeofday are allowed".to_string(),
             "allowed_syscalls".to_string(),
             "Basic".to_string(),
-            vec!["clock_gettime", "gettimeofday"]
+            ["clock_gettime", "gettimeofday"]
                 .iter()
                 .map(|s| s.to_string())
                 .collect(),
@@ -763,7 +764,7 @@ impl SeccompTestHarness {
             "Verify getpid, gettid, getppid are allowed".to_string(),
             "allowed_syscalls".to_string(),
             "Basic".to_string(),
-            vec!["getpid", "gettid", "getppid"]
+            ["getpid", "gettid", "getppid"]
                 .iter()
                 .map(|s| s.to_string())
                 .collect(),
@@ -796,7 +797,7 @@ impl SeccompTestHarness {
             "Verify sched_yield, sched_getaffinity are allowed".to_string(),
             "allowed_syscalls".to_string(),
             "Basic".to_string(),
-            vec!["sched_yield", "sched_getaffinity"]
+            ["sched_yield", "sched_getaffinity"]
                 .iter()
                 .map(|s| s.to_string())
                 .collect(),
@@ -837,7 +838,7 @@ impl SeccompTestHarness {
             "Verify seccomp filter application is fast (< 10ms)".to_string(),
             "performance".to_string(),
             "Basic".to_string(),
-            vec!["filter_load", "performance"]
+            ["filter_load", "performance"]
                 .iter()
                 .map(|s| s.to_string())
                 .collect(),
@@ -874,7 +875,7 @@ impl SeccompTestHarness {
             "Verify allowed syscalls have minimal overhead (< 5%)".to_string(),
             "performance".to_string(),
             "Basic".to_string(),
-            vec!["overhead", "syscall_latency"]
+            ["overhead", "syscall_latency"]
                 .iter()
                 .map(|s| s.to_string())
                 .collect(),
@@ -911,7 +912,7 @@ impl SeccompTestHarness {
             "Verify blocked syscalls are rejected quickly (< 1ms)".to_string(),
             "performance".to_string(),
             "Basic".to_string(),
-            vec!["rejection", "latency"]
+            ["rejection", "latency"]
                 .iter()
                 .map(|s| s.to_string())
                 .collect(),
@@ -948,7 +949,7 @@ impl SeccompTestHarness {
             "Verify filter caching provides 1.5x+ speedup".to_string(),
             "performance".to_string(),
             "Basic".to_string(),
-            vec!["caching", "optimization"]
+            ["caching", "optimization"]
                 .iter()
                 .map(|s| s.to_string())
                 .collect(),
@@ -982,7 +983,7 @@ impl SeccompTestHarness {
             "Verify 5 concurrent VMs with different filters are isolated".to_string(),
             "performance".to_string(),
             "Basic".to_string(),
-            vec!["concurrent", "isolation"]
+            ["concurrent", "isolation"]
                 .iter()
                 .map(|s| s.to_string())
                 .collect(),
@@ -1019,7 +1020,7 @@ impl SeccompTestHarness {
             "Verify audit logging is enabled by default".to_string(),
             "audit_logging".to_string(),
             "Basic".to_string(),
-            vec!["logging", "audit"]
+            ["logging", "audit"]
                 .iter()
                 .map(|s| s.to_string())
                 .collect(),
@@ -1052,7 +1053,7 @@ impl SeccompTestHarness {
             "Verify blocked syscalls are logged".to_string(),
             "audit_logging".to_string(),
             "Basic".to_string(),
-            vec!["socket", "execve", "mount"]
+            ["socket", "execve", "mount"]
                 .iter()
                 .map(|s| s.to_string())
                 .collect(),
@@ -1085,7 +1086,7 @@ impl SeccompTestHarness {
             "Verify only whitelisted syscalls are audited".to_string(),
             "audit_logging".to_string(),
             "Basic".to_string(),
-            vec!["execve", "mount", "chown"]
+            ["execve", "mount", "chown"]
                 .iter()
                 .map(|s| s.to_string())
                 .collect(),
@@ -1118,7 +1119,7 @@ impl SeccompTestHarness {
             "Verify audit logs rotate when limit exceeded (10k entries)".to_string(),
             "audit_logging".to_string(),
             "Basic".to_string(),
-            vec!["rotation", "memory_limit"]
+            ["rotation", "memory_limit"]
                 .iter()
                 .map(|s| s.to_string())
                 .collect(),
@@ -1151,7 +1152,7 @@ impl SeccompTestHarness {
             "Verify security-sensitive syscalls are audited".to_string(),
             "audit_logging".to_string(),
             "Basic".to_string(),
-            vec!["execve", "fork", "ptrace", "setuid"]
+            ["execve", "fork", "ptrace", "setuid"]
                 .iter()
                 .map(|s| s.to_string())
                 .collect(),
@@ -1289,6 +1290,7 @@ impl SeccompTestHarness {
     // Report Generation
     // ============================================================================
 
+    #[allow(clippy::too_many_arguments)]
     fn add_test_result(
         &mut self,
         test_name: String,

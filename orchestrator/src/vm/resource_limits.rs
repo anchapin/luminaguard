@@ -43,6 +43,7 @@ pub struct ResourceLimitTestResult {
 }
 
 /// Resource limits test harness
+#[allow(dead_code)]
 pub struct ResourceLimitsTestHarness {
     /// Test results
     pub results: Vec<ResourceLimitTestResult>,

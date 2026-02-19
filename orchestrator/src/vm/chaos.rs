@@ -310,6 +310,7 @@ impl MemoryPressureSimulator {
 }
 
 /// Chaos engineering test harness
+#[allow(dead_code)]
 pub struct ChaosTestHarness {
     /// Kernel path for test VMs
     kernel_path: String,

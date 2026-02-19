@@ -165,7 +165,7 @@ pub async fn present_tui_approval(diff_card: &DiffCard) -> Result<TuiResult> {
                     
                     // Show line-by-line diff
                     let diff_lines = format_file_diff(before, after);
-                    for (line_idx, diff_line) in diff_lines.iter().take(10).enumerate() {
+                    for diff_line in diff_lines.iter().take(10) {
                         if diff_line.starts_with('-') {
                             println!("     \x1b[31m{}\x1b[0m", diff_line); // Red for deletions
                         } else if diff_line.starts_with('+') {
@@ -275,7 +275,7 @@ pub async fn present_tui_approval(diff_card: &DiffCard) -> Result<TuiResult> {
 
     enable_raw_mode()?;
 
-    let mut result = TuiResult::Cancelled;  // Will be set in the loop
+    let result;
 
     loop {
         // Check timeout

@@ -21,7 +21,7 @@ use luminaguard_orchestrator::vm::security_integration_tests::IntegrationTestHar
 #[tokio::main]
 async fn main() -> Result<()> {
     // Initialize logging
-    let _subscriber = FmtSubscriber::builder()
+    FmtSubscriber::builder()
         .init();
 
     // Parse arguments
