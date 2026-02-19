@@ -171,9 +171,12 @@ class OnboardingFlow:
         username = input("Enter your username: ").strip()
         email = input("Enter your email (optional): ").strip() or None
         use_case = input("What is your primary use case? ").strip()
-        expertise = input(
-            "What is your expertise level? (novice/intermediate/expert) [intermediate]: "
-        ).strip() or "intermediate"
+        expertise = (
+            input(
+                "What is your expertise level? (novice/intermediate/expert) [intermediate]: "
+            ).strip()
+            or "intermediate"
+        )
 
         # Create onboarding profile
         profile = OnboardingProfile(
@@ -201,7 +204,9 @@ class OnboardingFlow:
         logger.info(f"Onboarding completed for {username}")
         return profile, persona
 
-    def prime_context(self, profile: OnboardingProfile, persona: PersonaConfig) -> Dict[str, Any]:
+    def prime_context(
+        self, profile: OnboardingProfile, persona: PersonaConfig
+    ) -> Dict[str, Any]:
         """Prime initial context from profile and persona.
 
         Args:

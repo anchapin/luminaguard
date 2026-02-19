@@ -39,6 +39,7 @@ METRICS_DIR.mkdir(parents=True, exist_ok=True)
 @dataclass
 class ToolPerformance:
     """Performance metrics for a single tool execution"""
+
     tool_name: str
     median_ms: float
     p95_ms: float
@@ -51,6 +52,7 @@ class ToolPerformance:
 @dataclass
 class AgentLoopMetrics:
     """Performance metrics for agent loop"""
+
     timestamp: str
     iterations: int
     iteration_time: ToolPerformance
@@ -62,6 +64,7 @@ class AgentLoopMetrics:
 @dataclass
 class SpawnTimeMetrics:
     """VM spawn time metrics"""
+
     median_ms: float
     p95_ms: float
     p99_ms: float
@@ -74,6 +77,7 @@ class SpawnTimeMetrics:
 @dataclass
 class ComprehensiveMetrics:
     """Comprehensive performance metrics"""
+
     timestamp: str
     spawn_time: SpawnTimeMetrics
     memory_mb: float
@@ -81,7 +85,9 @@ class ComprehensiveMetrics:
     network_latency_ms: float
 
 
-def calculate_stats(values: List[float]) -> Tuple[float, float, float, float, float, float]:
+def calculate_stats(
+    values: List[float],
+) -> Tuple[float, float, float, float, float, float]:
     """Calculate statistics from a list of values.
 
     Returns:
@@ -175,9 +181,13 @@ def benchmark_tool_execution(tool_name: str, iterations: int = 100) -> ToolPerfo
         execution_times.append((end - start) * 1000)  # Convert to ms
 
         if (i + 1) % 20 == 0:
-            print(f"  Progress: {i + 1}/{iterations} (last: {execution_times[-1]:.2f}ms)")
+            print(
+                f"  Progress: {i + 1}/{iterations} (last: {execution_times[-1]:.2f}ms)"
+            )
 
-    min_ms, max_ms, median_ms, p95_ms, p99_ms, std_dev_ms = calculate_stats(execution_times)
+    min_ms, max_ms, median_ms, p95_ms, p99_ms, std_dev_ms = calculate_stats(
+        execution_times
+    )
 
     print(f"  Median:   {median_ms:.2f}ms")
     print(f"  P95:      {p95_ms:.2f}ms")
@@ -228,7 +238,9 @@ def benchmark_agent_loop(iterations: int = 100) -> ToolPerformance:
         if (i + 1) % 20 == 0:
             print(f"  Progress: {i + 1}/{iterations}")
 
-    min_ms, max_ms, median_ms, p95_ms, p99_ms, std_dev_ms = calculate_stats(iteration_times)
+    min_ms, max_ms, median_ms, p95_ms, p99_ms, std_dev_ms = calculate_stats(
+        iteration_times
+    )
 
     print(f"  Median:   {median_ms:.2f}ms")
     print(f"  P95:      {p95_ms:.2f}ms")
@@ -349,13 +361,16 @@ def benchmark_memory(iterations: int = 100):
     print()
 
     # Save metrics
-    save_metrics("agent_memory", {
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "median_mb": median_mb,
-        "p95_mb": p95_mb,
-        "peak_mb": max_mb,
-        "meets_target": median_mb < 200
-    })
+    save_metrics(
+        "agent_memory",
+        {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "median_mb": median_mb,
+            "p95_mb": p95_mb,
+            "peak_mb": max_mb,
+            "meets_target": median_mb < 200,
+        },
+    )
 
 
 def benchmark_cpu(iterations: int = 100):
@@ -390,15 +405,19 @@ def benchmark_cpu(iterations: int = 100):
     print()
 
     # Save metrics
-    save_metrics("agent_cpu", {
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "avg_percent": avg_cpu,
-        "peak_percent": max_cpu,
-        "meets_target": avg_cpu < 50
-    })
+    save_metrics(
+        "agent_cpu",
+        {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "avg_percent": avg_cpu,
+            "peak_percent": max_cpu,
+            "meets_target": avg_cpu < 50,
+        },
+    )
 
 
 # pytest test functions
+
 
 def test_agent_comprehensive():
     """Test comprehensive agent performance baseline."""

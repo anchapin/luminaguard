@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
 
 class JobStatus(Enum):
     """Job execution status."""
+
     PENDING = "pending"
     RUNNING = "running"
     COMPLETED = "completed"
@@ -37,13 +38,15 @@ class JobStatus(Enum):
 
 class JobType(Enum):
     """Job type."""
+
     RECURRING = "recurring"  # Cron-based recurring job
-    ONE_TIME = "one_time"   # Single execution job
+    ONE_TIME = "one_time"  # Single execution job
 
 
 @dataclass
 class JobConfig:
     """Configuration for job scheduler."""
+
     # Path to persist jobs (default: ~/.luminaguard/jobs.json)
     persistence_path: str = "~/.luminaguard/jobs.json"
     # Default timeout for job execution in seconds (default: 300)
@@ -57,6 +60,7 @@ class JobConfig:
 @dataclass
 class Job:
     """Job definition."""
+
     id: str
     name: str
     # Cron expression for recurring jobs, or ISO timestamp for one-time
@@ -147,6 +151,7 @@ class Job:
 @dataclass
 class JobExecution:
     """Job execution record."""
+
     job_id: str
     start_time: float
     end_time: Optional[float] = None
@@ -169,7 +174,7 @@ class JobExecution:
 class JobScheduler:
     """
     Cron job scheduler for LuminaGuard daemon.
-    
+
     Provides:
     - Cron expression parsing and job scheduling
     - One-time and recurring job support
@@ -185,7 +190,7 @@ class JobScheduler:
     ):
         """
         Initialize job scheduler.
-        
+
         Args:
             config: Job scheduler configuration
             handlers: Dictionary of handler functions by name
@@ -198,10 +203,12 @@ class JobScheduler:
         self._execution_history: List[JobExecution] = []
         self._max_history = 100  # Keep last 100 executions
 
-    def register_handler(self, name: str, handler: Callable[..., Awaitable[Any]]) -> None:
+    def register_handler(
+        self, name: str, handler: Callable[..., Awaitable[Any]]
+    ) -> None:
         """
         Register a job handler.
-        
+
         Args:
             name: Handler name (used in job definitions)
             handler: Async callable to execute
@@ -212,7 +219,7 @@ class JobScheduler:
     def add_job(self, job: Job) -> None:
         """
         Add a job to the scheduler.
-        
+
         Args:
             job: Job to add
         """
@@ -220,7 +227,7 @@ class JobScheduler:
         job.next_run = job.calculate_next_run()
         self.jobs[job.id] = job
         logger.info(f"Added job: {job.name} (id={job.id}, next_run={job.next_run})")
-        
+
         # Persist jobs
         if self.config.persistence_enabled:
             self._persist_jobs()
@@ -228,24 +235,24 @@ class JobScheduler:
     def remove_job(self, job_id: str) -> bool:
         """
         Remove a job from the scheduler.
-        
+
         Args:
             job_id: ID of job to remove
-            
+
         Returns:
             True if job was removed, False if not found
         """
         if job_id in self.jobs:
             job = self.jobs[job_id]
-            
+
             # Cancel running task if any
             if job_id in self._tasks:
                 self._tasks[job_id].cancel()
                 del self._tasks[job_id]
-            
+
             del self.jobs[job_id]
             logger.info(f"Removed job: {job.name} (id={job_id})")
-            
+
             # Persist jobs
             if self.config.persistence_enabled:
                 self._persist_jobs()
@@ -265,13 +272,15 @@ class JobScheduler:
         upcoming = []
         for job in self.jobs.values():
             if job.enabled and job.next_run:
-                upcoming.append({
-                    "id": job.id,
-                    "name": job.name,
-                    "next_run": job.next_run,
-                    "schedule": job.schedule,
-                })
-        
+                upcoming.append(
+                    {
+                        "id": job.id,
+                        "name": job.name,
+                        "next_run": job.next_run,
+                        "schedule": job.schedule,
+                    }
+                )
+
         # Sort by next_run
         upcoming.sort(key=lambda x: x["next_run"])
         return upcoming[:limit]
@@ -284,14 +293,14 @@ class JobScheduler:
 
         logger.info("Starting job scheduler")
         self._running = True
-        
+
         # Load persisted jobs
         if self.config.persistence_enabled:
             self._load_jobs()
-        
+
         # Start scheduling loop
         asyncio.create_task(self._scheduler_loop())
-        
+
         logger.info(f"Job scheduler started with {len(self.jobs)} jobs")
 
     async def stop(self) -> None:
@@ -301,46 +310,46 @@ class JobScheduler:
 
         logger.info("Stopping job scheduler")
         self._running = False
-        
+
         # Cancel all running tasks
         for task in self._tasks.values():
             task.cancel()
-        
+
         # Wait for tasks to complete
         if self._tasks:
             await asyncio.gather(*self._tasks.values(), return_exceptions=True)
-        
+
         self._tasks.clear()
-        
+
         # Persist jobs before stopping
         if self.config.persistence_enabled:
             self._persist_jobs()
-        
+
         logger.info("Job scheduler stopped")
 
     async def _scheduler_loop(self) -> None:
         """Main scheduler loop."""
         check_interval = 1  # Check every second
-        
+
         while self._running:
             try:
                 await asyncio.sleep(check_interval)
-                
+
                 current_time = time.time()
-                
+
                 # Check each enabled job
                 for job in self.jobs.values():
                     if not job.enabled:
                         continue
-                    
+
                     # Skip if job is currently running
                     if job.id in self._tasks:
                         continue
-                    
+
                     # Skip if max concurrent jobs reached
                     if len(self._tasks) >= self.config.max_concurrent:
                         break
-                    
+
                     # Check if it's time to run
                     if job.next_run and current_time >= job.next_run:
                         # Run the job
@@ -355,7 +364,7 @@ class JobScheduler:
         """Run a job."""
         job_id = job.id
         logger.info(f"Starting job: {job.name} (id={job_id})")
-        
+
         # Create execution record
         execution = JobExecution(
             job_id=job_id,
@@ -363,36 +372,36 @@ class JobScheduler:
             status=JobStatus.RUNNING,
         )
         self._execution_history.append(execution)
-        
+
         # Trim history if needed
         if len(self._execution_history) > self._max_history:
-            self._execution_history = self._execution_history[-self._max_history:]
-        
+            self._execution_history = self._execution_history[-self._max_history :]
+
         try:
             # Get handler
             handler = self.handlers.get(job.handler)
             if not handler:
                 raise ValueError(f"Handler '{job.handler}' not found")
-            
+
             # Get timeout
             timeout = job.timeout or self.config.default_timeout
-            
+
             # Run handler with timeout
             result = await asyncio.wait_for(
                 handler(*job.args, **job.kwargs),
                 timeout=timeout,
             )
-            
+
             # Record success
             execution.end_time = time.time()
             execution.status = JobStatus.COMPLETED
             execution.result = json.dumps(result) if result else None
-            
+
             job.last_run = time.time()
             job.run_count += 1
             job.failure_count = 0
             job.last_result = execution.result
-            
+
             logger.info(
                 f"Job completed: {job.name} (id={job_id}) "
                 f"in {execution.end_time - execution.start_time:.2f}s"
@@ -402,7 +411,7 @@ class JobScheduler:
             execution.end_time = time.time()
             execution.status = JobStatus.FAILED
             execution.error = f"Job timed out after {timeout}s"
-            
+
             job.failure_count += 1
             logger.error(f"Job timed out: {job.name} (id={job_id})")
 
@@ -410,7 +419,7 @@ class JobScheduler:
             execution.end_time = time.time()
             execution.status = JobStatus.FAILED
             execution.error = str(e)
-            
+
             job.failure_count += 1
             logger.error(f"Job failed: {job.name} (id={job_id}): {e}")
 
@@ -418,7 +427,7 @@ class JobScheduler:
             # Remove from running tasks
             if job_id in self._tasks:
                 del self._tasks[job_id]
-        
+
         # This runs after try/except, not in finally
         # Calculate next run time
         if job.job_type == JobType.RECURRING:
@@ -444,17 +453,17 @@ class JobScheduler:
         try:
             path = Path(os.path.expanduser(self.config.persistence_path))
             path.parent.mkdir(parents=True, exist_ok=True)
-            
+
             data = {
                 "version": 1,
                 "jobs": [job.to_dict() for job in self.jobs.values()],
             }
-            
+
             with open(path, "w") as f:
                 json.dump(data, f, indent=2)
-                
+
             logger.debug(f"Persisted {len(self.jobs)} jobs to {path}")
-            
+
         except Exception as e:
             logger.error(f"Failed to persist jobs: {e}")
 
@@ -462,14 +471,14 @@ class JobScheduler:
         """Load jobs from disk."""
         try:
             path = Path(os.path.expanduser(self.config.persistence_path))
-            
+
             if not path.exists():
                 logger.debug("No persisted jobs found")
                 return
-            
+
             with open(path, "r") as f:
                 data = json.load(f)
-            
+
             # Load jobs
             for job_data in data.get("jobs", []):
                 try:
@@ -480,32 +489,34 @@ class JobScheduler:
                     self.jobs[job.id] = job
                 except Exception as e:
                     logger.error(f"Failed to load job: {e}")
-            
+
             logger.info(f"Loaded {len(self.jobs)} jobs from persistence")
-            
+
         except Exception as e:
             logger.error(f"Failed to load jobs: {e}")
 
-    def get_history(self, job_id: Optional[str] = None, limit: int = 50) -> List[Dict[str, Any]]:
+    def get_history(
+        self, job_id: Optional[str] = None, limit: int = 50
+    ) -> List[Dict[str, Any]]:
         """
         Get job execution history.
-        
+
         Args:
             job_id: Filter by job ID (optional)
             limit: Maximum number of records to return
-            
+
         Returns:
             List of execution records
         """
         history = self._execution_history
-        
+
         if job_id:
             history = [e for e in history if e.job_id == job_id]
-        
+
         # Return most recent first
         history = history[-limit:]
         history.reverse()
-        
+
         return [e.to_dict() for e in history]
 
 
@@ -515,11 +526,11 @@ async def create_job_scheduler(
 ) -> JobScheduler:
     """
     Create and start a job scheduler.
-    
+
     Args:
         config: Job scheduler configuration
         handlers: Dictionary of handler functions
-        
+
     Returns:
         Started JobScheduler instance
     """

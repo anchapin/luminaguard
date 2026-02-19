@@ -42,8 +42,9 @@ except ImportError:
 
 class ExecutionMode(Enum):
     """Execution mode for the agent"""
+
     HOST = "host"  # Agent runs on host (default)
-    VM = "vm"      # Agent runs inside VM, communicates via vsock
+    VM = "vm"  # Agent runs inside VM, communicates via vsock
 
 
 class Style:
@@ -146,6 +147,7 @@ def present_diff_card(action: ToolCall) -> bool:
     """Present the Diff Card UI for an action requiring approval."""
     try:
         from approval_client import present_diff_card as present_diff_card_tui
+
         return present_diff_card_tui(action)
     except ImportError:
         if action.action_kind == ActionKind.GREEN:
@@ -166,49 +168,48 @@ def present_diff_card(action: ToolCall) -> bool:
 @dataclass
 class Session:
     """Agent session - maintains state across multiple task executions"""
-    
+
     session_id: str
     created_at: float
     last_activity: float
     state: AgentState
     metadata: Dict[str, Any]
-    
+
     def is_expired(self, ttl_seconds: int = 3600) -> bool:
         """Check if session has expired based on TTL"""
         import time
+
         return (time.time() - self.last_activity) > ttl_seconds
-    
+
     def update_activity(self) -> None:
         """Update last activity timestamp"""
         import time
+
         self.last_activity = time.time()
 
 
 class SessionManager:
     """Manages agent sessions across multiple executions"""
-    
+
     def __init__(self, ttl_seconds: int = 3600):
         self.sessions: Dict[str, Session] = {}
         self.ttl_seconds = ttl_seconds
-    
+
     def create_session(self, session_id: str, tools: List[str]) -> Session:
         """Create a new session"""
         import time
-        state = AgentState(
-            messages=[],
-            tools=tools,
-            context={}
-        )
+
+        state = AgentState(messages=[], tools=tools, context={})
         session = Session(
             session_id=session_id,
             created_at=time.time(),
             last_activity=time.time(),
             state=state,
-            metadata={}
+            metadata={},
         )
         self.sessions[session_id] = session
         return session
-    
+
     def get_session(self, session_id: str) -> Optional[Session]:
         """Get existing session or None"""
         session = self.sessions.get(session_id)
@@ -216,17 +217,19 @@ class SessionManager:
             del self.sessions[session_id]
             return None
         return session
-    
+
     def remove_session(self, session_id: str) -> None:
         """Remove a session"""
         self.sessions.pop(session_id, None)
-    
+
     def cleanup_expired(self) -> int:
         """Remove expired sessions, return count removed"""
         import time
+
         current_time = time.time()
         expired = [
-            sid for sid, sess in self.sessions.items()
+            sid
+            for sid, sess in self.sessions.items()
             if (current_time - sess.last_activity) > self.ttl_seconds
         ]
         for sid in expired:
@@ -251,6 +254,7 @@ def think(state: AgentState, llm_client=None) -> Optional[ToolCall]:
     """Main reasoning loop - decides next action based on state."""
     try:
         from llm_client import MockLLMClient
+
         if llm_client is None:
             llm_client = MockLLMClient()
 
@@ -410,7 +414,9 @@ def run_loop_vm(task: str, tools: List[str]) -> AgentState:
     print("Connected to host via vsock")
 
     try:
-        return run_loop(task, tools, vsock_client=vsock_client, execution_mode=ExecutionMode.VM)
+        return run_loop(
+            task, tools, vsock_client=vsock_client, execution_mode=ExecutionMode.VM
+        )
     finally:
         vsock_client.disconnect()
 
@@ -426,7 +432,7 @@ if __name__ == "__main__":
         state = run_loop_vm(task, ["read_file", "write_file", "search"])
     else:
         state = run_loop(task, ["read_file", "write_file", "search"])
-    
+
     print(f"Final state: {len(state.messages)} messages")
 
 

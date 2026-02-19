@@ -59,6 +59,7 @@ def _clean_env() -> dict:
 # BotConfig
 # ===========================================================================
 
+
 class TestBotConfig:
     """BotConfig dataclass defaults and customisation."""
 
@@ -91,6 +92,7 @@ class TestBotConfig:
 # BotFactory.create()
 # ===========================================================================
 
+
 class TestBotFactoryCreate:
     """BotFactory.create() assembles a ReadyBot correctly."""
 
@@ -102,7 +104,10 @@ class TestBotFactoryCreate:
     def test_zero_config_returns_ready_bot(self, tmp_path):
         """BotFactory.create() with no arguments returns a ReadyBot."""
         # Override config_dir so we don't write to ~/.luminaguard during tests
-        with patch("bot_factory.BotConfig.__post_init__", lambda self: setattr(self, "config_dir", tmp_path)):
+        with patch(
+            "bot_factory.BotConfig.__post_init__",
+            lambda self: setattr(self, "config_dir", tmp_path),
+        ):
             cfg = BotConfig()
             cfg.config_dir = tmp_path
             bot = BotFactory.create(cfg)
@@ -120,6 +125,7 @@ class TestBotFactoryCreate:
 
     def test_daemon_config_is_set(self, tmp_path):
         from daemon_config import DaemonConfig
+
         cfg = BotConfig(config_dir=tmp_path)
         bot = BotFactory.create(cfg)
         assert isinstance(bot.daemon_config, DaemonConfig)
@@ -145,6 +151,7 @@ class TestBotFactoryCreate:
     def test_llm_config_openai_when_env_var_set(self, tmp_path):
         """With OPENAI_API_KEY set, _build_llm_config picks OPENAI."""
         from llm_client import LLMConfig
+
         cfg = BotConfig(config_dir=tmp_path)
         with patch.dict(os.environ, {"OPENAI_API_KEY": "sk-test"}):
             llm_cfg = BotFactory._build_llm_config(cfg)
@@ -201,6 +208,7 @@ class TestBotFactoryCreate:
 # ReadyBot.chat() / achat()
 # ===========================================================================
 
+
 class TestReadyBotChat:
     """ReadyBot.chat() and achat() return the expected responses."""
 
@@ -255,6 +263,7 @@ class TestReadyBotChat:
 # ReadyBot.status()
 # ===========================================================================
 
+
 class TestReadyBotStatus:
     """ReadyBot.status() returns a useful diagnostics dict."""
 
@@ -292,6 +301,7 @@ class TestReadyBotStatus:
 # create_bot() convenience function
 # ===========================================================================
 
+
 class TestCreateBotFunction:
     """create_bot() is a thin wrapper that works identically to BotFactory.create()."""
 
@@ -316,6 +326,7 @@ class TestCreateBotFunction:
 # ===========================================================================
 # create_bot.py CLI
 # ===========================================================================
+
 
 class TestCreateBotCLI:
     """Tests for the create_bot.py command-line interface."""
@@ -352,36 +363,51 @@ class TestCreateBotCLI:
     def test_message_flag_one_shot(self, tmp_path):
         """--message sends one message and prints the reply."""
         with patch.dict(os.environ, _clean_env(), clear=True):
-            code, output = self._run_cli([
-                "--message", "Hello",
-                "--config-dir", str(tmp_path),
-            ])
+            code, output = self._run_cli(
+                [
+                    "--message",
+                    "Hello",
+                    "--config-dir",
+                    str(tmp_path),
+                ]
+            )
         assert code == 0
         assert "Please setup environment variables for your LLM" in output
 
     def test_message_flag_custom_name(self, tmp_path):
         """--name is accepted without error."""
         with patch.dict(os.environ, _clean_env(), clear=True):
-            code, _ = self._run_cli([
-                "--name", "MyCLIBot",
-                "--message", "Hello",
-                "--config-dir", str(tmp_path),
-            ])
+            code, _ = self._run_cli(
+                [
+                    "--name",
+                    "MyCLIBot",
+                    "--message",
+                    "Hello",
+                    "--config-dir",
+                    str(tmp_path),
+                ]
+            )
         assert code == 0
 
     def test_message_flag_custom_username(self, tmp_path):
         with patch.dict(os.environ, _clean_env(), clear=True):
-            code, _ = self._run_cli([
-                "--username", "eve",
-                "--message", "Hello",
-                "--config-dir", str(tmp_path),
-            ])
+            code, _ = self._run_cli(
+                [
+                    "--username",
+                    "eve",
+                    "--message",
+                    "Hello",
+                    "--config-dir",
+                    str(tmp_path),
+                ]
+            )
         assert code == 0
 
 
 # ===========================================================================
 # End-to-end: full first-time user flow
 # ===========================================================================
+
 
 class TestFirstTimeUserFlow:
     """

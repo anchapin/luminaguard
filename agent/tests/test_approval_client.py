@@ -31,18 +31,18 @@ class TestDiffCard:
         change = Change(
             change_type="FileEdit",
             summary="Edit file",
-            details={"path": "/tmp/test.txt", "before": "", "after": "content"}
+            details={"path": "/tmp/test.txt", "before": "", "after": "content"},
         )
         card = DiffCard(
             action_type="write_file",
             description="Write to file",
             risk_level="high",
             changes=[change],
-            timestamp="2026-01-01T00:00:00Z"
+            timestamp="2026-01-01T00:00:00Z",
         )
-        
+
         result = card.to_dict()
-        
+
         assert result["action_type"] == "write_file"
         assert result["risk_level"] == "high"
         assert len(result["changes"]) == 1
@@ -59,11 +59,11 @@ class TestDiffCard:
             description="Complex action",
             risk_level="critical",
             changes=changes,
-            timestamp="2026-01-01T00:00:00Z"
+            timestamp="2026-01-01T00:00:00Z",
         )
-        
+
         result = card.to_dict()
-        
+
         assert len(result["changes"]) == 2
 
 
@@ -73,7 +73,7 @@ class TestApprovalClient:
     def test_approval_client_init_default(self):
         """Test ApprovalClient initialization with defaults"""
         client = ApprovalClient()
-        
+
         # Binary may or may not exist depending on build state
         assert client.timeout_seconds == 300  # 5 minutes default
         assert client.enable_approval_cliff is True
@@ -81,7 +81,7 @@ class TestApprovalClient:
     def test_approval_client_init_custom_path(self):
         """Test ApprovalClient with custom orchestrator path"""
         client = ApprovalClient(orchestrator_path="/custom/path/luminaguard")
-        
+
         # Path doesn't exist, but it may fall back to finding release binary
         # So the test depends on whether binary was built
         # Just verify client was created successfully
@@ -104,7 +104,7 @@ class TestApprovalClient:
         """Test disabling approval cliff for testing"""
         client = ApprovalClient()
         assert client.enable_approval_cliff is True
-        
+
         client.disable_for_testing()
         assert client.enable_approval_cliff is False
 
@@ -131,7 +131,7 @@ class TestApprovalClient:
         """Test timestamp generation"""
         client = ApprovalClient()
         timestamp = client._get_timestamp()
-        
+
         # Should be in ISO format ending with Z
         assert timestamp.endswith("Z")
         assert "T" in timestamp
@@ -139,16 +139,16 @@ class TestApprovalClient:
     def test_generate_changes_write_file(self):
         """Test change generation for write_file action"""
         from loop import ToolCall, ActionKind
-        
+
         client = ApprovalClient()
         action = ToolCall(
             name="write_file",
             arguments={"path": "/tmp/test.txt", "content": "Hello World"},
-            action_kind=ActionKind.RED
+            action_kind=ActionKind.RED,
         )
-        
+
         changes = client._generate_changes(action)
-        
+
         assert len(changes) == 1
         assert changes[0].change_type == "FileEdit"
         assert "test.txt" in changes[0].summary
@@ -156,64 +156,64 @@ class TestApprovalClient:
     def test_generate_changes_delete_file(self):
         """Test change generation for delete_file action"""
         from loop import ToolCall, ActionKind
-        
+
         client = ApprovalClient()
         action = ToolCall(
             name="delete_file",
             arguments={"path": "/tmp/important.txt"},
-            action_kind=ActionKind.RED
+            action_kind=ActionKind.RED,
         )
-        
+
         changes = client._generate_changes(action)
-        
+
         assert len(changes) == 1
         assert changes[0].change_type == "FileDelete"
 
     def test_generate_changes_read_file(self):
         """Test change generation for read_file action"""
         from loop import ToolCall, ActionKind
-        
+
         client = ApprovalClient()
         action = ToolCall(
             name="read_file",
             arguments={"path": "/tmp/test.txt"},
-            action_kind=ActionKind.GREEN
+            action_kind=ActionKind.GREEN,
         )
-        
+
         changes = client._generate_changes(action)
-        
+
         assert len(changes) == 1
         assert changes[0].change_type == "FileRead"
 
     def test_generate_changes_execute_command(self):
         """Test change generation for execute commands"""
         from loop import ToolCall, ActionKind
-        
+
         client = ApprovalClient()
         action = ToolCall(
             name="execute_shell",
             arguments={"command": "ls -la"},
-            action_kind=ActionKind.RED
+            action_kind=ActionKind.RED,
         )
-        
+
         changes = client._generate_changes(action)
-        
+
         assert len(changes) == 1
         assert changes[0].change_type == "CommandExec"
 
     def test_generate_changes_generic(self):
         """Test change generation for unknown action types"""
         from loop import ToolCall, ActionKind
-        
+
         client = ApprovalClient()
         action = ToolCall(
             name="custom_action",
             arguments={"param1": "value1", "param2": 42},
-            action_kind=ActionKind.RED
+            action_kind=ActionKind.RED,
         )
-        
+
         changes = client._generate_changes(action)
-        
+
         assert len(changes) == 1
         assert changes[0].change_type == "Custom"
         assert changes[0].details == action.arguments
@@ -221,16 +221,16 @@ class TestApprovalClient:
     def test_create_diff_card_green_action(self):
         """Test DiffCard creation for green (safe) action"""
         from loop import ToolCall, ActionKind
-        
+
         client = ApprovalClient()
         action = ToolCall(
             name="read_file",
             arguments={"path": "/tmp/test.txt"},
-            action_kind=ActionKind.GREEN
+            action_kind=ActionKind.GREEN,
         )
-        
+
         card = client._create_diff_card(action)
-        
+
         assert card.action_type == "read_file"
         assert card.risk_level == "none"
         assert card.changes is not None
@@ -238,87 +238,83 @@ class TestApprovalClient:
     def test_create_diff_card_destructive_action(self):
         """Test DiffCard creation for destructive action"""
         from loop import ToolCall, ActionKind
-        
+
         client = ApprovalClient()
         action = ToolCall(
             name="delete_file",
             arguments={"path": "/tmp/important.txt"},
-            action_kind=ActionKind.RED
+            action_kind=ActionKind.RED,
         )
-        
+
         card = client._create_diff_card(action)
-        
+
         assert card.action_type == "delete_file"
         assert card.risk_level == "critical"
 
     def test_create_diff_card_medium_risk_action(self):
         """Test DiffCard creation for medium risk action"""
         from loop import ToolCall, ActionKind
-        
+
         client = ApprovalClient()
         action = ToolCall(
             name="write_file",
             arguments={"path": "/tmp/test.txt", "content": "data"},
-            action_kind=ActionKind.RED
+            action_kind=ActionKind.RED,
         )
-        
+
         card = client._create_diff_card(action)
-        
+
         assert card.risk_level == "high"
 
     def test_create_diff_card_default_risk(self):
         """Test DiffCard creation with default risk level"""
         from loop import ToolCall, ActionKind
-        
+
         client = ApprovalClient()
-        action = ToolCall(
-            name="some_action",
-            arguments={},
-            action_kind=ActionKind.RED
-        )
-        
+        action = ToolCall(name="some_action", arguments={}, action_kind=ActionKind.RED)
+
         card = client._create_diff_card(action)
-        
+
         # Should default to medium risk
         assert card.risk_level == "medium"
 
     def test_request_approval_green_action(self):
         """Test that green actions auto-approve"""
         from loop import ToolCall, ActionKind
-        
+
         client = ApprovalClient()
         action = ToolCall(
             name="read_file",
             arguments={"path": "/tmp/test.txt"},
-            action_kind=ActionKind.GREEN
+            action_kind=ActionKind.GREEN,
         )
-        
+
         result = client.request_approval(action)
-        
+
         assert result is True
 
     def test_request_approval_cliff_disabled(self):
         """Test that disabled approval cliff auto-approves"""
         from loop import ToolCall, ActionKind
-        
+
         client = ApprovalClient()
         client.enable_approval_cliff = False
-        
+
         action = ToolCall(
             name="delete_file",
             arguments={"path": "/tmp/important.txt"},
-            action_kind=ActionKind.RED
+            action_kind=ActionKind.RED,
         )
-        
+
         result = client.request_approval(action)
-        
+
         assert result is True
 
     @patch("approval_client.subprocess.run")
     def test_request_approval_orchestrator_success(self, mock_run):
         """Test approval request with successful orchestrator"""
         from loop import ToolCall, ActionKind
-        
+
         # Create a temporary orchestrator mock
         with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump({"action_type": "test"}, f)
@@ -331,20 +327,20 @@ class TestApprovalClient:
             mock_result.stdout = "approved"
             mock_result.stderr = ""
             mock_run.return_value = mock_result
-            
+
             client = ApprovalClient(orchestrator_path="mock_path")
-            
+
             action = ToolCall(
                 name="write_file",
                 arguments={"path": "/tmp/test.txt"},
-                action_kind=ActionKind.RED
+                action_kind=ActionKind.RED,
             )
-            
+
             # This will use fallback since orchestrator_path doesn't exist
             # Let's test with path to temp file
-            with patch.object(client, 'orchestrator_path', temp_path):
+            with patch.object(client, "orchestrator_path", temp_path):
                 result = client.request_approval(action)
-                # Since we're not mocking subprocess properly for temp file, 
+                # Since we're not mocking subprocess properly for temp file,
                 # it may fail - just verify it doesn't crash
         finally:
             os.unlink(temp_path)
@@ -362,17 +358,17 @@ class TestApprovalClient:
             mock_result.stdout = "rejected"
             mock_result.stderr = ""
             mock_run.return_value = mock_result
-            
+
             client = ApprovalClient()
-            
+
             diff_card = DiffCard(
                 action_type="test",
                 description="Test action",
                 risk_level="high",
                 changes=[],
-                timestamp="2026-01-01T00:00:00Z"
+                timestamp="2026-01-01T00:00:00Z",
             )
-            
+
             # This test just verifies the code path doesn't crash
             # Actual testing requires mocking the orchestrator binary
         finally:
@@ -384,15 +380,15 @@ class TestApprovalClient:
     def test_fallback_prompt_approves(self):
         """Test fallback prompt with approval response"""
         from loop import ToolCall, ActionKind
-        
+
         client = ApprovalClient()
-        
+
         action = ToolCall(
             name="write_file",
             arguments={"path": "/tmp/test.txt"},
-            action_kind=ActionKind.RED
+            action_kind=ActionKind.RED,
         )
-        
+
         with patch("builtins.input", return_value="y"):
             result = client._fallback_prompt(action)
             assert result is True
@@ -400,15 +396,15 @@ class TestApprovalClient:
     def test_fallback_prompt_rejects(self):
         """Test fallback prompt with rejection response"""
         from loop import ToolCall, ActionKind
-        
+
         client = ApprovalClient()
-        
+
         action = ToolCall(
             name="delete_file",
             arguments={"path": "/tmp/test.txt"},
-            action_kind=ActionKind.RED
+            action_kind=ActionKind.RED,
         )
-        
+
         with patch("builtins.input", return_value="n"):
             result = client._fallback_prompt(action)
             assert result is False
@@ -416,15 +412,15 @@ class TestApprovalClient:
     def test_fallback_prompt_accepts_yes(self):
         """Test fallback prompt accepts 'yes'"""
         from loop import ToolCall, ActionKind
-        
+
         client = ApprovalClient()
-        
+
         action = ToolCall(
             name="write_file",
             arguments={"path": "/tmp/test.txt"},
-            action_kind=ActionKind.RED
+            action_kind=ActionKind.RED,
         )
-        
+
         with patch("builtins.input", return_value="yes"):
             result = client._fallback_prompt(action)
             assert result is True
@@ -432,60 +428,56 @@ class TestApprovalClient:
     def test_get_risk_display_green(self):
         """Test risk display for green actions"""
         from loop import ToolCall, ActionKind
-        
+
         client = ApprovalClient()
-        
+
         action = ToolCall(
             name="read_file",
             arguments={"path": "/tmp/test.txt"},
-            action_kind=ActionKind.GREEN
+            action_kind=ActionKind.GREEN,
         )
-        
+
         risk = client._get_risk_display(action)
         assert "GREEN" in risk or "Safe" in risk
 
     def test_get_risk_display_delete(self):
         """Test risk display for delete actions"""
         from loop import ToolCall, ActionKind
-        
+
         client = ApprovalClient()
-        
+
         action = ToolCall(
             name="delete_file",
             arguments={"path": "/tmp/test.txt"},
-            action_kind=ActionKind.RED
+            action_kind=ActionKind.RED,
         )
-        
+
         risk = client._get_risk_display(action)
         assert "CRITICAL" in risk or "deletion" in risk.lower()
 
     def test_get_risk_display_write(self):
         """Test risk display for write actions"""
         from loop import ToolCall, ActionKind
-        
+
         client = ApprovalClient()
-        
+
         action = ToolCall(
             name="write_file",
             arguments={"path": "/tmp/test.txt"},
-            action_kind=ActionKind.RED
+            action_kind=ActionKind.RED,
         )
-        
+
         risk = client._get_risk_display(action)
         assert "HIGH" in risk or "Destructive" in risk
 
     def test_get_risk_display_default(self):
         """Test risk display for default case"""
         from loop import ToolCall, ActionKind
-        
+
         client = ApprovalClient()
-        
-        action = ToolCall(
-            name="some_action",
-            arguments={},
-            action_kind=ActionKind.RED
-        )
-        
+
+        action = ToolCall(name="some_action", arguments={}, action_kind=ActionKind.RED)
+
         risk = client._get_risk_display(action)
         assert "MEDIUM" in risk or "External" in risk
 
@@ -497,10 +489,10 @@ class TestGetApprovalClient:
         """Test that get_approval_client returns singleton"""
         global _approval_client
         _approval_client = None  # Reset singleton
-        
+
         client1 = get_approval_client()
         client2 = get_approval_client()
-        
+
         assert client1 is client2
 
 
@@ -510,13 +502,13 @@ class TestPresentDiffCard:
     def test_present_diff_card_green_action(self):
         """Test present_diff_card with green action"""
         from loop import ToolCall, ActionKind
-        
+
         action = ToolCall(
             name="read_file",
             arguments={"path": "/tmp/test.txt"},
-            action_kind=ActionKind.GREEN
+            action_kind=ActionKind.GREEN,
         )
-        
+
         result = present_diff_card(action)
-        
+
         assert result is True

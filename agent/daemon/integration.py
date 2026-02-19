@@ -33,12 +33,14 @@ logger = logging.getLogger(__name__)
 
 class MessageQueueType(Enum):
     """Supported message queue types"""
+
     RABBITMQ = "rabbitmq"
     REDIS = "redis"
 
 
 class EventPriority(Enum):
     """Event priority levels for rate limiting and processing"""
+
     LOW = 0
     NORMAL = 1
     HIGH = 2
@@ -48,6 +50,7 @@ class EventPriority(Enum):
 @dataclass
 class RateLimitConfig:
     """Rate limiting configuration"""
+
     max_events_per_second: int = 10
     max_burst_size: int = 50
     enabled: bool = True
@@ -56,6 +59,7 @@ class RateLimitConfig:
 @dataclass
 class RetryConfig:
     """Retry policy configuration"""
+
     max_retries: int = 3
     initial_backoff_seconds: float = 1.0
     max_backoff_seconds: float = 60.0
@@ -66,6 +70,7 @@ class RetryConfig:
 @dataclass
 class ExternalEvent:
     """External event data structure"""
+
     event_id: str
     event_type: str
     source: str
@@ -96,7 +101,9 @@ class ExternalEvent:
             event_type=data.get("event_type"),
             source=data.get("source"),
             payload=data.get("payload", {}),
-            timestamp=datetime.fromisoformat(data.get("timestamp", datetime.now(timezone.utc).isoformat())),
+            timestamp=datetime.fromisoformat(
+                data.get("timestamp", datetime.now(timezone.utc).isoformat())
+            ),
             priority=EventPriority[data.get("priority", "NORMAL")],
             retries=data.get("retries", 0),
             metadata=data.get("metadata", {}),
@@ -160,7 +167,7 @@ class RetryPolicy:
     def get_backoff_time(self, event: ExternalEvent) -> float:
         """Calculate backoff time for retry"""
         backoff = self.config.initial_backoff_seconds * (
-            self.config.backoff_multiplier ** event.retries
+            self.config.backoff_multiplier**event.retries
         )
         return min(backoff, self.config.max_backoff_seconds)
 
@@ -241,7 +248,9 @@ class MessageQueueConsumer(ABC):
             return all(results) if results else True
 
         except Exception as e:
-            logger.error(f"Error dispatching event {event.event_id}: {e}", exc_info=True)
+            logger.error(
+                f"Error dispatching event {event.event_id}: {e}", exc_info=True
+            )
             return False
 
     async def start(self) -> None:
@@ -305,9 +314,7 @@ class RabbitMQConsumer(MessageQueueConsumer):
         try:
             import aio_pika
 
-            connection_string = (
-                f"amqp://{self.username}:{self.password}@{self.host}:{self.port}/{self.vhost}"
-            )
+            connection_string = f"amqp://{self.username}:{self.password}@{self.host}:{self.port}/{self.vhost}"
 
             self._connection = await aio_pika.connect_robust(connection_string)
             self._channel = await self._connection.channel()
@@ -371,7 +378,9 @@ class RabbitMQConsumer(MessageQueueConsumer):
                                 await self._republish_event(event)
 
                         except Exception as e:
-                            logger.error(f"Error processing message: {e}", exc_info=True)
+                            logger.error(
+                                f"Error processing message: {e}", exc_info=True
+                            )
 
         except Exception as e:
             logger.error(f"Error consuming messages: {e}", exc_info=True)
@@ -653,7 +662,9 @@ class WebhookReceiver:
             await site.start()
 
             self._running = True
-            logger.info(f"Webhook receiver started on {self.host}:{self.port}{self.path}")
+            logger.info(
+                f"Webhook receiver started on {self.host}:{self.port}{self.path}"
+            )
 
         except ImportError:
             logger.error("aiohttp not installed. Install with: pip install aiohttp")
@@ -667,7 +678,7 @@ class WebhookReceiver:
     async def _aiohttp_handler(self, request) -> Any:
         """aiohttp request handler"""
         from aiohttp import web
-        
+
         status, response = await self.handle_webhook(request)
         return web.json_response(response, status=status)
 

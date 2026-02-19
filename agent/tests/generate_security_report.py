@@ -74,9 +74,13 @@ class SecurityReportGenerator:
         # Run pytest with JSON output
         result = subprocess.run(
             [
-                sys.executable, "-m", "pytest",
+                sys.executable,
+                "-m",
+                "pytest",
                 "tests/test_security_code_execution.py",
-                "-v", "--tb=no", "--no-header"
+                "-v",
+                "--tb=no",
+                "--no-header",
             ],
             capture_output=True,
             text=True,
@@ -99,7 +103,11 @@ class SecurityReportGenerator:
                 failed_tests += 1
                 total_tests += 1
                 # Extract test name
-                test_name = line.split("::")[1].split("[")[0] if "[" in line else line.split("::")[1]
+                test_name = (
+                    line.split("::")[1].split("[")[0]
+                    if "[" in line
+                    else line.split("::")[1]
+                )
                 failed_test_names.append(test_name)
 
         # Calculate security score
