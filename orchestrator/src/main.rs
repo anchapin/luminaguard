@@ -49,6 +49,11 @@ enum Commands {
     Chat,
     /// Spawn a new JIT Micro-VM
     SpawnVm,
+    /// VM management commands
+    Vm {
+        #[command(subcommand)]
+        command: VmCommands,
+    },
     /// Start daemon mode with metrics server
     Daemon {
         /// Port for metrics server (default: 9090)
@@ -78,6 +83,25 @@ enum Commands {
     /// Test Firecracker feasibility prototype (requires --features vm-prototype)
     #[cfg(feature = "vm-prototype")]
     TestVmPrototype,
+}
+
+/// VM management subcommands
+#[derive(Subcommand, Debug)]
+enum VmCommands {
+    /// List active VMs
+    List,
+    /// Show VM status
+    Status {
+        /// VM ID to check
+        vm_id: String,
+    },
+    /// Kill a VM
+    Kill {
+        /// VM ID to kill
+        vm_id: String,
+    },
+    /// Show VM pool statistics
+    Pool,
 }
 
 #[tokio::main]
@@ -115,6 +139,9 @@ async fn main() -> Result<()> {
         Some(Commands::SpawnVm) => {
             info!("Spawning JIT Micro-VM...");
             spawn_vm().await?;
+        }
+        Some(Commands::Vm { command }) => {
+            handle_vm_command(command).await?;
         }
         Some(Commands::Daemon { metrics_port }) => {
             info!(
@@ -410,6 +437,66 @@ async fn chat_mode() -> Result<()> {
     println!("  Total Messages: {}", message_count);
     println!("\n✅ Chat session ended.\n");
 
+    Ok(())
+}
+
+/// Handle VM management commands
+async fn handle_vm_command(command: VmCommands) -> Result<()> {
+    match command {
+        VmCommands::List => {
+            println!("\n==========================================");
+            println!("📋 Active VMs");
+            println!("==========================================");
+            
+            // Get pool stats
+            match vm::pool_stats().await {
+                Ok(stats) => {
+                    println!("  Pool size: {}/{}", stats.current_size, stats.max_size);
+                    println!("  Active VMs: {}", stats.active_vms);
+                }
+                Err(e) => {
+                    println!("  Pool stats unavailable: {}", e);
+                }
+            }
+            
+            // Note: In a full implementation, we would track active VMs
+            // For now, show metrics
+            println!("\n  Note: Active VM tracking requires daemon mode.");
+            println!("  Use 'luminaguard daemon' to start the daemon.\n");
+        }
+        VmCommands::Status { vm_id } => {
+            println!("\n==========================================");
+            println!("📊 VM Status: {}", vm_id);
+            println!("==========================================");
+            println!("  Status: Unknown (daemon mode required)");
+            println!("  Use 'luminaguard daemon' to track VM status.\n");
+        }
+        VmCommands::Kill { vm_id } => {
+            println!("\n==========================================");
+            println!("🔪 Kill VM: {}", vm_id);
+            println!("==========================================");
+            println!("  Note: VM killing requires daemon mode.");
+            println!("  Use 'luminaguard daemon' to manage VMs.\n");
+        }
+        VmCommands::Pool => {
+            println!("\n==========================================");
+            println!("📊 VM Pool Statistics");
+            println!("==========================================");
+            
+            match vm::pool_stats().await {
+                Ok(stats) => {
+                    println!("  Current size: {}", stats.current_size);
+                    println!("  Max size: {}", stats.max_size);
+                    println!("  Active VMs: {}", stats.active_vms);
+                    println!("  Queued tasks: {}", stats.queued_tasks);
+                }
+                Err(e) => {
+                    println!("  Failed to get pool stats: {}", e);
+                }
+            }
+            println!();
+        }
+    }
     Ok(())
 }
 
