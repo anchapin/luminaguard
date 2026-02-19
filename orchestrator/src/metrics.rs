@@ -220,16 +220,20 @@ mod tests {
     fn test_vm_lifecycle_metrics() {
         // Test spawn metrics
         VMS_SPAWNED_TOTAL.inc();
-        VM_SPAWN_TIME_SECONDS.with_label_values(&["firecracker"]).observe(0.110);
-        
+        VM_SPAWN_TIME_SECONDS
+            .with_label_values(&["firecracker"])
+            .observe(0.110);
+
         // Test destroy metrics
         VMS_DESTROYED_TOTAL.inc();
-        VM_DESTROY_TIME_SECONDS.with_label_values(&["firecracker"]).observe(0.050);
-        
+        VM_DESTROY_TIME_SECONDS
+            .with_label_values(&["firecracker"])
+            .observe(0.050);
+
         // Test active VMs
         ACTIVE_VMS.inc();
         assert!(ACTIVE_VMS.get() >= 1);
-        
+
         // Test error counters
         VM_SPAWN_ERRORS_TOTAL.inc();
         VM_DESTROY_ERRORS_TOTAL.inc();
@@ -240,7 +244,7 @@ mod tests {
         // Test memory metric
         VM_MEMORY_BYTES.set(512 * 1024 * 1024); // 512MB
         assert_eq!(VM_MEMORY_BYTES.get(), 512 * 1024 * 1024);
-        
+
         // Test CPU count metric
         VM_CPU_COUNT.set(2);
         assert_eq!(VM_CPU_COUNT.get(), 2);
@@ -251,7 +255,7 @@ mod tests {
         // Test snapshot pool size
         SNAPSHOT_POOL_SIZE.set(5);
         assert_eq!(SNAPSHOT_POOL_SIZE.get(), 5);
-        
+
         // Test snapshot timing
         SNAPSHOT_CREATE_TIME_SECONDS.observe(0.080);
         SNAPSHOT_LOAD_TIME_SECONDS.observe(0.020);
@@ -261,15 +265,15 @@ mod tests {
     fn test_gather_metrics() {
         // Initialize metrics first
         let _ = init();
-        
+
         // Set some metrics
         ACTIVE_VMS.set(3);
         VMS_SPAWNED_TOTAL.inc();
-        
+
         // Gather metrics
         let result = gather_metrics();
         assert!(result.is_ok());
-        
+
         let metrics_text = result.unwrap();
         // Check for metric names (they may have luminaguard_ prefix depending on registry)
         assert!(metrics_text.contains("vms_spawned") || metrics_text.contains("active_vms"));
