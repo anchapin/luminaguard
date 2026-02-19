@@ -33,6 +33,7 @@ pub mod security_escape_simple;
 pub mod security_integration_tests;
 // pub mod security_validation;
 pub mod snapshot;
+pub mod startup_optimizer;
 #[cfg(unix)]
 pub mod vsock;
 
