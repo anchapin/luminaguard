@@ -9,5 +9,6 @@ pub mod mcp;
 pub mod mcp_command;
 pub mod metrics;
 pub mod metrics_server;
+pub mod rate_limit;
 pub mod vm;
 pub mod webhooks;
