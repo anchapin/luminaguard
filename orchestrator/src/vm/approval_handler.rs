@@ -122,18 +122,25 @@ impl ApprovalHandler {
             },
             "file_delete" => Change::FileDelete {
                 path: data.path.unwrap_or_default(),
-                size_bytes: data.metadata
+                size_bytes: data
+                    .metadata
                     .and_then(|m| m.get("size_bytes").and_then(|v| v.as_u64()))
                     .unwrap_or(0),
             },
             "command_exec" => Change::CommandExec {
                 command: data.path.unwrap_or_default(),
-                args: data.metadata
+                args: data
+                    .metadata
                     .as_ref()
                     .and_then(|m| m.get("args").and_then(|v| v.as_array()))
-                    .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+                    .map(|arr| {
+                        arr.iter()
+                            .filter_map(|v| v.as_str().map(String::from))
+                            .collect()
+                    })
                     .unwrap_or_default(),
-                env_vars: data.metadata
+                env_vars: data
+                    .metadata
                     .as_ref()
                     .and_then(|m| m.get("env_vars").and_then(|v| v.as_array()))
                     .map(|arr| {
@@ -149,29 +156,34 @@ impl ApprovalHandler {
             },
             "email_send" => Change::EmailSend {
                 to: data.path.unwrap_or_default(),
-                subject: data.metadata
+                subject: data
+                    .metadata
                     .and_then(|m| m.get("subject").and_then(|v| v.as_str().map(String::from)))
                     .unwrap_or_default(),
                 preview: data.new_content.unwrap_or_default(),
             },
             "external_call" => Change::ExternalCall {
-                method: data.metadata
+                method: data
+                    .metadata
                     .and_then(|m| m.get("method").and_then(|v| v.as_str().map(String::from)))
                     .unwrap_or_default(),
                 endpoint: data.path.unwrap_or_default(),
                 payload_preview: data.new_content.unwrap_or_default(),
             },
             "asset_transfer" => Change::AssetTransfer {
-                from: data.metadata
+                from: data
+                    .metadata
                     .as_ref()
                     .and_then(|m| m.get("from").and_then(|v| v.as_str().map(String::from)))
                     .unwrap_or_default(),
                 to: data.path.unwrap_or_default(),
-                amount: data.metadata
+                amount: data
+                    .metadata
                     .as_ref()
                     .and_then(|m| m.get("amount").and_then(|v| v.as_str().map(String::from)))
                     .unwrap_or_default(),
-                currency: data.metadata
+                currency: data
+                    .metadata
                     .as_ref()
                     .and_then(|m| m.get("currency").and_then(|v| v.as_str().map(String::from)))
                     .unwrap_or_default(),
@@ -213,7 +225,11 @@ impl ApprovalHandler {
 
         // Convert to internal types
         let action_type = Self::parse_action_type(&request.action_type);
-        let changes: Vec<Change> = request.changes.into_iter().map(Self::convert_change).collect();
+        let changes: Vec<Change> = request
+            .changes
+            .into_iter()
+            .map(Self::convert_change)
+            .collect();
 
         // Get approval decision
         let mut manager = self.approval_manager.lock().await;
@@ -317,7 +333,10 @@ mod tests {
 
         let change = ApprovalHandler::convert_change(data);
         match change {
-            Change::FileCreate { path, content_preview } => {
+            Change::FileCreate {
+                path,
+                content_preview,
+            } => {
                 assert_eq!(path, "/tmp/test.txt");
                 assert_eq!(content_preview, "hello world");
             }
@@ -337,7 +356,11 @@ mod tests {
 
         let change = ApprovalHandler::convert_change(data);
         match change {
-            Change::FileEdit { path, before, after } => {
+            Change::FileEdit {
+                path,
+                before,
+                after,
+            } => {
                 assert_eq!(path, "/tmp/test.txt");
                 assert_eq!(before, "old content");
                 assert_eq!(after, "new content");
@@ -359,7 +382,10 @@ mod tests {
             }]
         });
 
-        let result = handler.handle_request("request_approval", params).await.unwrap();
+        let result = handler
+            .handle_request("request_approval", params)
+            .await
+            .unwrap();
         let response: ApprovalResponse = serde_json::from_value(result).unwrap();
 
         assert!(response.approved);

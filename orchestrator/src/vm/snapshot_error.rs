@@ -17,28 +17,16 @@ pub type SnapshotResult<T> = Result<T, SnapshotError>;
 #[derive(Debug)]
 pub enum SnapshotError {
     /// Snapshot not found at the specified path
-    NotFound {
-        snapshot_id: String,
-        path: PathBuf,
-    },
+    NotFound { snapshot_id: String, path: PathBuf },
 
     /// Failed to create snapshot directory
-    DirectoryCreationFailed {
-        path: PathBuf,
-        source: io::Error,
-    },
+    DirectoryCreationFailed { path: PathBuf, source: io::Error },
 
     /// Failed to read snapshot file
-    ReadFailed {
-        path: PathBuf,
-        source: io::Error,
-    },
+    ReadFailed { path: PathBuf, source: io::Error },
 
     /// Failed to write snapshot file
-    WriteFailed {
-        path: PathBuf,
-        source: io::Error,
-    },
+    WriteFailed { path: PathBuf, source: io::Error },
 
     /// Failed to parse snapshot metadata
     MetadataParseFailed {
@@ -47,9 +35,7 @@ pub enum SnapshotError {
     },
 
     /// Failed to serialize snapshot metadata
-    MetadataSerializeFailed {
-        source: serde_json::Error,
-    },
+    MetadataSerializeFailed { source: serde_json::Error },
 
     /// Failed to connect to Firecracker API
     ApiConnectionFailed {
@@ -58,10 +44,7 @@ pub enum SnapshotError {
     },
 
     /// Firecracker API returned an error
-    ApiError {
-        status_code: u16,
-        message: String,
-    },
+    ApiError { status_code: u16, message: String },
 
     /// Snapshot operation timed out
     Timeout {
@@ -70,10 +53,7 @@ pub enum SnapshotError {
     },
 
     /// Snapshot is corrupted or invalid
-    Corrupted {
-        snapshot_id: String,
-        reason: String,
-    },
+    Corrupted { snapshot_id: String, reason: String },
 
     /// Insufficient disk space for snapshot
     InsufficientSpace {
@@ -82,10 +62,7 @@ pub enum SnapshotError {
     },
 
     /// Snapshot version mismatch
-    VersionMismatch {
-        expected: u32,
-        actual: u32,
-    },
+    VersionMismatch { expected: u32, actual: u32 },
 
     /// Concurrent access conflict
     ConcurrentAccess {
@@ -154,21 +131,30 @@ impl fmt::Display for SnapshotError {
             Self::MetadataSerializeFailed { source } => {
                 write!(f, "Failed to serialize snapshot metadata: {}", source)
             }
-            Self::ApiConnectionFailed { socket_path, message } => {
+            Self::ApiConnectionFailed {
+                socket_path,
+                message,
+            } => {
                 write!(
                     f,
                     "Failed to connect to Firecracker API at '{}': {}",
                     socket_path, message
                 )
             }
-            Self::ApiError { status_code, message } => {
+            Self::ApiError {
+                status_code,
+                message,
+            } => {
                 write!(
                     f,
                     "Firecracker API error (status {}): {}",
                     status_code, message
                 )
             }
-            Self::Timeout { operation, duration } => {
+            Self::Timeout {
+                operation,
+                duration,
+            } => {
                 write!(
                     f,
                     "Snapshot operation '{}' timed out after {:.2}s",
@@ -176,12 +162,11 @@ impl fmt::Display for SnapshotError {
                     duration.as_secs_f64()
                 )
             }
-            Self::Corrupted { snapshot_id, reason } => {
-                write!(
-                    f,
-                    "Snapshot '{}' is corrupted: {}",
-                    snapshot_id, reason
-                )
+            Self::Corrupted {
+                snapshot_id,
+                reason,
+            } => {
+                write!(f, "Snapshot '{}' is corrupted: {}", snapshot_id, reason)
             }
             Self::InsufficientSpace {
                 required_bytes,
@@ -268,9 +253,7 @@ impl SnapshotError {
     pub fn retry_delay(&self) -> Duration {
         match self {
             Self::ApiConnectionFailed { .. } => Duration::from_millis(100),
-            Self::ApiError { status_code, .. } if *status_code >= 500 => {
-                Duration::from_millis(200)
-            }
+            Self::ApiError { status_code, .. } if *status_code >= 500 => Duration::from_millis(200),
             Self::Timeout { .. } => Duration::from_millis(500),
             Self::ConcurrentAccess { .. } => Duration::from_millis(50),
             _ => Duration::from_millis(100),
@@ -337,8 +320,8 @@ impl RetryConfig {
 
     /// Calculate delay for a given attempt number (0-indexed)
     pub fn delay_for_attempt(&self, attempt: u32) -> Duration {
-        let delay_ms = self.initial_delay.as_millis() as f64
-            * self.backoff_multiplier.powi(attempt as i32);
+        let delay_ms =
+            self.initial_delay.as_millis() as f64 * self.backoff_multiplier.powi(attempt as i32);
         let delay_ms = delay_ms.min(self.max_delay.as_millis() as f64);
         Duration::from_millis(delay_ms as u64)
     }
@@ -387,7 +370,9 @@ where
     Err(SnapshotError::RetryExhausted {
         operation: operation_name.to_string(),
         attempts: config.max_attempts,
-        last_error: Box::new(last_error.unwrap_or_else(|| SnapshotError::api_error(0, "Unknown error"))),
+        last_error: Box::new(
+            last_error.unwrap_or_else(|| SnapshotError::api_error(0, "Unknown error")),
+        ),
     })
 }
 
