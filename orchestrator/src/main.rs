@@ -447,7 +447,7 @@ async fn handle_vm_command(command: VmCommands) -> Result<()> {
             println!("\n==========================================");
             println!("📋 Active VMs");
             println!("==========================================");
-            
+
             // Get pool stats
             match vm::pool_stats().await {
                 Ok(stats) => {
@@ -458,7 +458,7 @@ async fn handle_vm_command(command: VmCommands) -> Result<()> {
                     println!("  Pool stats unavailable: {}", e);
                 }
             }
-            
+
             // Note: In a full implementation, we would track active VMs
             // For now, show metrics
             println!("\n  Note: Active VM tracking requires daemon mode.");
@@ -482,7 +482,7 @@ async fn handle_vm_command(command: VmCommands) -> Result<()> {
             println!("\n==========================================");
             println!("📊 VM Pool Statistics");
             println!("==========================================");
-            
+
             match vm::pool_stats().await {
                 Ok(stats) => {
                     println!("  Current size: {}", stats.current_size);
