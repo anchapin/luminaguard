@@ -9,8 +9,8 @@
 // - Pool acquisition overhead
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use std::hint::black_box;
 use luminaguard_orchestrator::vm;
+use std::hint::black_box;
 use tempfile::TempDir;
 use tokio::runtime::Runtime;
 
