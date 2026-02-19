@@ -325,8 +325,15 @@ class ConfigValidator:
         errors = []
         
         # Validate logging
-        if config.logging.level not in LogLevel:
-            errors.append(f"Invalid log level: {config.logging.level}")
+        # Handle both LogLevel enum and string values (from JSON loading)
+        log_level = config.logging.level
+        if isinstance(log_level, str):
+            # Check if string is a valid log level value
+            valid_levels = [level.value for level in LogLevel]
+            if log_level.lower() not in valid_levels:
+                errors.append(f"Invalid log level: {config.logging.level}")
+        elif not isinstance(log_level, LogLevel):
+            errors.append(f"Invalid log level type: {type(config.logging.level)}")
         if config.logging.max_size_mb < 1:
             errors.append("log max_size_mb must be >= 1")
         if config.logging.backup_count < 0:

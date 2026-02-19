@@ -1395,6 +1395,11 @@ class AuditLogger:
     
     def _enforce_limits(self) -> None:
         """Enforce retention and max events limits."""
+        # Special case: retention_days=0 means no retention (clear all events)
+        if self.retention_days <= 0:
+            self._events = []
+            return
+        
         now = time.time()
         cutoff = now - (self.retention_days * 86400)
         
