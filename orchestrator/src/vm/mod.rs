@@ -7,6 +7,7 @@
 // - Ephemeral: VM destroyed after task completion
 // - Security: No host execution, full isolation
 
+pub mod agent_executor;
 pub mod apple_hv;
 pub mod approval_cliff_tests;
 #[cfg(unix)]
