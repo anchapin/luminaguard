@@ -106,52 +106,47 @@ class TestConfigLoader:
 
     def test_load_json_config(self):
         """Test loading JSON configuration file"""
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
-            json.dump(
-                {
-                    "name": "test-daemon",
-                    "port": 9000,
-                    "execution_mode": "vm",
-                    "logging": {"level": "debug"},
-                },
-                f,
-            )
-            f.flush()
-            f_name = f.name
+        with tempfile.TemporaryDirectory() as tmpdir:
+            f_name = os.path.join(tmpdir, "config.json")
+            with open(f_name, "w") as f:
+                json.dump(
+                    {
+                        "name": "test-daemon",
+                        "port": 9000,
+                        "execution_mode": "vm",
+                        "logging": {"level": "debug"},
+                    },
+                    f,
+                )
 
-        try:
             loader = ConfigLoader(f_name)
             config = loader.load()
 
             assert config.name == "test-daemon"
             assert config.port == 9000
             assert config.execution_mode == "vm"
-        finally:
-            os.unlink(f_name)
 
     def test_load_yaml_config(self):
         """Test loading YAML configuration file"""
         pytest.importorskip("yaml")
 
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
-            f.write("""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            f_name = os.path.join(tmpdir, "config.yaml")
+            with open(f_name, "w") as f:
+                f.write("""
 name: yaml-daemon
 port: 8080
 execution_mode: vm
 logging:
   level: warning
 """)
-            f.flush()
 
-            try:
-                loader = ConfigLoader(f.name)
-                config = loader.load()
+            loader = ConfigLoader(f_name)
+            config = loader.load()
 
-                assert config.name == "yaml-daemon"
-                assert config.port == 8080
-                assert config.execution_mode == "vm"
-            finally:
-                os.unlink(f.name)
+            assert config.name == "yaml-daemon"
+            assert config.port == 8080
+            assert config.execution_mode == "vm"
 
     def test_apply_env_overrides(self):
         """Test environment variable overrides"""
@@ -299,12 +294,11 @@ class TestConfigManager:
 
     def test_reload_config(self):
         """Test reloading configuration"""
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
-            json.dump({"name": "original", "port": 8000}, f)
-            f.flush()
-            f_name = f.name
+        with tempfile.TemporaryDirectory() as tmpdir:
+            f_name = os.path.join(tmpdir, "config.json")
+            with open(f_name, "w") as f:
+                json.dump({"name": "original", "port": 8000}, f)
 
-        try:
             manager = ConfigManager(f_name)
             original_name = manager.get("name")
 
@@ -316,8 +310,6 @@ class TestConfigManager:
 
             assert manager.get("name") == "updated"
             assert manager.get("port") == 9999
-        finally:
-            os.unlink(f_name)
 
 
 class TestLogLevelEnum:
@@ -371,12 +363,13 @@ class TestConfigIntegration:
 
     def test_config_with_env_overrides(self):
         """Test configuration with environment overrides"""
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
-            json.dump({"name": "env-test", "port": 8000, "execution_mode": "host"}, f)
-            f.flush()
-            f_name = f.name
+        with tempfile.TemporaryDirectory() as tmpdir:
+            f_name = os.path.join(tmpdir, "config.json")
+            with open(f_name, "w") as f:
+                json.dump(
+                    {"name": "env-test", "port": 8000, "execution_mode": "host"}, f
+                )
 
-        try:
             with patch.dict(
                 os.environ, {"LUMINAGUARD_PORT": "9999", "LUMINAGUARD_MODE": "vm"}
             ):
@@ -386,5 +379,3 @@ class TestConfigIntegration:
                 assert config.name == "env-test"
                 assert config.port == 9999  # Overridden
                 assert config.execution_mode == "vm"  # Overridden
-        finally:
-            os.unlink(f_name)
