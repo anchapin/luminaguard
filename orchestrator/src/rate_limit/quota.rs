@@ -32,8 +32,8 @@ impl QuotaType {
     /// Get the refill rate (tokens per second)
     pub fn default_refill_rate(&self) -> f64 {
         match self {
-            QuotaType::ApiCalls => 100.0 / 60.0,      // 100 per minute
-            QuotaType::VmSpawn => 10.0 / 3600.0,      // 10 per hour
+            QuotaType::ApiCalls => 100.0 / 60.0,         // 100 per minute
+            QuotaType::VmSpawn => 10.0 / 3600.0,         // 10 per hour
             QuotaType::ApprovalRequest => 50.0 / 3600.0, // 50 per hour
         }
     }

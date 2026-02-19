@@ -188,7 +188,10 @@ mod tests {
     #[test]
     fn test_quota_reset_duration() {
         let config = RateLimitConfig::default();
-        assert_eq!(config.quota_reset_duration(), Duration::from_secs(24 * 3600));
+        assert_eq!(
+            config.quota_reset_duration(),
+            Duration::from_secs(24 * 3600)
+        );
     }
 
     #[test]

@@ -28,13 +28,13 @@
 //! ```
 
 pub mod config;
+pub mod dashboard;
 pub mod manager;
 pub mod quota;
 pub mod store;
-pub mod dashboard;
 
 pub use config::RateLimitConfig;
+pub use dashboard::DashboardData;
 pub use manager::RateLimitManager;
 pub use quota::{Quota, QuotaType, UsageStats};
 pub use store::QuotaStore;
-pub use dashboard::DashboardData;
