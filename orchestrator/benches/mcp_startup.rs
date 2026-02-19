@@ -1,6 +1,7 @@
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{criterion_group, criterion_main, Criterion};
 use luminaguard_orchestrator::mcp::{McpClient, StdioTransport};
 use std::env;
+use std::hint::black_box;
 
 fn bench_startup(c: &mut Criterion) {
     // Allow overriding the benchmark command to keep this portable across environments.

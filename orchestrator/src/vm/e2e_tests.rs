@@ -517,7 +517,7 @@ async fn e2e_agent_performance_under_load() {
 
 // Week 1: Security Escape Validation - Main Test Runner
 
-use crate::vm::security_escape_simple::{SecurityReport, SecurityTestHarness};
+use crate::vm::security_escape_simple::SecurityTestHarness;
 use std::fs;
 
 #[tokio::test]

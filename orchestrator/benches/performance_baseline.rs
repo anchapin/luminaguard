@@ -13,13 +13,10 @@
 //
 // Results are saved to target/criterion/ and can be analyzed with cargo criterion.
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use std::fs;
-use std::path::PathBuf;
+use std::hint::black_box;
 use std::time::{Duration, Instant};
-
-// Metrics directory
-const METRICS_DIR: &str = ".beads/metrics/performance";
 
 /// Benchmark: VM spawn time (simulated)
 fn bench_vm_spawn_time(c: &mut Criterion) {
@@ -166,44 +163,6 @@ fn bench_comprehensive_workflow(c: &mut Criterion) {
             black_box(elapsed);
         });
     });
-}
-
-/// Save manual measurements to JSON
-fn save_manual_measurements() {
-    let metrics = ManualMeasurements {
-        timestamp: chrono::Utc::now().to_rfc3339(),
-        spawn_time_ms: 110.0,     // Expected from Wave 2
-        memory_mb: 150.0,         // Expected baseline
-        cpu_percent: 30.0,        // Expected baseline
-        network_latency_ms: 40.0, // Expected baseline
-    };
-
-    let metrics_path = PathBuf::from(METRICS_DIR);
-    if let Err(e) = fs::create_dir_all(&metrics_path) {
-        eprintln!("Failed to create metrics directory: {}", e);
-        return;
-    }
-
-    let timestamp = chrono::Utc::now().format("%Y%m%d_%H%M%S");
-    let filename = format!("manual_measurements_{}.json", timestamp);
-    let filepath = metrics_path.join(&filename);
-
-    if let Ok(json) = serde_json::to_string_pretty(&metrics) {
-        if let Err(e) = fs::write(&filepath, json) {
-            eprintln!("Failed to save measurements: {}", e);
-        } else {
-            println!("Manual measurements saved to: {}", filepath.display());
-        }
-    }
-}
-
-#[derive(serde::Serialize)]
-struct ManualMeasurements {
-    timestamp: String,
-    spawn_time_ms: f64,
-    memory_mb: f64,
-    cpu_percent: f64,
-    network_latency_ms: f64,
 }
 
 criterion_group!(

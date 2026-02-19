@@ -153,15 +153,15 @@ mod tests {
 
         // First retry: 1s
         let delay0 = calculate_retry_delay(0, &config);
-        assert!(matches!(delay0, RetryDecision::Retry(d) if d >= 800 && d <= 1200));
+        assert!(matches!(delay0, RetryDecision::Retry(d) if (800..=1200).contains(&d)));
 
         // Second retry: 2s
         let delay1 = calculate_retry_delay(1, &config);
-        assert!(matches!(delay1, RetryDecision::Retry(d) if d >= 1600 && d <= 2400));
+        assert!(matches!(delay1, RetryDecision::Retry(d) if (1600..=2400).contains(&d)));
 
         // Third retry: 4s
         let delay2 = calculate_retry_delay(2, &config);
-        assert!(matches!(delay2, RetryDecision::Retry(d) if d >= 3200 && d <= 4800));
+        assert!(matches!(delay2, RetryDecision::Retry(d) if (3200..=4800).contains(&d)));
     }
 
     #[test]

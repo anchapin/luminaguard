@@ -259,7 +259,6 @@ mod tests {
 
     #[test]
     fn test_get_boot_args_without_hardening() {
-        use crate::vm::rootfs::RootfsConfig;
         let mut config = VmConfig::new("test-vm".to_string());
         config.rootfs_config = None;
         let args = config.get_boot_args();

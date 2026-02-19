@@ -917,9 +917,8 @@ mod tests {
         let harness = ResourceLimitsTestHarness::new("/tmp");
 
         // On most Linux systems, OOM killer should be enabled
-        let enabled = harness.check_oom_killer_enabled();
-        // Just verify it returns a boolean
-        assert!(enabled == true || enabled == false);
+        let _enabled = harness.check_oom_killer_enabled();
+        // Just verify the function runs without error
     }
 
     #[test]
@@ -927,9 +926,8 @@ mod tests {
         let harness = ResourceLimitsTestHarness::new("/tmp");
 
         // This may return false on systems without cgroup v2
-        let available = harness.check_cgroup_v2_available();
-        // Just verify it returns a boolean
-        assert!(available == true || available == false);
+        let _available = harness.check_cgroup_v2_available();
+        // Just verify the function runs without error
     }
 
     #[test]
