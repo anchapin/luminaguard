@@ -446,9 +446,11 @@ mod tests {
         let temp_dir = tempfile::TempDir::new().unwrap();
         let snapshot_path = temp_dir.path().join("snapshots");
 
-        let mut config = PoolConfig::default();
-        config.snapshot_path = snapshot_path.clone();
-        config.pool_size = 2;
+        let config = PoolConfig {
+            snapshot_path: snapshot_path.clone(),
+            pool_size: 2,
+            ..Default::default()
+        };
 
         // Set env var for the pool to pick up
         std::env::set_var("LUMINAGUARD_SNAPSHOT_PATH", snapshot_path.to_str().unwrap());
@@ -608,8 +610,8 @@ mod tests {
 
         #[cfg(unix)]
         {
-            let mut perms = std::fs::metadata(&snapshot_path).unwrap().permissions();
-            perms.set_readonly(true);
+            use std::os::unix::fs::PermissionsExt;
+            let perms = std::fs::Permissions::from_mode(0o555); // read-only for all
             let _ = std::fs::set_permissions(&snapshot_path, perms);
         }
 
@@ -627,8 +629,8 @@ mod tests {
         #[cfg(unix)]
         {
             // Restore permissions
-            let mut perms = std::fs::metadata(&snapshot_path).unwrap().permissions();
-            perms.set_readonly(false);
+            use std::os::unix::fs::PermissionsExt;
+            let perms = std::fs::Permissions::from_mode(0o755); // rwx for owner, rx for others
             let _ = std::fs::set_permissions(&snapshot_path, perms);
         }
     }
@@ -683,8 +685,10 @@ mod tests {
         let temp_dir = tempfile::TempDir::new().unwrap();
         let snapshot_path = temp_dir.path().join("snapshots");
 
-        let mut config = PoolConfig::default();
-        config.snapshot_path = snapshot_path.clone();
+        let config = PoolConfig {
+            snapshot_path: snapshot_path.clone(),
+            ..Default::default()
+        };
 
         let pool = SnapshotPool::new(config).await.unwrap();
 
@@ -710,8 +714,10 @@ mod tests {
         let temp_dir = tempfile::TempDir::new().unwrap();
         let snapshot_path = temp_dir.path().join("snapshots");
 
-        let mut config = PoolConfig::default();
-        config.snapshot_path = snapshot_path.clone();
+        let config = PoolConfig {
+            snapshot_path: snapshot_path.clone(),
+            ..Default::default()
+        };
 
         let pool = SnapshotPool::new(config).await.unwrap();
 
@@ -740,8 +746,10 @@ mod tests {
         let temp_dir = tempfile::TempDir::new().unwrap();
         let snapshot_path = temp_dir.path().join("snapshots");
 
-        let mut config = PoolConfig::default();
-        config.snapshot_path = snapshot_path.clone();
+        let config = PoolConfig {
+            snapshot_path: snapshot_path.clone(),
+            ..Default::default()
+        };
 
         let pool = SnapshotPool::new(config).await.unwrap();
 

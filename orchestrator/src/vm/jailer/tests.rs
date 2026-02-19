@@ -3,7 +3,7 @@
 // Comprehensive tests for Jailer sandbox functionality
 
 #[cfg(test)]
-mod tests {
+mod jailer_tests {
     use crate::vm::config::VmConfig;
     use crate::vm::jailer::{verify_jailer_installed, JailerConfig};
 

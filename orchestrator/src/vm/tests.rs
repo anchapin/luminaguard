@@ -5,7 +5,7 @@
 // vsock communication, and security constraints.
 
 #[cfg(test)]
-mod tests {
+mod vm_tests {
     use crate::vm::{destroy_vm, should_skip_hypervisor_tests, verify_network_isolation};
 
     /// Test that VM cannot be created with networking enabled

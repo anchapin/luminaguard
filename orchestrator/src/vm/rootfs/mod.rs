@@ -750,13 +750,16 @@ mod tests {
 
     #[test]
     fn test_rootfs_validate_requires_readonly() {
-        let mut config = RootfsConfig::default();
-        config.read_only = false;
+        let config = RootfsConfig {
+            read_only: false,
+            ..Default::default()
+        };
         // Skip file existence check by creating a temp file (cross-platform)
         let temp_file = std::env::temp_dir().join("test-rootfs-readonly.ext4");
         std::fs::write(&temp_file, b"test").unwrap();
-        config.rootfs_path = temp_file.to_string_lossy().to_string();
-        let result = config.validate();
+        let mut config_with_file = config.clone();
+        config_with_file.rootfs_path = temp_file.to_string_lossy().to_string();
+        let result = config_with_file.validate();
         assert!(result.is_err());
         assert!(result
             .unwrap_err()
@@ -767,13 +770,16 @@ mod tests {
 
     #[test]
     fn test_rootfs_validate_ext4_requires_path() {
-        let mut config = RootfsConfig::default();
-        config.overlay_type = OverlayType::Ext4;
+        let config = RootfsConfig {
+            overlay_type: OverlayType::Ext4,
+            ..Default::default()
+        };
         // Skip file existence check by creating a temp file (cross-platform)
         let temp_file = std::env::temp_dir().join("test-rootfs-overlay.ext4");
         std::fs::write(&temp_file, b"test").unwrap();
-        config.rootfs_path = temp_file.to_string_lossy().to_string();
-        let result = config.validate();
+        let mut config_with_file = config.clone();
+        config_with_file.rootfs_path = temp_file.to_string_lossy().to_string();
+        let result = config_with_file.validate();
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("overlay_path"));
         let _ = std::fs::remove_file(temp_file);

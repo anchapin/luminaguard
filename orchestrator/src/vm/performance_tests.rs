@@ -398,5 +398,5 @@ async fn test_performance_summary() {
     }
     println!("\n========================================================\n");
 
-    assert!(true, "Performance summary printed");
+    // Performance summary printed successfully
 }
