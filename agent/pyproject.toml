@@ -2,7 +2,7 @@
 name = "luminaguard-agent"
 version = "0.1.0"
 description = "LuminaGuard Agent - Python Reasoning Loop"
-readme = "../README.md"
+readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "MIT"}
 authors = [

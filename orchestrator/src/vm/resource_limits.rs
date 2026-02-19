@@ -127,6 +127,7 @@ impl ResourceLimitsTestHarness {
     /// Test: 64MB memory limit enforcement
     ///
     /// Expected: ENFORCED - VM cannot exceed 64MB memory
+    #[cfg(unix)]
     fn test_memory_limit_64mb(&mut self) {
         let test_name = "memory_limit_64mb";
 
@@ -141,6 +142,7 @@ impl ResourceLimitsTestHarness {
     /// Test: 128MB memory limit enforcement
     ///
     /// Expected: ENFORCED - VM cannot exceed 128MB memory
+    #[cfg(unix)]
     fn test_memory_limit_128mb(&mut self) {
         let test_name = "memory_limit_128mb";
 
@@ -155,6 +157,7 @@ impl ResourceLimitsTestHarness {
     /// Test: 256MB memory limit enforcement
     ///
     /// Expected: ENFORCED - VM cannot exceed 256MB memory
+    #[cfg(unix)]
     fn test_memory_limit_256mb(&mut self) {
         let test_name = "memory_limit_256mb";
 
@@ -169,6 +172,7 @@ impl ResourceLimitsTestHarness {
     /// Test: 512MB memory limit enforcement
     ///
     /// Expected: ENFORCED - VM cannot exceed 512MB memory
+    #[cfg(unix)]
     fn test_memory_limit_512mb(&mut self) {
         let test_name = "memory_limit_512mb";
 
@@ -181,6 +185,7 @@ impl ResourceLimitsTestHarness {
     }
 
     /// Internal helper for memory limit tests
+    #[cfg(unix)]
     fn test_memory_limit_internal(&self, test_name: &str, limit_mb: u32) -> ResourceLimitTestResult {
         let start = Instant::now();
 
@@ -221,6 +226,7 @@ impl ResourceLimitsTestHarness {
     /// Test: OOM graceful degradation
     ///
     /// Expected: ENFORCED - VM gracefully handles OOM, no crash
+    #[cfg(unix)]
     fn test_oom_graceful_degradation(&mut self) {
         let test_name = "oom_graceful_degradation";
         let start = Instant::now();
@@ -316,6 +322,7 @@ impl ResourceLimitsTestHarness {
     /// Test: CPU limit enforcement
     ///
     /// Expected: ENFORCED - VM cannot exceed CPU quota
+    #[cfg(unix)]
     fn test_cpu_limit_enforcement(&mut self) {
         let test_name = "cpu_limit_enforcement";
         let start = Instant::now();
@@ -360,6 +367,7 @@ impl ResourceLimitsTestHarness {
     /// Test: CPU shares enforcement
     ///
     /// Expected: ENFORCED - CPU shares control relative priority
+    #[cfg(unix)]
     fn test_cpu_shares_enforcement(&mut self) {
         let test_name = "cpu_shares_enforcement";
         let start = Instant::now();
@@ -405,6 +413,7 @@ impl ResourceLimitsTestHarness {
     /// Test: Disk quota enforcement
     ///
     /// Expected: ENFORCED - VM cannot exceed disk quota
+    #[cfg(unix)]
     fn test_disk_quota_enforcement(&mut self) {
         let test_name = "disk_quota_enforcement";
         let start = Instant::now();
@@ -498,6 +507,7 @@ impl ResourceLimitsTestHarness {
     /// Test: Multiple VMs resource contention
     ///
     /// Expected: ENFORCED - Multiple VMs share resources fairly
+    #[cfg(unix)]
     fn test_multiple_vms_resource_contention(&mut self) {
         let test_name = "multiple_vms_resource_contention";
         let start = Instant::now();
@@ -732,6 +742,7 @@ mod tests {
 
     #[test]
     fn test_resource_limit_test_result_serialization() {
+        // This test works on all platforms
         let result = ResourceLimitTestResult {
             test_name: "test_memory_limit".to_string(),
             enforced: true,
