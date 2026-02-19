@@ -99,7 +99,7 @@ impl HypervInstance {
 
             // 3. Setup partition (blocking operation)
             {
-                let p = match partition.lock() {
+                let mut p = match partition.lock() {
                     Ok(guard) => guard,
                     Err(e) => {
                         let _ = init_tx
