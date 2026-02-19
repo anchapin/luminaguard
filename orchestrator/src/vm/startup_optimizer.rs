@@ -312,7 +312,10 @@ impl PerformanceTracker {
         let min_time_ms = sorted_times.first().copied().unwrap_or(0.0);
         let max_time_ms = sorted_times.last().copied().unwrap_or(0.0);
         let p95_index = ((sample_count as f64) * 0.95) as usize;
-        let p95_time_ms = sorted_times.get(p95_index.min(sample_count - 1)).copied().unwrap_or(0.0);
+        let p95_time_ms = sorted_times
+            .get(p95_index.min(sample_count - 1))
+            .copied()
+            .unwrap_or(0.0);
 
         // Calculate average phases
         let mut avg_phases = StartupPhases::new();
