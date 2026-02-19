@@ -67,9 +67,8 @@ markers = [
     "integration: marks tests as integration tests (deselect with '-m \"not integration\"')",
 ]
 
-[tool.setuptools]
-packages = ["daemon", "skills", "messenger"]
-py_modules = ["approval_client", "bot_factory", "create_bot", "daemon_config", "llm_client", "loop", "mcp_client", "mesh", "vsock_client"]
+[tool.setuptools.packages]
+find = {where = ["."], include = ["daemon", "skills", "messenger"]}
 
 [tool.hypothesis]
 phases = ["explicit", "generate", "shrink"]
