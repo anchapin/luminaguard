@@ -161,7 +161,8 @@ where
     /// Enable intermittent failure simulation
     pub fn enable_intermittent(&self, rate: f64) {
         self.intermittent_enabled.store(true, Ordering::SeqCst);
-        self.intermittent_rate.store((rate * 10000.0) as u64, Ordering::SeqCst);
+        self.intermittent_rate
+            .store((rate * 10000.0) as u64, Ordering::SeqCst);
         tracing::info!("Intermittent failures enabled with rate: {}", rate);
     }
 
@@ -233,7 +234,8 @@ where
 
         // Track request count
         if state == PartitionState::Connected {
-            self.requests_before_partition.fetch_add(1, Ordering::SeqCst);
+            self.requests_before_partition
+                .fetch_add(1, Ordering::SeqCst);
         } else if state == PartitionState::Recovering {
             self.requests_after_partition.fetch_add(1, Ordering::SeqCst);
         }
@@ -262,6 +264,7 @@ where
 }
 
 /// Network partition test harness
+#[allow(dead_code)]
 pub struct NetworkPartitionTestHarness {
     /// Temporary directory for test data
     temp_dir: PathBuf,
@@ -282,8 +285,7 @@ impl NetworkPartitionTestHarness {
             .context("Failed to create temp directory for network tests")?;
 
         // Create results directory
-        fs::create_dir_all(&results_path)
-            .context("Failed to create results directory")?;
+        fs::create_dir_all(&results_path).context("Failed to create results directory")?;
 
         Ok(Self {
             temp_dir,
@@ -292,7 +294,10 @@ impl NetworkPartitionTestHarness {
     }
 
     /// Run all network partition tests
-    pub async fn run_all_tests<T>(&self, transport_factory: impl Fn() -> T) -> Result<Vec<NetworkPartitionTestResult>>
+    pub async fn run_all_tests<T>(
+        &self,
+        transport_factory: impl Fn() -> T,
+    ) -> Result<Vec<NetworkPartitionTestResult>>
     where
         T: Transport + Send + Clone + 'static,
     {
@@ -304,7 +309,10 @@ impl NetworkPartitionTestHarness {
         results.push(self.test_full_connection_loss(transport_factory()).await?);
 
         // Test 2: Intermittent connectivity
-        results.push(self.test_intermittent_connectivity(transport_factory()).await?);
+        results.push(
+            self.test_intermittent_connectivity(transport_factory())
+                .await?,
+        );
 
         // Test 3: Partial failure scenarios
         results.push(self.test_partial_failure(transport_factory()).await?);
@@ -408,10 +416,14 @@ impl NetworkPartitionTestHarness {
             cascading_failure,
             graceful_degradation,
             retry_attempts: recovery_attempts,
-            error_message: if passed { None } else { Some("Test failed".to_string()) },
+            error_message: if passed {
+                None
+            } else {
+                Some("Test failed".to_string())
+            },
             metrics: NetworkPartitionMetrics {
                 connection_loss_time_ms: partition_duration_ms,
-                recovery_time_ms: recovery_time_ms,
+                recovery_time_ms,
                 requests_before_partition: metrics.requests_before_partition,
                 requests_after_partition: metrics.requests_after_partition,
                 queued_operations: metrics.queued_operations,
@@ -496,7 +508,11 @@ impl NetworkPartitionTestHarness {
             cascading_failure,
             graceful_degradation,
             retry_attempts: 0,
-            error_message: if passed { None } else { Some("Test failed".to_string()) },
+            error_message: if passed {
+                None
+            } else {
+                Some("Test failed".to_string())
+            },
             metrics: NetworkPartitionMetrics {
                 connection_loss_time_ms: 0.0,
                 recovery_time_ms: 0.0,
@@ -530,10 +546,7 @@ impl NetworkPartitionTestHarness {
     /// - System handles mixed success/failure
     /// - No cascading failures
     /// - State remains consistent
-    pub async fn test_partial_failure<T>(
-        &self,
-        transport: T,
-    ) -> Result<NetworkPartitionTestResult>
+    pub async fn test_partial_failure<T>(&self, transport: T) -> Result<NetworkPartitionTestResult>
     where
         T: Transport,
     {
@@ -581,7 +594,11 @@ impl NetworkPartitionTestHarness {
             cascading_failure,
             graceful_degradation,
             retry_attempts: 0,
-            error_message: if passed { None } else { Some("Test failed".to_string()) },
+            error_message: if passed {
+                None
+            } else {
+                Some("Test failed".to_string())
+            },
             metrics: NetworkPartitionMetrics {
                 connection_loss_time_ms: 0.0,
                 recovery_time_ms: 0.0,
@@ -684,17 +701,21 @@ impl NetworkPartitionTestHarness {
             cascading_failure,
             graceful_degradation,
             retry_attempts: recovery_requests,
-            error_message: if passed { None } else { Some("Test failed".to_string()) },
+            error_message: if passed {
+                None
+            } else {
+                Some("Test failed".to_string())
+            },
             metrics: NetworkPartitionMetrics {
                 connection_loss_time_ms: partition_duration_ms,
-                recovery_time_ms: recovery_time_ms,
+                recovery_time_ms,
                 requests_before_partition: metrics.requests_before_partition,
                 requests_after_partition: metrics.requests_after_partition,
                 queued_operations: metrics.queued_operations,
                 cached_responses: 0,
                 successful_requests_before_recovery: 0,
                 failed_requests_during_partition: metrics.failed_requests as u32,
-                recovery_attempts: recovery_requests as u32,
+                recovery_attempts: recovery_requests,
             },
         };
 
@@ -779,7 +800,11 @@ impl NetworkPartitionTestHarness {
             cascading_failure,
             graceful_degradation,
             retry_attempts: 0,
-            error_message: if passed { None } else { Some("Test failed".to_string()) },
+            error_message: if passed {
+                None
+            } else {
+                Some("Test failed".to_string())
+            },
             metrics: NetworkPartitionMetrics {
                 connection_loss_time_ms: 0.0,
                 recovery_time_ms: 0.0,
@@ -811,10 +836,7 @@ impl NetworkPartitionTestHarness {
     /// - System handles rapid state changes
     /// - No resource leaks
     /// - State remains consistent
-    pub async fn test_rapid_reconnect<T>(
-        &self,
-        transport: T,
-    ) -> Result<NetworkPartitionTestResult>
+    pub async fn test_rapid_reconnect<T>(&self, transport: T) -> Result<NetworkPartitionTestResult>
     where
         T: Transport,
     {
@@ -890,7 +912,11 @@ impl NetworkPartitionTestHarness {
             cascading_failure,
             graceful_degradation,
             retry_attempts: num_cycles as u32 * 2,
-            error_message: if passed { None } else { Some("Test failed".to_string()) },
+            error_message: if passed {
+                None
+            } else {
+                Some("Test failed".to_string())
+            },
             metrics: NetworkPartitionMetrics {
                 connection_loss_time_ms: 0.0,
                 recovery_time_ms: 0.0,
@@ -921,11 +947,10 @@ impl NetworkPartitionTestHarness {
         let filename = format!("network_partition_test_results_{}.json", timestamp);
         let path = self.results_path.join(filename);
 
-        let json = serde_json::to_string_pretty(results)
-            .context("Failed to serialize test results")?;
+        let json =
+            serde_json::to_string_pretty(results).context("Failed to serialize test results")?;
 
-        fs::write(&path, json)
-            .context("Failed to write test results")?;
+        fs::write(&path, json).context("Failed to write test results")?;
 
         tracing::info!("Test results saved to: {:?}", path);
 
@@ -952,13 +977,20 @@ impl NetworkPartitionTestHarness {
 
         summary.push_str("Test Results:\n");
         for result in results {
-            let status = if result.passed { "✓ PASS" } else { "✗ FAIL" };
+            let status = if result.passed {
+                "✓ PASS"
+            } else {
+                "✗ FAIL"
+            };
             summary.push_str(&format!(
                 "  {} - {} ({:.2}ms) - {}\n",
-                status, result.test_name, result.duration_ms,
+                status,
+                result.test_name,
+                result.duration_ms,
                 match result.test_type {
                     NetworkPartitionTestType::FullConnectionLoss => "Full Connection Loss",
-                    NetworkPartitionTestType::IntermittentConnectivity => "Intermittent Connectivity",
+                    NetworkPartitionTestType::IntermittentConnectivity =>
+                        "Intermittent Connectivity",
                     NetworkPartitionTestType::PartialFailure => "Partial Failure",
                     NetworkPartitionTestType::ConnectionRecovery => "Connection Recovery",
                     NetworkPartitionTestType::ConcurrentPartitions => "Concurrent Partitions",
@@ -1112,7 +1144,10 @@ mod tests {
 
         // Enable partition
         simulator.enable_partition().await;
-        assert_eq!(simulator.partition_state().await, PartitionState::Partitioned);
+        assert_eq!(
+            simulator.partition_state().await,
+            PartitionState::Partitioned
+        );
 
         // Disable partition
         simulator.disable_partition().await;

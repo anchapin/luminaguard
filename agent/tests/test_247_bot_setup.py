@@ -37,7 +37,12 @@ sys.path.insert(0, str(AGENT_ROOT))
 # Imports from the LuminaGuard agent package
 # ---------------------------------------------------------------------------
 from daemon_config import DaemonConfig, ConfigManager, ConfigLoader
-from daemon.persona import PersonaConfig, OnboardingProfile, PersonaManager, OnboardingFlow
+from daemon.persona import (
+    PersonaConfig,
+    OnboardingProfile,
+    PersonaManager,
+    OnboardingFlow,
+)
 from llm_client import (
     LLMConfig,
     LLMProvider,
@@ -56,10 +61,10 @@ from messenger import (
     MessageRouter,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_hello_event() -> BotEvent:
     """Create a BotEvent that represents a user sending 'Hello'."""
@@ -79,6 +84,7 @@ def _make_hello_event() -> BotEvent:
 # ---------------------------------------------------------------------------
 # Step 1 – Daemon configuration
 # ---------------------------------------------------------------------------
+
 
 class TestStep1DaemonConfig:
     """Step 1: Create and validate daemon configuration."""
@@ -119,6 +125,7 @@ class TestStep1DaemonConfig:
 # ---------------------------------------------------------------------------
 # Step 2 – Persona / onboarding
 # ---------------------------------------------------------------------------
+
 
 class TestStep2PersonaSetup:
     """Step 2: Initialise bot persona and onboarding profile."""
@@ -192,6 +199,7 @@ class TestStep2PersonaSetup:
 # Step 3 – LLM client creation
 # ---------------------------------------------------------------------------
 
+
 class TestStep3LLMClientCreation:
     """Step 3: Create an LLM client for the bot."""
 
@@ -240,6 +248,7 @@ class TestStep3LLMClientCreation:
 # ---------------------------------------------------------------------------
 # Step 4 – Bot assembly (MessengerBot + MessageRouter)
 # ---------------------------------------------------------------------------
+
 
 class TestStep4BotAssembly:
     """Step 4: Assemble the 24/7 bot using MessengerBot and MessageRouter."""
@@ -316,6 +325,7 @@ class TestStep4BotAssembly:
 # Step 5 – The core test: send "Hello", expect the setup message
 # ---------------------------------------------------------------------------
 
+
 class TestStep5BotRespondsToHello:
     """
     Step 5: The 24/7 bot is created and prompted with 'Hello'.
@@ -352,7 +362,10 @@ class TestStep5BotRespondsToHello:
 
     def test_no_llm_configured_message_constant(self):
         """The constant matches the expected human-readable string."""
-        assert NO_LLM_CONFIGURED_MESSAGE == "Please setup environment variables for your LLM"
+        assert (
+            NO_LLM_CONFIGURED_MESSAGE
+            == "Please setup environment variables for your LLM"
+        )
 
     # ------------------------------------------------------------------
     # 5b. Full setup flow → bot → "Hello" → setup message
@@ -453,10 +466,15 @@ class TestStep5BotRespondsToHello:
 
         # ---- Step 5: Send 'Hello' and assert response -----------------------
         clean_env = {
-            k: v for k, v in os.environ.items()
-            if k not in {
-                "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "OLLAMA_HOST",
-                "LUMINAGUARD_LLM_API_KEY", "LLM_API_KEY",
+            k: v
+            for k, v in os.environ.items()
+            if k
+            not in {
+                "OPENAI_API_KEY",
+                "ANTHROPIC_API_KEY",
+                "OLLAMA_HOST",
+                "LUMINAGUARD_LLM_API_KEY",
+                "LLM_API_KEY",
             }
         }
         with patch.dict(os.environ, clean_env, clear=True):
@@ -488,39 +506,52 @@ class TestStep5BotRespondsToHello:
 # Step 6 – Regression: the message is stable across multiple calls
 # ---------------------------------------------------------------------------
 
+
 class TestStep6Regression:
     """Regression tests to ensure the setup message is stable."""
 
     def test_setup_message_is_idempotent(self):
         """Calling get_bot_response('Hello') multiple times gives same result."""
         clean_env = {
-            k: v for k, v in os.environ.items()
-            if k not in {
-                "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "OLLAMA_HOST",
-                "LUMINAGUARD_LLM_API_KEY", "LLM_API_KEY",
+            k: v
+            for k, v in os.environ.items()
+            if k
+            not in {
+                "OPENAI_API_KEY",
+                "ANTHROPIC_API_KEY",
+                "OLLAMA_HOST",
+                "LUMINAGUARD_LLM_API_KEY",
+                "LLM_API_KEY",
             }
         }
         with patch.dict(os.environ, clean_env, clear=True):
             responses = [get_bot_response("Hello") for _ in range(5)]
 
-        assert all(r == "Please setup environment variables for your LLM" for r in responses)
+        assert all(
+            r == "Please setup environment variables for your LLM" for r in responses
+        )
 
     def test_setup_message_for_various_prompts(self):
         """Without LLM env vars, any prompt returns the setup message."""
         prompts = ["Hello", "Hi", "What can you do?", "Help me", ""]
         clean_env = {
-            k: v for k, v in os.environ.items()
-            if k not in {
-                "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "OLLAMA_HOST",
-                "LUMINAGUARD_LLM_API_KEY", "LLM_API_KEY",
+            k: v
+            for k, v in os.environ.items()
+            if k
+            not in {
+                "OPENAI_API_KEY",
+                "ANTHROPIC_API_KEY",
+                "OLLAMA_HOST",
+                "LUMINAGUARD_LLM_API_KEY",
+                "LLM_API_KEY",
             }
         }
         with patch.dict(os.environ, clean_env, clear=True):
             for prompt in prompts:
                 response = get_bot_response(prompt)
-                assert response == "Please setup environment variables for your LLM", (
-                    f"Unexpected response for prompt {prompt!r}: {response!r}"
-                )
+                assert (
+                    response == "Please setup environment variables for your LLM"
+                ), f"Unexpected response for prompt {prompt!r}: {response!r}"
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 #[cfg(windows)]
-use libwhp::{Partition, WHV_PARTITION_PROPERTY_CODE, WHV_PARTITION_PROPERTY};
+use libwhp::{Partition, WHV_PARTITION_PROPERTY, WHV_PARTITION_PROPERTY_CODE};
 #[cfg(windows)]
 use std::sync::{mpsc, Arc, Mutex};
 use std::time::Instant;
@@ -91,7 +91,10 @@ impl HypervInstance {
                 let prop = WHV_PARTITION_PROPERTY {
                     ProcessorCount: vcpu_count as u32,
                 };
-                if let Err(e) = p.set_property(WHV_PARTITION_PROPERTY_CODE::WHvPartitionPropertyCodeProcessorCount, &prop) {
+                if let Err(e) = p.set_property(
+                    WHV_PARTITION_PROPERTY_CODE::WHvPartitionPropertyCodeProcessorCount,
+                    &prop,
+                ) {
                     let _ = init_tx.send(Err(anyhow!("Failed to set vCPU count: {:?}", e)));
                     return;
                 }
@@ -99,7 +102,7 @@ impl HypervInstance {
 
             // 3. Setup partition (blocking operation)
             {
-                let p = match partition.lock() {
+                let mut p = match partition.lock() {
                     Ok(guard) => guard,
                     Err(e) => {
                         let _ = init_tx

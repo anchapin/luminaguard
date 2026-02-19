@@ -248,101 +248,88 @@ impl SeccompFilter {
         // Additional safe syscalls organized by category
         whitelist.extend(vec![
             // Extended I/O operations
-            "readv",        // Vectored read
-            "writev",       // Vectored write
-            "pread64",      // Positional read
-            "pwrite64",     // Positional write
-            
+            "readv",    // Vectored read
+            "writev",   // Vectored write
+            "pread64",  // Positional read
+            "pwrite64", // Positional write
             // File descriptor operations
-            "open",         // Open file
-            "openat",       // Open relative to dirfd
-            "access",       // Check file accessibility
-            "faccessat",    // Check file accessibility relative to dirfd
-            "dup",          // Duplicate file descriptor
-            "dup2",         // Duplicate to specific fd
-            "dup3",         // Duplicate with flags
-            
+            "open",      // Open file
+            "openat",    // Open relative to dirfd
+            "access",    // Check file accessibility
+            "faccessat", // Check file accessibility relative to dirfd
+            "dup",       // Duplicate file descriptor
+            "dup2",      // Duplicate to specific fd
+            "dup3",      // Duplicate with flags
             // File metadata
-            "statfs",       // Get filesystem statistics
-            "fstatfs",      // Get filesystem statistics for fd
-            
+            "statfs",  // Get filesystem statistics
+            "fstatfs", // Get filesystem statistics for fd
             // Pipes and sockets
-            "pipe",         // Create unidirectional pipe
-            "pipe2",        // Create pipe with flags (for nonblocking I/O)
-            
+            "pipe",  // Create unidirectional pipe
+            "pipe2", // Create pipe with flags (for nonblocking I/O)
             // VSOCK syscalls for guest-host VM communication
             // These enable AF_VSOCK sockets which are VM-local only
             // (not exposed to external networks)
-            "socket",       // Create socket (AF_VSOCK for VM communication)
+            "socket",      // Create socket (AF_VSOCK for VM communication)
             "connect",     // Connect to VSOCK endpoint
-            "bind",         // Bind socket to VSOCK CID:port
-            "listen",       // Listen for VSOCK connections
-            "accept",       // Accept VSOCK connections
-            "accept4",      // Accept with flags
-            "getsockname",  // Get socket address
-            "getpeername",  // Get peer address
-            "setsockopt",   // Set socket options
-            "getsockopt",   // Get socket options
-            "shutdown",     // Shutdown socket
-            "sendmsg",      // Send message
-            "recvmsg",      // Receive message
-            "sendto",       // Send to address
-            "recvfrom",     // Receive from address
-            
+            "bind",        // Bind socket to VSOCK CID:port
+            "listen",      // Listen for VSOCK connections
+            "accept",      // Accept VSOCK connections
+            "accept4",     // Accept with flags
+            "getsockname", // Get socket address
+            "getpeername", // Get peer address
+            "setsockopt",  // Set socket options
+            "getsockopt",  // Get socket options
+            "shutdown",    // Shutdown socket
+            "sendmsg",     // Send message
+            "recvmsg",     // Receive message
+            "sendto",      // Send to address
+            "recvfrom",    // Receive from address
             // Time operations
             "clock_gettime", // Get current time (secure)
             "gettimeofday",  // Get current time (legacy)
-            
             // Process information (read-only)
-            "getpid",       // Get process ID
-            "gettid",       // Get thread ID
-            "getppid",      // Get parent process ID
-            
+            "getpid",  // Get process ID
+            "gettid",  // Get thread ID
+            "getppid", // Get parent process ID
             // Process credentials (read-only)
-            "geteuid",      // Get effective user ID
-            "getegid",      // Get effective group ID
-            "getuid",       // Get real user ID
-            "getgid",       // Get real group ID
-            
+            "geteuid", // Get effective user ID
+            "getegid", // Get effective group ID
+            "getuid",  // Get real user ID
+            "getgid",  // Get real group ID
             // Scheduling control (safe operations)
-            "sched_yield",        // Yield to other threads
-            "sched_getaffinity",  // Get CPU affinity
-            
+            "sched_yield",       // Yield to other threads
+            "sched_getaffinity", // Get CPU affinity
             // Async I/O multiplexing
-            "epoll_wait",   // Wait on epoll file descriptor
-            "epoll_ctl",    // Control epoll set
-            "epoll_pwait",  // Wait on epoll with signal mask
-            "select",       // Synchronous I/O multiplexing
-            "pselect6",     // Select with signal mask
-            
+            "epoll_wait",  // Wait on epoll file descriptor
+            "epoll_ctl",   // Control epoll set
+            "epoll_pwait", // Wait on epoll with signal mask
+            "select",      // Synchronous I/O multiplexing
+            "pselect6",    // Select with signal mask
             // Event notification
-            "eventfd2",     // Create event notification fd
-            
+            "eventfd2", // Create event notification fd
             // Polling
-            "poll",         // Poll file descriptors
-            "ppoll",        // Poll with signal mask
-            
+            "poll",  // Poll file descriptors
+            "ppoll", // Poll with signal mask
             // Basic signal handling
-            "sigaltstack",  // Set alternate signal stack
-            
+            "sigaltstack", // Set alternate signal stack
             // Additional safe syscalls for broader capability
-            "fcntl",        // File descriptor control (get flags, set flags)
-            "fcntl64",      // File descriptor control (64-bit)
-            "getcwd",       // Get current working directory
-            "chdir",        // Change directory (limited to VM filesystem)
-            "fchdir",       // Change to directory fd
-            "lseek",        // Seek in file (already in minimal but being explicit)
-            "mkdir",        // Create directory
-            "rmdir",        // Remove directory
-            "unlink",       // Remove file
-            "truncate",     // Truncate file
-            "ftruncate",    // Truncate open file
-            "rename",       // Rename file
-            "renameat",     // Rename relative to dirfd
-            "fsync",        // Synchronize file to disk
-            "fdatasync",    // Synchronize file data to disk
-            "flock",        // Apply/remove advisory lock
-            "realpath",     // Resolve pathname
+            "fcntl",     // File descriptor control (get flags, set flags)
+            "fcntl64",   // File descriptor control (64-bit)
+            "getcwd",    // Get current working directory
+            "chdir",     // Change directory (limited to VM filesystem)
+            "fchdir",    // Change to directory fd
+            "lseek",     // Seek in file (already in minimal but being explicit)
+            "mkdir",     // Create directory
+            "rmdir",     // Remove directory
+            "unlink",    // Remove file
+            "truncate",  // Truncate file
+            "ftruncate", // Truncate open file
+            "rename",    // Rename file
+            "renameat",  // Rename relative to dirfd
+            "fsync",     // Synchronize file to disk
+            "fdatasync", // Synchronize file data to disk
+            "flock",     // Apply/remove advisory lock
+            "realpath",  // Resolve pathname
         ]);
 
         whitelist
@@ -906,30 +893,30 @@ mod tests {
         // These syscalls MUST NOT be allowed for security
         // Note: socket, connect, bind, listen ARE allowed for VSOCK
         let dangerous = [
-            "clone",      // Process creation
-            "fork",       // Process creation
-            "vfork",      // Process creation
-            "execve",     // Execute programs
-            "execveat",   // Execute programs
-            "mount",      // Filesystem mounting
-            "umount",     // Filesystem operations
-            "umount2",    // Filesystem operations
-            "reboot",     // System reboot
-            "ptrace",     // Process tracing
-            "kexec_load", // Load new kernel
-            "init_module", // Load kernel module
+            "clone",         // Process creation
+            "fork",          // Process creation
+            "vfork",         // Process creation
+            "execve",        // Execute programs
+            "execveat",      // Execute programs
+            "mount",         // Filesystem mounting
+            "umount",        // Filesystem operations
+            "umount2",       // Filesystem operations
+            "reboot",        // System reboot
+            "ptrace",        // Process tracing
+            "kexec_load",    // Load new kernel
+            "init_module",   // Load kernel module
             "delete_module", // Unload kernel module
-            "chroot",     // Change root directory
-            "pivot_root", // Change root filesystem
-            "setuid",     // Set user ID
-            "setgid",     // Set group ID
-            "setreuid",   // Set real/effective UID
-            "setregid",   // Set real/effective GID
-            "setresuid",  // Set real/effective/saved UID
-            "setresgid",  // Set real/effective/saved GID
-            "kill",       // Send signals
-            "tkill",      // Send thread signals
-            "tgkill",     // Send thread signals
+            "chroot",        // Change root directory
+            "pivot_root",    // Change root filesystem
+            "setuid",        // Set user ID
+            "setgid",        // Set group ID
+            "setreuid",      // Set real/effective UID
+            "setregid",      // Set real/effective GID
+            "setresuid",     // Set real/effective/saved UID
+            "setresgid",     // Set real/effective/saved GID
+            "kill",          // Send signals
+            "tkill",         // Send thread signals
+            "tgkill",        // Send thread signals
         ];
 
         for sys in &dangerous {
@@ -949,21 +936,21 @@ mod tests {
 
         // VSOCK syscalls should be allowed for guest-host communication
         let vsock_syscalls = [
-            "socket",     // Create socket (AF_VSOCK)
-            "connect",    // Connect to VSOCK
-            "bind",       // Bind to VSOCK port
-            "listen",     // Listen for VSOCK
-            "accept",     // Accept VSOCK connection
-            "accept4",    // Accept with flags
+            "socket",      // Create socket (AF_VSOCK)
+            "connect",     // Connect to VSOCK
+            "bind",        // Bind to VSOCK port
+            "listen",      // Listen for VSOCK
+            "accept",      // Accept VSOCK connection
+            "accept4",     // Accept with flags
             "getsockname", // Get socket address
             "getpeername", // Get peer address
-            "setsockopt", // Set socket options
-            "getsockopt", // Get socket options
-            "shutdown",   // Shutdown socket
-            "sendmsg",    // Send message
-            "recvmsg",    // Receive message
-            "sendto",     // Send to address
-            "recvfrom",   // Receive from address
+            "setsockopt",  // Set socket options
+            "getsockopt",  // Get socket options
+            "shutdown",    // Shutdown socket
+            "sendmsg",     // Send message
+            "recvmsg",     // Receive message
+            "sendto",      // Send to address
+            "recvfrom",    // Receive from address
         ];
 
         for sys in &vsock_syscalls {

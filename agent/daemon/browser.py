@@ -192,7 +192,9 @@ class BrowserContext:
             logger.error(f"Screenshot failed: {e}")
             return False
 
-    async def wait_for_selector(self, selector: str, timeout: Optional[int] = None) -> bool:
+    async def wait_for_selector(
+        self, selector: str, timeout: Optional[int] = None
+    ) -> bool:
         """Wait for element to appear.
 
         Args:
@@ -373,7 +375,9 @@ class BrowserAutomationEngine:
             try:
                 success = await context.launch() and await context.goto(url)
                 results[browser_type.value] = success
-                logger.info(f"Browser test {browser_type.value}: {'passed' if success else 'failed'}")
+                logger.info(
+                    f"Browser test {browser_type.value}: {'passed' if success else 'failed'}"
+                )
             except Exception as e:
                 logger.error(f"Browser test {browser_type.value} failed: {e}")
                 results[browser_type.value] = False

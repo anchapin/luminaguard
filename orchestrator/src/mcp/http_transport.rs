@@ -65,28 +65,28 @@ use tracing::{debug, info, warn};
 fn base64_encode(data: &[u8]) -> String {
     const ALPHABET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     let mut result = String::new();
-    
+
     for chunk in data.chunks(3) {
         let b0 = chunk[0] as usize;
         let b1 = chunk.get(1).copied().unwrap_or(0) as usize;
         let b2 = chunk.get(2).copied().unwrap_or(0) as usize;
-        
+
         result.push(ALPHABET[b0 >> 2] as char);
         result.push(ALPHABET[((b0 & 0x03) << 4) | (b1 >> 4)] as char);
-        
+
         if chunk.len() > 1 {
             result.push(ALPHABET[((b1 & 0x0f) << 2) | (b2 >> 6)] as char);
         } else {
             result.push('=');
         }
-        
+
         if chunk.len() > 2 {
             result.push(ALPHABET[b2 & 0x3f] as char);
         } else {
             result.push('=');
         }
     }
-    
+
     result
 }
 
@@ -439,8 +439,10 @@ impl HttpTransport {
     ///     .with_bearer_token("your-token-here");
     /// ```
     pub fn with_bearer_token(mut self, token: impl Into<String>) -> Self {
-        self.custom_headers
-            .push(("Authorization".to_string(), format!("Bearer {}", token.into())));
+        self.custom_headers.push((
+            "Authorization".to_string(),
+            format!("Bearer {}", token.into()),
+        ));
         self
     }
 
@@ -887,9 +889,9 @@ mod tests {
 
     #[test]
     fn test_http_transport_bearer_token_auth() {
-        let transport = HttpTransport::new("https://example.com/mcp")
-            .with_bearer_token("my-secret-token");
-        
+        let transport =
+            HttpTransport::new("https://example.com/mcp").with_bearer_token("my-secret-token");
+
         assert_eq!(transport.custom_headers.len(), 1);
         assert_eq!(transport.custom_headers[0].0, "Authorization");
         assert_eq!(transport.custom_headers[0].1, "Bearer my-secret-token");
@@ -897,9 +899,9 @@ mod tests {
 
     #[test]
     fn test_http_transport_basic_auth() {
-        let transport = HttpTransport::new("https://example.com/mcp")
-            .with_basic_auth("user", "pass123");
-        
+        let transport =
+            HttpTransport::new("https://example.com/mcp").with_basic_auth("user", "pass123");
+
         assert_eq!(transport.custom_headers.len(), 1);
         assert_eq!(transport.custom_headers[0].0, "Authorization");
         // Base64 of "user:pass123" = "dXNlcjpwYXNzMTIz"
@@ -910,7 +912,7 @@ mod tests {
     fn test_http_transport_api_key_auth() {
         let transport = HttpTransport::new("https://example.com/mcp")
             .with_api_key("X-API-Key", "my-api-key-123");
-        
+
         assert_eq!(transport.custom_headers.len(), 1);
         assert_eq!(transport.custom_headers[0].0, "X-API-Key");
         assert_eq!(transport.custom_headers[0].1, "my-api-key-123");
@@ -921,7 +923,7 @@ mod tests {
         let transport = HttpTransport::new("https://example.com/mcp")
             .with_bearer_token("token")
             .with_api_key("X-Request-ID", "req-123");
-        
+
         assert_eq!(transport.custom_headers.len(), 2);
         assert_eq!(transport.custom_headers[0].0, "Authorization");
         assert_eq!(transport.custom_headers[1].0, "X-Request-ID");

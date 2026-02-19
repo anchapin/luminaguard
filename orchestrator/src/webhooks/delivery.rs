@@ -2,7 +2,9 @@
 //
 // Handles actual HTTP delivery of webhook events with automatic retries
 
-use crate::webhooks::retry::{calculate_retry_delay, get_attempt_timeout, RetryConfig, RetryDecision};
+use crate::webhooks::retry::{
+    calculate_retry_delay, get_attempt_timeout, RetryConfig, RetryDecision,
+};
 use serde::{Deserialize, Serialize};
 use std::time::Instant;
 use tracing::{debug, warn};
@@ -45,7 +47,8 @@ impl WebhookConfig {
         if !self.enabled {
             return false;
         }
-        self.event_types.contains(&"*".to_string()) || self.event_types.contains(&event_type.to_string())
+        self.event_types.contains(&"*".to_string())
+            || self.event_types.contains(&event_type.to_string())
     }
 }
 
@@ -100,10 +103,7 @@ impl DeliveryExecutor {
         let start = Instant::now();
 
         // Build request
-        let mut request = self.client
-            .post(&config.url)
-            .timeout(timeout)
-            .json(&event);
+        let mut request = self.client.post(&config.url).timeout(timeout).json(&event);
 
         // Add custom headers
         if let Some(headers) = &config.headers {
@@ -118,55 +118,57 @@ impl DeliveryExecutor {
         }
 
         // Send request
-        let response_time_ms = {
-            match request.send().await {
-                Ok(response) => {
-                    let status = response.status().as_u16();
-                    let elapsed = start.elapsed().as_millis() as u64;
+        match request.send().await {
+            Ok(response) => {
+                let status = response.status().as_u16();
+                let elapsed = start.elapsed().as_millis() as u64;
 
-                    debug!(
-                        "Webhook {} attempt {} - status {}, time {} ms",
-                        config.id, attempt, status, elapsed
-                    );
+                debug!(
+                    "Webhook {} attempt {} - status {}, time {} ms",
+                    config.id, attempt, status, elapsed
+                );
 
-                    let success = status >= 200 && status < 300;
-                    let retry_decision = if success {
-                        RetryDecision::GiveUp // Success, no retry needed
-                    } else if is_retryable_status(status) {
-                        calculate_retry_delay(attempt, &config.retry_config)
+                let success = (200..300).contains(&status);
+                let retry_decision = if success {
+                    RetryDecision::GiveUp // Success, no retry needed
+                } else if is_retryable_status(status) {
+                    calculate_retry_delay(attempt, &config.retry_config)
+                } else {
+                    RetryDecision::GiveUp // Non-retryable error
+                };
+
+                DeliveryResult {
+                    success,
+                    status_code: Some(status),
+                    response_time_ms: elapsed,
+                    error: if success {
+                        None
                     } else {
-                        RetryDecision::GiveUp // Non-retryable error
-                    };
-
-                    return DeliveryResult {
-                        success,
-                        status_code: Some(status),
-                        response_time_ms: elapsed,
-                        error: if success { None } else { Some(format!("HTTP {}", status)) },
-                        retry_decision,
-                    };
-                }
-                Err(e) => {
-                    let elapsed = start.elapsed().as_millis() as u64;
-                    let error_msg = e.to_string();
-
-                    warn!(
-                        "Webhook {} attempt {} failed: {} (time {} ms)",
-                        config.id, attempt, error_msg, elapsed
-                    );
-
-                    let retry_decision = calculate_retry_delay(attempt, &config.retry_config);
-
-                    return DeliveryResult {
-                        success: false,
-                        status_code: None,
-                        response_time_ms: elapsed,
-                        error: Some(error_msg),
-                        retry_decision,
-                    };
+                        Some(format!("HTTP {}", status))
+                    },
+                    retry_decision,
                 }
             }
-        };
+            Err(e) => {
+                let elapsed = start.elapsed().as_millis() as u64;
+                let error_msg = e.to_string();
+
+                warn!(
+                    "Webhook {} attempt {} failed: {} (time {} ms)",
+                    config.id, attempt, error_msg, elapsed
+                );
+
+                let retry_decision = calculate_retry_delay(attempt, &config.retry_config);
+
+                DeliveryResult {
+                    success: false,
+                    status_code: None,
+                    response_time_ms: elapsed,
+                    error: Some(error_msg),
+                    retry_decision,
+                }
+            }
+        }
     }
 }
 
@@ -185,13 +187,14 @@ fn is_retryable_status(status: u16) -> bool {
         500 | // Internal Server Error
         502 | // Bad Gateway
         503 | // Service Unavailable
-        504   // Gateway Timeout
+        504 // Gateway Timeout
     )
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::Utc;
 
     #[test]
     fn test_webhook_config_new() {
@@ -252,6 +255,9 @@ mod tests {
         };
 
         assert_eq!(event.event_type, "task.completed");
-        assert_eq!(event.data.get("task_id").and_then(|v| v.as_str()), Some("task-456"));
+        assert_eq!(
+            event.data.get("task_id").and_then(|v| v.as_str()),
+            Some("task-456")
+        );
     }
 }

@@ -48,7 +48,9 @@ class SourceInstaller:
         """
         self.repo_path = Path(repo_path)
 
-    async def clone_repository(self, git_url: str, target_path: Optional[Path] = None) -> bool:
+    async def clone_repository(
+        self, git_url: str, target_path: Optional[Path] = None
+    ) -> bool:
         """Clone git repository.
 
         Args:
@@ -297,7 +299,9 @@ class DeveloperMode:
         self.hot_reloader: Optional[HotReloader] = None
         self.debug_tools = DebugTools()
 
-    async def setup_development_environment(self, git_url: Optional[str] = None) -> bool:
+    async def setup_development_environment(
+        self, git_url: Optional[str] = None
+    ) -> bool:
         """Set up complete development environment.
 
         Args:

@@ -47,10 +47,10 @@ from llm_client import (
     is_llm_configured,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 class _SuccessClient(LLMClient):
     """Always returns a successful response."""
@@ -92,6 +92,7 @@ class _FatalErrorClient(LLMClient):
 # _is_retryable_error
 # ---------------------------------------------------------------------------
 
+
 class TestIsRetryableError:
     def test_insufficient_quota(self):
         exc = Exception("Error code: 429 - insufficient_quota")
@@ -129,6 +130,7 @@ class TestIsRetryableError:
 # ---------------------------------------------------------------------------
 # FallbackLLMClient
 # ---------------------------------------------------------------------------
+
 
 class TestFallbackLLMClientInit:
     def test_requires_at_least_one_client(self):
@@ -187,7 +189,9 @@ class TestFallbackLLMClientDecideAction:
 
         assert resp.is_complete is True
         assert resp.tool_name is None
-        assert "exhausted" in resp.reasoning.lower() or "failed" in resp.reasoning.lower()
+        assert (
+            "exhausted" in resp.reasoning.lower() or "failed" in resp.reasoning.lower()
+        )
         assert all(c.call_count == 1 for c in clients)
 
     def test_fatal_error_stops_chain_immediately(self):
@@ -262,6 +266,7 @@ class TestFallbackLLMClientDecideAction:
 # _collect_openai_keys
 # ---------------------------------------------------------------------------
 
+
 class TestCollectOpenAIKeys:
     def test_no_keys_returns_empty(self):
         with patch.dict(os.environ, {}, clear=True):
@@ -317,6 +322,7 @@ class TestCollectOpenAIKeys:
 # _collect_anthropic_keys
 # ---------------------------------------------------------------------------
 
+
 class TestCollectAnthropicKeys:
     def test_no_keys_returns_empty(self):
         with patch.dict(os.environ, {}, clear=True):
@@ -343,6 +349,7 @@ class TestCollectAnthropicKeys:
 # is_llm_configured – numbered key detection
 # ---------------------------------------------------------------------------
 
+
 class TestIsLLMConfiguredFallbackKeys:
     def test_no_keys_false(self):
         with patch.dict(os.environ, {}, clear=True):
@@ -362,13 +369,16 @@ class TestIsLLMConfiguredFallbackKeys:
             assert is_llm_configured() is True
 
     def test_ollama_host(self):
-        with patch.dict(os.environ, {"OLLAMA_HOST": "http://localhost:11434"}, clear=True):
+        with patch.dict(
+            os.environ, {"OLLAMA_HOST": "http://localhost:11434"}, clear=True
+        ):
             assert is_llm_configured() is True
 
 
 # ---------------------------------------------------------------------------
 # build_fallback_client
 # ---------------------------------------------------------------------------
+
 
 class TestBuildFallbackClient:
     def test_no_env_vars_returns_none(self):
@@ -380,9 +390,8 @@ class TestBuildFallbackClient:
         """One key → plain OpenAILLMClient (not wrapped in FallbackLLMClient)."""
         env = {"OPENAI_API_KEY": "sk-only"}
         with patch.dict(os.environ, env, clear=True):
-            try:
-                result = build_fallback_client()
-            except ImportError:
+            result = build_fallback_client()
+            if result is None:
                 pytest.skip("openai package not installed")
         assert isinstance(result, OpenAILLMClient)
 
@@ -390,9 +399,8 @@ class TestBuildFallbackClient:
         """Two keys → FallbackLLMClient wrapping two OpenAILLMClients."""
         env = {"OPENAI_API_KEY": "sk-1", "OPENAI_API_KEY_2": "sk-2"}
         with patch.dict(os.environ, env, clear=True):
-            try:
-                result = build_fallback_client()
-            except ImportError:
+            result = build_fallback_client()
+            if result is None:
                 pytest.skip("openai package not installed")
         assert isinstance(result, FallbackLLMClient)
         assert len(result.clients) == 2
@@ -404,9 +412,8 @@ class TestBuildFallbackClient:
             "OPENAI_API_KEY_3": "sk-3",
         }
         with patch.dict(os.environ, env, clear=True):
-            try:
-                result = build_fallback_client()
-            except ImportError:
+            result = build_fallback_client()
+            if result is None:
                 pytest.skip("openai package not installed")
         assert isinstance(result, FallbackLLMClient)
         assert len(result.clients) == 3
@@ -415,7 +422,9 @@ class TestBuildFallbackClient:
         """If openai package is missing, build_fallback_client returns None."""
         env = {"OPENAI_API_KEY": "sk-1"}
         with patch.dict(os.environ, env, clear=True):
-            with patch("llm_client.OpenAILLMClient", side_effect=ImportError("no openai")):
+            with patch(
+                "llm_client.OpenAILLMClient", side_effect=ImportError("no openai")
+            ):
                 result = build_fallback_client()
         assert result is None
 
@@ -423,6 +432,7 @@ class TestBuildFallbackClient:
 # ---------------------------------------------------------------------------
 # get_bot_response – integration with fallback
 # ---------------------------------------------------------------------------
+
 
 class TestGetBotResponseFallback:
     """
@@ -432,6 +442,7 @@ class TestGetBotResponseFallback:
 
     def test_no_llm_configured_returns_setup_message(self):
         from llm_client import NO_LLM_CONFIGURED_MESSAGE
+
         with patch.dict(os.environ, {}, clear=True):
             result = get_bot_response("Hello")
         assert result == NO_LLM_CONFIGURED_MESSAGE
@@ -450,13 +461,17 @@ class TestGetBotResponseFallback:
 
     def test_fallback_client_exhausted_returns_error_string(self):
         """When all keys are exhausted, get_bot_response returns an error string."""
-        exhausted_client = FallbackLLMClient([
-            _RetryableErrorClient("quota1"),
-            _RetryableErrorClient("quota2"),
-        ])
+        exhausted_client = FallbackLLMClient(
+            [
+                _RetryableErrorClient("quota1"),
+                _RetryableErrorClient("quota2"),
+            ]
+        )
         env = {"OPENAI_API_KEY": "sk-1", "OPENAI_API_KEY_2": "sk-2"}
         with patch.dict(os.environ, env, clear=True):
-            with patch("llm_client.build_fallback_client", return_value=exhausted_client):
+            with patch(
+                "llm_client.build_fallback_client", return_value=exhausted_client
+            ):
                 result = get_bot_response("Hello")
         # Should return the exhausted message, not crash
         assert isinstance(result, str)
@@ -489,6 +504,7 @@ class TestGetBotResponseFallback:
 # OpenAILLMClient error classification
 # ---------------------------------------------------------------------------
 
+
 class TestOpenAILLMClientErrorClassification:
     """
     Verify that OpenAILLMClient raises the right exception types so that
@@ -497,7 +513,9 @@ class TestOpenAILLMClientErrorClassification:
 
     def _make_client(self) -> OpenAILLMClient:
         try:
-            return OpenAILLMClient(LLMConfig(provider=LLMProvider.OPENAI, api_key="sk-test"))
+            return OpenAILLMClient(
+                LLMConfig(provider=LLMProvider.OPENAI, api_key="sk-test")
+            )
         except ImportError:
             pytest.skip("openai package not installed")
 
@@ -506,28 +524,36 @@ class TestOpenAILLMClientErrorClassification:
         quota_exc = Exception(
             "Error code: 429 - {'error': {'code': 'insufficient_quota'}}"
         )
-        with patch.object(client.client.chat.completions, "create", side_effect=quota_exc):
+        with patch.object(
+            client.client.chat.completions, "create", side_effect=quota_exc
+        ):
             with pytest.raises(LLMClientRetryableError):
                 client.decide_action([{"role": "user", "content": "hi"}], [], {})
 
     def test_rate_limit_raises_retryable(self):
         client = self._make_client()
         rate_exc = Exception("rate_limit_exceeded: please slow down")
-        with patch.object(client.client.chat.completions, "create", side_effect=rate_exc):
+        with patch.object(
+            client.client.chat.completions, "create", side_effect=rate_exc
+        ):
             with pytest.raises(LLMClientRetryableError):
                 client.decide_action([{"role": "user", "content": "hi"}], [], {})
 
     def test_auth_error_raises_llm_client_error(self):
         client = self._make_client()
         auth_exc = Exception("Invalid API key provided")
-        with patch.object(client.client.chat.completions, "create", side_effect=auth_exc):
+        with patch.object(
+            client.client.chat.completions, "create", side_effect=auth_exc
+        ):
             with pytest.raises(LLMClientError):
                 client.decide_action([{"role": "user", "content": "hi"}], [], {})
 
     def test_generic_error_raises_llm_client_error(self):
         client = self._make_client()
         generic_exc = Exception("Something went wrong")
-        with patch.object(client.client.chat.completions, "create", side_effect=generic_exc):
+        with patch.object(
+            client.client.chat.completions, "create", side_effect=generic_exc
+        ):
             with pytest.raises(LLMClientError):
                 client.decide_action([{"role": "user", "content": "hi"}], [], {})
 
@@ -535,6 +561,7 @@ class TestOpenAILLMClientErrorClassification:
 # ---------------------------------------------------------------------------
 # AnthropicLLMClient error classification
 # ---------------------------------------------------------------------------
+
 
 class TestAnthropicLLMClientInit:
     """Verify AnthropicLLMClient initialises correctly."""
@@ -661,6 +688,7 @@ class TestAnthropicLLMClientErrorClassification:
 # build_fallback_client – Anthropic integration
 # ---------------------------------------------------------------------------
 
+
 class TestBuildFallbackClientAnthropic:
     """Tests for Anthropic key handling in build_fallback_client."""
 
@@ -668,9 +696,8 @@ class TestBuildFallbackClientAnthropic:
         """One Anthropic key (no OpenAI) → plain AnthropicLLMClient."""
         env = {"ANTHROPIC_API_KEY": "sk-ant-only"}
         with patch.dict(os.environ, env, clear=True):
-            try:
-                result = build_fallback_client()
-            except ImportError:
+            result = build_fallback_client()
+            if result is None:
                 pytest.skip("anthropic package not installed")
         assert isinstance(result, AnthropicLLMClient)
 
@@ -678,9 +705,8 @@ class TestBuildFallbackClientAnthropic:
         """OpenAI key + Anthropic key → FallbackLLMClient with both."""
         env = {"OPENAI_API_KEY": "sk-openai", "ANTHROPIC_API_KEY": "sk-ant-1"}
         with patch.dict(os.environ, env, clear=True):
-            try:
-                result = build_fallback_client()
-            except ImportError:
+            result = build_fallback_client()
+            if result is None:
                 pytest.skip("openai or anthropic package not installed")
         assert isinstance(result, FallbackLLMClient)
         assert len(result.clients) == 2
@@ -706,7 +732,9 @@ class TestBuildFallbackClientAnthropic:
         """If anthropic package is missing, Anthropic keys are skipped."""
         env = {"ANTHROPIC_API_KEY": "sk-ant-1"}
         with patch.dict(os.environ, env, clear=True):
-            with patch("llm_client.AnthropicLLMClient", side_effect=ImportError("no anthropic")):
+            with patch(
+                "llm_client.AnthropicLLMClient", side_effect=ImportError("no anthropic")
+            ):
                 result = build_fallback_client()
         assert result is None
 
@@ -714,9 +742,8 @@ class TestBuildFallbackClientAnthropic:
         """Two Anthropic keys → FallbackLLMClient wrapping two AnthropicLLMClients."""
         env = {"ANTHROPIC_API_KEY": "sk-ant-1", "ANTHROPIC_API_KEY_2": "sk-ant-2"}
         with patch.dict(os.environ, env, clear=True):
-            try:
-                result = build_fallback_client()
-            except ImportError:
+            result = build_fallback_client()
+            if result is None:
                 pytest.skip("anthropic package not installed")
         assert isinstance(result, FallbackLLMClient)
         assert len(result.clients) == 2

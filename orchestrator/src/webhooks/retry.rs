@@ -6,9 +6,9 @@
 // - Jitter to prevent thundering herd
 // - Configurable timeout per retry
 
+use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
-use rand::Rng;
 use tracing::debug;
 
 /// Retry strategy configuration
@@ -65,7 +65,7 @@ pub fn calculate_retry_delay(attempt: u32, config: &RetryConfig) -> RetryDecisio
     }
 
     let base_delay = config.base_delay_ms;
-    
+
     // Calculate exponential backoff: base * 2^attempt
     let delay_ms = if config.use_exponential_backoff {
         base_delay.saturating_mul(2_u64.pow(attempt))
@@ -80,11 +80,11 @@ pub fn calculate_retry_delay(attempt: u32, config: &RetryConfig) -> RetryDecisio
     let delay_ms = if config.use_jitter && delay_ms > 0 {
         let jitter_percent = 0.2;
         let jitter = (delay_ms as f64 * jitter_percent) as u64;
-        let mut rng = rand::thread_rng();
-        let random_jitter = rng.gen_range(0..=jitter);
-        
+        let mut rng = rand::rng();
+        let random_jitter = rng.random_range(0..=jitter);
+
         // 50% chance to add or subtract jitter
-        if rng.gen_bool(0.5) {
+        if rng.random_bool(0.5) {
             delay_ms.saturating_add(random_jitter)
         } else {
             delay_ms.saturating_sub(random_jitter)
@@ -150,15 +150,15 @@ mod tests {
     #[test]
     fn test_exponential_backoff() {
         let config = RetryConfig::default();
-        
+
         // First retry: 1s
         let delay0 = calculate_retry_delay(0, &config);
         assert!(matches!(delay0, RetryDecision::Retry(d) if d >= 800 && d <= 1200));
-        
+
         // Second retry: 2s
         let delay1 = calculate_retry_delay(1, &config);
         assert!(matches!(delay1, RetryDecision::Retry(d) if d >= 1600 && d <= 2400));
-        
+
         // Third retry: 4s
         let delay2 = calculate_retry_delay(2, &config);
         assert!(matches!(delay2, RetryDecision::Retry(d) if d >= 3200 && d <= 4800));
@@ -167,7 +167,7 @@ mod tests {
     #[test]
     fn test_max_retries_exceeded() {
         let config = RetryConfig::default();
-        
+
         let decision = calculate_retry_delay(config.max_retries, &config);
         assert_eq!(decision, RetryDecision::GiveUp);
     }
@@ -177,9 +177,10 @@ mod tests {
         let mut config = RetryConfig::default();
         config.max_total_delay_ms = 5000;
         config.use_jitter = false;
-        
-        // Very high attempt number should be capped
-        let delay = calculate_retry_delay(10, &config);
+
+        // Use attempt 4 which is within max_retries (5) but would produce a large delay
+        // 1000 * 2^4 = 16000, which should be capped to 5000
+        let delay = calculate_retry_delay(4, &config);
         assert!(matches!(delay, RetryDecision::Retry(d) if d <= 5000));
     }
 
@@ -188,11 +189,11 @@ mod tests {
         // Base timeout is 5 seconds
         let timeout0 = get_attempt_timeout(0, 5);
         assert_eq!(timeout0.as_secs(), 5);
-        
+
         // Second attempt: 5 * (1 + 0.5) = 7.5s
         let timeout1 = get_attempt_timeout(1, 5);
         assert_eq!(timeout1.as_secs(), 7);
-        
+
         // Very high attempt number is capped at 60s
         let timeout_high = get_attempt_timeout(1000, 5);
         assert_eq!(timeout_high.as_secs(), 60);
@@ -203,10 +204,10 @@ mod tests {
         let mut config = RetryConfig::default();
         config.use_exponential_backoff = false;
         config.use_jitter = false;
-        
+
         let delay0 = calculate_retry_delay(0, &config);
         let delay1 = calculate_retry_delay(1, &config);
-        
+
         // Both should be base delay
         assert_eq!(delay0, RetryDecision::Retry(1000));
         assert_eq!(delay1, RetryDecision::Retry(1000));
@@ -216,10 +217,10 @@ mod tests {
     fn test_delivery_status_transitions() {
         let mut status = DeliveryStatus::Pending;
         assert_eq!(status, DeliveryStatus::Pending);
-        
+
         status = DeliveryStatus::InProgress;
         assert_eq!(status, DeliveryStatus::InProgress);
-        
+
         status = DeliveryStatus::Delivered;
         assert_eq!(status, DeliveryStatus::Delivered);
     }

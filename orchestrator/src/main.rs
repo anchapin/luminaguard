@@ -10,13 +10,13 @@
 
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
+use luminaguard_orchestrator::approval::action::ActionType;
+use luminaguard_orchestrator::approval::action::RiskLevel;
 use luminaguard_orchestrator::approval::diff::{Change, DiffCard};
 use luminaguard_orchestrator::approval::tui::TuiResult;
 use luminaguard_orchestrator::mcp::{McpClient, StdioTransport};
-use luminaguard_orchestrator::approval::action::ActionType;
-use luminaguard_orchestrator::approval::action::RiskLevel;
-use luminaguard_orchestrator::vm::{self, destroy_vm};
 use luminaguard_orchestrator::metrics_server;
+use luminaguard_orchestrator::vm::{self, destroy_vm};
 use serde_json::json;
 use std::fs;
 use tracing::{error, info, Level};
@@ -117,7 +117,10 @@ async fn main() -> Result<()> {
             spawn_vm().await?;
         }
         Some(Commands::Daemon { metrics_port }) => {
-            info!("Starting daemon mode with metrics server on port {}", metrics_port);
+            info!(
+                "Starting daemon mode with metrics server on port {}",
+                metrics_port
+            );
             metrics_server::start_metrics_server(metrics_port).await?;
         }
         Some(Commands::TestMcp {
@@ -148,29 +151,32 @@ async fn main() -> Result<()> {
 /// Run the agent with the specified task
 async fn run_agent(task: String) -> Result<()> {
     info!("🎯 Task: {}", task);
-    
+
     // Generate unique task ID for this agent execution
     let task_id = format!("agent-{}", uuid::Uuid::new_v4());
-    
+
     // Step 1: Spawn JIT Micro-VM
     info!("⚡ Spawning JIT Micro-VM for agent execution...");
-    let handle = vm::spawn_vm(&task_id).await
+    let handle = vm::spawn_vm(&task_id)
+        .await
         .context("Failed to spawn VM for agent")?;
-    
-    info!("VM spawned: {} (spawn time: {:.2}ms)", 
-          handle.id, handle.spawn_time_ms);
-    
+
+    info!(
+        "VM spawned: {} (spawn time: {:.2}ms)",
+        handle.id, handle.spawn_time_ms
+    );
+
     // Step 2: Get the vsock path for communication (if available)
     let vsock_path = handle.vsock_path();
     if let Some(path) = vsock_path {
         info!("VM vsock path: {}", path);
     }
-    
+
     // Step 3: Launch Python reasoning loop
     // For now, run on host with approval cliff integration
     // TODO: Move inside VM for true isolation
     info!("🚀 Launching Python reasoning loop with Approval Cliff...");
-    
+
     // Build path to Python agent
     let agent_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .parent()
@@ -178,23 +184,23 @@ async fn run_agent(task: String) -> Result<()> {
         .join("agent");
     let loop_py = agent_dir.join("loop.py");
     let venv_python = agent_dir.join(".venv/bin/python");
-    
+
     // Check if we have the Python environment
     let python_cmd = if venv_python.exists() {
         venv_python.to_str().unwrap()
     } else {
         "python3"
     };
-    
+
     info!("Executing: {} {}", python_cmd, loop_py.display());
-    
+
     // Run the Python agent loop
     let output = std::process::Command::new(python_cmd)
         .arg(loop_py)
         .arg(&task)
         .output()
         .context("Failed to execute Python agent loop")?;
-    
+
     // Print agent output
     if !output.stdout.is_empty() {
         println!("{}", String::from_utf8_lossy(&output.stdout));
@@ -202,7 +208,7 @@ async fn run_agent(task: String) -> Result<()> {
     if !output.stderr.is_empty() {
         eprintln!("Agent stderr: {}", String::from_utf8_lossy(&output.stderr));
     }
-    
+
     // Print summary
     println!("\n==========================================");
     println!("🤖 Agent Execution Summary");
@@ -213,22 +219,23 @@ async fn run_agent(task: String) -> Result<()> {
     println!("Spawn time: {:.2}ms", handle.spawn_time_ms);
     println!("Exit code: {:?}", output.status.code());
     println!("==========================================\n");
-    
+
     // Step 4: Cleanup - destroy the VM after task completion
     // This ensures ephemeral security (no persistence)
     info!("🧹 Cleaning up VM...");
-    vm::destroy_vm(handle).await
+    vm::destroy_vm(handle)
+        .await
         .context("Failed to destroy VM")?;
-    
+
     info!("✅ Agent execution complete!");
-    
+
     Ok(())
 }
 
 /// Interactive chat mode - allows multiple exchanges with the agent
 async fn chat_mode() -> Result<()> {
     use std::io::{self, Write};
-    
+
     println!("\n==========================================");
     println!("🦊 LuminaGuard Interactive Chat");
     println!("==========================================");
@@ -236,11 +243,11 @@ async fn chat_mode() -> Result<()> {
     println!("Type 'quit', 'exit', or 'bye' to end the session.");
     println!("Type 'help' for available commands.");
     println!("==========================================\n");
-    
+
     // Session state
     let session_id = uuid::Uuid::new_v4();
     let mut message_count = 0;
-    
+
     // Spawn VM once for the session (for efficiency)
     info!("⚡ Spawning JIT Micro-VM for chat session...");
     let task_id = format!("chat-{}", session_id);
@@ -254,11 +261,11 @@ async fn chat_mode() -> Result<()> {
             None
         }
     };
-    
+
     // Print prompt
     print!("\n> ");
     io::stdout().flush()?;
-    
+
     // Main chat loop
     loop {
         let mut input = String::new();
@@ -270,7 +277,7 @@ async fn chat_mode() -> Result<()> {
             }
             Ok(_) => {
                 let input = input.trim();
-                
+
                 // Handle commands
                 match input.to_lowercase().as_str() {
                     "quit" | "exit" | "bye" => {
@@ -368,7 +375,7 @@ async fn chat_mode() -> Result<()> {
                         println!("\n🤖 Processing...");
                     }
                 }
-                
+
                 // Send to agent (run_agent handles the actual execution)
                 match run_agent(input.to_string()).await {
                     Ok(_) => {
@@ -378,7 +385,7 @@ async fn chat_mode() -> Result<()> {
                         eprintln!("❌ Error: {}", e);
                     }
                 }
-                
+
                 // Print prompt for next message
                 print!("\n> ");
                 io::stdout().flush()?;
@@ -389,7 +396,7 @@ async fn chat_mode() -> Result<()> {
             }
         }
     }
-    
+
     // Cleanup - destroy VM if still active
     if let Some(h) = handle {
         info!("🧹 Cleaning up VM...");
@@ -397,12 +404,12 @@ async fn chat_mode() -> Result<()> {
             eprintln!("⚠️  Failed to cleanup VM: {}", e);
         }
     }
-    
+
     println!("\n📊 Session Summary:");
     println!("  Session ID: {}", session_id);
     println!("  Total Messages: {}", message_count);
     println!("\n✅ Chat session ended.\n");
-    
+
     Ok(())
 }
 
@@ -624,7 +631,7 @@ async fn present_approval(diff_card_path: &str) -> Result<()> {
     };
 
     let diff_card = DiffCard {
-        action_type: ActionType::Unknown,  // Simplified: use Unknown as placeholder
+        action_type: ActionType::Unknown, // Simplified: use Unknown as placeholder
         description: diff_card_data["description"]
             .as_str()
             .unwrap_or("")

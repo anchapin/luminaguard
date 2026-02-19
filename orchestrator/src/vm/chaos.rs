@@ -38,9 +38,9 @@ pub struct ChaosTestResult {
     pub test_type: ChaosTestType,
     pub passed: bool,
     pub duration_ms: f64,
-    pub mttr_ms: f64,              // Mean Time To Recovery
-    pub success_rate: f64,          // Percentage (0-100)
-    pub cascade_failures: u32,       // Number of cascading failures
+    pub mttr_ms: f64,          // Mean Time To Recovery
+    pub success_rate: f64,     // Percentage (0-100)
+    pub cascade_failures: u32, // Number of cascading failures
     pub recovery_success: bool,
     pub graceful_degradation: bool,
     pub error_message: Option<String>,
@@ -115,8 +115,10 @@ impl ChaosMonkey {
     /// Enable chaos
     pub fn enable(&self) {
         self.enabled.store(true, Ordering::SeqCst);
-        tracing::warn!("Chaos monkey enabled (kill probability: {})",
-            self.kill_probability.load(Ordering::SeqCst) as f64 / 10000.0);
+        tracing::warn!(
+            "Chaos monkey enabled (kill probability: {})",
+            self.kill_probability.load(Ordering::SeqCst) as f64 / 10000.0
+        );
     }
 
     /// Disable chaos
@@ -310,6 +312,7 @@ impl MemoryPressureSimulator {
 }
 
 /// Chaos engineering test harness
+#[allow(dead_code)]
 pub struct ChaosTestHarness {
     /// Kernel path for test VMs
     kernel_path: String,
@@ -332,12 +335,10 @@ impl ChaosTestHarness {
     pub fn new(kernel_path: String, rootfs_path: String, results_path: PathBuf) -> Result<Self> {
         // Create temporary directory for test data
         let temp_dir = std::env::temp_dir().join("luminaguard-chaos-tests");
-        fs::create_dir_all(&temp_dir)
-            .context("Failed to create temp directory for chaos tests")?;
+        fs::create_dir_all(&temp_dir).context("Failed to create temp directory for chaos tests")?;
 
         // Create results directory
-        fs::create_dir_all(&results_path)
-            .context("Failed to create results directory")?;
+        fs::create_dir_all(&results_path).context("Failed to create results directory")?;
 
         Ok(Self {
             kernel_path,
@@ -486,7 +487,10 @@ impl ChaosTestHarness {
             if !recovery_times.is_empty() {
                 let sum: f64 = recovery_times.iter().sum();
                 let avg = sum / recovery_times.len() as f64;
-                let max = recovery_times.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+                let max = recovery_times
+                    .iter()
+                    .cloned()
+                    .fold(f64::NEG_INFINITY, f64::max);
                 let min = recovery_times.iter().cloned().fold(f64::INFINITY, f64::min);
                 (avg, max, min)
             } else {
@@ -509,7 +513,11 @@ impl ChaosTestHarness {
             cascade_failures,
             recovery_success,
             graceful_degradation,
-            error_message: if passed { None } else { Some("Test failed".to_string()) },
+            error_message: if passed {
+                None
+            } else {
+                Some("Test failed".to_string())
+            },
             metrics: ChaosTestMetrics {
                 total_operations,
                 successful_operations,
@@ -608,7 +616,10 @@ impl ChaosTestHarness {
             if !recovery_times.is_empty() {
                 let sum: f64 = recovery_times.iter().sum();
                 let avg = sum / recovery_times.len() as f64;
-                let max = recovery_times.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+                let max = recovery_times
+                    .iter()
+                    .cloned()
+                    .fold(f64::NEG_INFINITY, f64::max);
                 let min = recovery_times.iter().cloned().fold(f64::INFINITY, f64::min);
                 (avg, max, min)
             } else {
@@ -631,7 +642,11 @@ impl ChaosTestHarness {
             cascade_failures: 0,
             recovery_success,
             graceful_degradation,
-            error_message: if passed { None } else { Some("Test failed".to_string()) },
+            error_message: if passed {
+                None
+            } else {
+                Some("Test failed".to_string())
+            },
             metrics: ChaosTestMetrics {
                 total_operations,
                 successful_operations,
@@ -719,7 +734,11 @@ impl ChaosTestHarness {
 
             // Check if operation took too long (throttling impact)
             if operation_time_ms > 500.0 {
-                tracing::warn!("Operation {} took {:.2}ms under throttling", i, operation_time_ms);
+                tracing::warn!(
+                    "Operation {} took {:.2}ms under throttling",
+                    i,
+                    operation_time_ms
+                );
             }
 
             // Delay between operations
@@ -753,7 +772,11 @@ impl ChaosTestHarness {
             cascade_failures: 0,
             recovery_success,
             graceful_degradation,
-            error_message: if passed { None } else { Some("Test failed".to_string()) },
+            error_message: if passed {
+                None
+            } else {
+                Some("Test failed".to_string())
+            },
             metrics: ChaosTestMetrics {
                 total_operations,
                 successful_operations,
@@ -864,7 +887,11 @@ impl ChaosTestHarness {
             cascade_failures: 0,
             recovery_success,
             graceful_degradation,
-            error_message: if passed { None } else { Some("Test failed".to_string()) },
+            error_message: if passed {
+                None
+            } else {
+                Some("Test failed".to_string())
+            },
             metrics: ChaosTestMetrics {
                 total_operations,
                 successful_operations,
@@ -1013,7 +1040,11 @@ impl ChaosTestHarness {
             cascade_failures,
             recovery_success,
             graceful_degradation,
-            error_message: if passed { None } else { Some("Test failed".to_string()) },
+            error_message: if passed {
+                None
+            } else {
+                Some("Test failed".to_string())
+            },
             metrics: ChaosTestMetrics {
                 total_operations,
                 successful_operations,
@@ -1026,7 +1057,8 @@ impl ChaosTestHarness {
                 operations_before_chaos: total_operations / 2,
                 operations_after_chaos: total_operations / 2,
                 resource_pressure_events: (throttler.throttle_event_count()
-                    + pressure_sim.pressure_event_count()) as u32,
+                    + pressure_sim.pressure_event_count())
+                    as u32,
             },
         };
 
@@ -1155,7 +1187,11 @@ impl ChaosTestHarness {
             cascade_failures: 0,
             recovery_success,
             graceful_degradation,
-            error_message: if passed { None } else { Some("Test failed".to_string()) },
+            error_message: if passed {
+                None
+            } else {
+                Some("Test failed".to_string())
+            },
             metrics: ChaosTestMetrics {
                 total_operations,
                 successful_operations,
@@ -1188,11 +1224,10 @@ impl ChaosTestHarness {
         let filename = format!("chaos_test_results_{}.json", timestamp);
         let path = self.results_path.join(filename);
 
-        let json = serde_json::to_string_pretty(results)
-            .context("Failed to serialize test results")?;
+        let json =
+            serde_json::to_string_pretty(results).context("Failed to serialize test results")?;
 
-        fs::write(&path, json)
-            .context("Failed to write test results")?;
+        fs::write(&path, json).context("Failed to write test results")?;
 
         tracing::info!("Test results saved to: {:?}", path);
 

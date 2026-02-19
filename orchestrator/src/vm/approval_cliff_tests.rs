@@ -1044,7 +1044,7 @@ impl ApprovalTestHarness {
 
     fn verify_action_is_red(&self, action_name: &str) -> Result<bool, String> {
         // Verify action classification
-        let red_actions = vec![
+        let red_actions = [
             "delete_file",
             "write_file",
             "edit_file",
@@ -1210,6 +1210,7 @@ impl ApprovalTestHarness {
     // Report Generation
     // ============================================================================
 
+    #[allow(clippy::too_many_arguments)]
     fn add_test_result(
         &mut self,
         test_name: String,

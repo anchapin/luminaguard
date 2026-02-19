@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
 
 class HealthStatus(Enum):
     """Health status enum for the daemon."""
+
     HEALTHY = "healthy"
     DEGRADED = "degraded"
     UNHEALTHY = "unhealthy"
@@ -38,6 +39,7 @@ class HealthStatus(Enum):
 @dataclass
 class HealthConfig:
     """Configuration for health check system."""
+
     # Ping interval in seconds (default: 60)
     ping_interval: int = 60
     # Timeout for health check responses in seconds (default: 10)
@@ -61,6 +63,7 @@ class HealthConfig:
 @dataclass
 class HealthMetrics:
     """Health metrics for the daemon."""
+
     # Bot start timestamp
     start_time: float = field(default_factory=time.time)
     # Number of times the bot has been restarted
@@ -104,7 +107,7 @@ class HealthMetrics:
 class HealthCheck:
     """
     Health check system for LuminaGuard daemon.
-    
+
     Provides:
     - Periodic health pings to external monitoring services
     - Bot uptime and restart count tracking
@@ -120,7 +123,7 @@ class HealthCheck:
     ):
         """
         Initialize health check system.
-        
+
         Args:
             config: Health check configuration (uses defaults if None)
             on_status_change: Callback for status changes
@@ -172,11 +175,11 @@ class HealthCheck:
         # Cancel all tasks
         for task in self._tasks:
             task.cancel()
-        
+
         # Wait for tasks to complete
         if self._tasks:
             await asyncio.gather(*self._tasks, return_exceptions=True)
-        
+
         # Stop HTTP server
         if self._http_server:
             self._http_server.close()
@@ -235,7 +238,7 @@ class HealthCheck:
         while self._running:
             try:
                 await asyncio.sleep(self.config.ping_interval)
-                
+
                 # Send external ping if configured
                 if self.config.ping_url:
                     await self._send_external_ping()
@@ -261,7 +264,7 @@ class HealthCheck:
                     "restart_count": self.metrics.restart_count,
                     "timestamp": time.time(),
                 }
-                
+
                 async with session.post(
                     self.config.ping_url,
                     json=payload,
@@ -280,6 +283,7 @@ class HealthCheck:
 
     async def _start_http_server(self) -> None:
         """Start HTTP health check server."""
+
         async def health_handler(request):
             """HTTP health check handler."""
             return web.json_response(self.metrics.to_dict())
@@ -306,7 +310,7 @@ class HealthCheck:
             f"VSOCK health check server configured "
             f"(CID:{self.config.vsock_cid}, Port:{self.config.vsock_port})"
         )
-        
+
         # For now, we'll just log that VSOCK is available
         # Full VSOCK implementation would require socket.AF_VSOCK
         while self._running:
@@ -327,11 +331,11 @@ async def create_health_check(
 ) -> HealthCheck:
     """
     Create and start a health check system.
-    
+
     Args:
         config: Health check configuration
         on_status_change: Callback for status changes
-        
+
     Returns:
         Started HealthCheck instance
     """

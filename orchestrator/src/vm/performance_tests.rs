@@ -23,30 +23,30 @@ async fn test_vm_spawn_time_baseline() {
     // Check if Firecracker test assets are available
     let kernel_path = "/tmp/luminaguard-fc-test/vmlinux.bin";
     let rootfs_path = "/tmp/luminaguard-fc-test/rootfs.ext4";
-    
+
     if !std::path::Path::new(kernel_path).exists() {
         println!("⏭️  Skipping: Kernel not found at {}", kernel_path);
         return;
     }
-    
+
     if !std::path::Path::new(rootfs_path).exists() {
         println!("⏭️  Skipping: Rootfs not found at {}", rootfs_path);
         return;
     }
-    
+
     // Use temp directory for snapshots
     let temp_dir = tempfile::TempDir::new().unwrap();
     let snapshot_path = temp_dir.path().to_path_buf();
     std::env::set_var("LUMINAGUARD_SNAPSHOT_PATH", snapshot_path.to_str().unwrap());
-    
+
     let iterations = 5;
     let mut spawn_times = Vec::new();
-    
+
     println!("🧪 Measuring VM spawn time ({} iterations)...", iterations);
-    
+
     for i in 0..iterations {
         let task_id = format!("perf-spawn-{}", i);
-        
+
         let config = VmConfig {
             vm_id: task_id.clone(),
             kernel_path: kernel_path.to_string(),
@@ -55,16 +55,16 @@ async fn test_vm_spawn_time_baseline() {
             memory_mb: 128,
             ..VmConfig::default()
         };
-        
+
         let start = Instant::now();
         let result = spawn_vm_with_config(&task_id, &config).await;
         let elapsed = start.elapsed().as_millis() as f64;
-        
+
         match result {
             Ok(handle) => {
                 spawn_times.push(elapsed);
                 println!("  Iteration {}: {:.2}ms", i + 1, elapsed);
-                
+
                 // Clean up the VM
                 let _ = destroy_vm(handle).await;
             }
@@ -73,24 +73,34 @@ async fn test_vm_spawn_time_baseline() {
             }
         }
     }
-    
+
     if spawn_times.is_empty() {
         println!("❌ No successful VM spawns");
         return;
     }
-    
+
     // Calculate statistics
     let avg = spawn_times.iter().sum::<f64>() / spawn_times.len() as f64;
     let min = spawn_times.iter().cloned().fold(f64::INFINITY, f64::min);
-    let max = spawn_times.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
-    
+    let max = spawn_times
+        .iter()
+        .cloned()
+        .fold(f64::NEG_INFINITY, f64::max);
+
     println!("\n📊 VM Spawn Time Results:");
     println!("  Average: {:.2}ms", avg);
     println!("  Min:     {:.2}ms", min);
     println!("  Max:     {:.2}ms", max);
     println!("  Target:  <200ms (baseline)");
-    println!("  Status:  {}", if avg < 200.0 { "✅ PASS" } else { "⚠️  ABOVE TARGET" });
-    
+    println!(
+        "  Status:  {}",
+        if avg < 200.0 {
+            "✅ PASS"
+        } else {
+            "⚠️  ABOVE TARGET"
+        }
+    );
+
     // Assert target is met
     assert!(avg < 200.0, "VM spawn time {}ms exceeds 200ms target", avg);
 }
@@ -99,11 +109,12 @@ async fn test_vm_spawn_time_baseline() {
 #[tokio::test]
 async fn test_snapshot_pool_fast_spawn() {
     // Use a unique path for this test to avoid conflicts
-    let snapshot_path = std::env::temp_dir().join(format!("luminaguard-test-pool-{}", uuid::Uuid::new_v4()));
-    
+    let snapshot_path =
+        std::env::temp_dir().join(format!("luminaguard-test-pool-{}", uuid::Uuid::new_v4()));
+
     // Set env var so snapshot module uses our temp directory
     std::env::set_var("LUMINAGUARD_SNAPSHOT_PATH", snapshot_path.to_str().unwrap());
-    
+
     // Clean up on exit
     struct Cleanup;
     impl Drop for Cleanup {
@@ -113,20 +124,20 @@ async fn test_snapshot_pool_fast_spawn() {
         }
     }
     let _cleanup = Cleanup;
-    
+
     // Create snapshot directory
     if let Err(e) = std::fs::create_dir_all(&snapshot_path) {
         println!("⏭️  Skipping: Cannot create snapshot directory: {}", e);
         return;
     }
-    
+
     let config = PoolConfig {
         snapshot_path: snapshot_path.clone(),
         pool_size: 2,
         refresh_interval_secs: 3600,
         max_snapshot_age_secs: 3600,
     };
-    
+
     let pool = match SnapshotPool::new(config).await {
         Ok(p) => p,
         Err(e) => {
@@ -134,7 +145,7 @@ async fn test_snapshot_pool_fast_spawn() {
             return;
         }
     };
-    
+
     // Measure time to acquire VM from pool
     let start = Instant::now();
     let vm_id = match pool.acquire_vm().await {
@@ -145,15 +156,22 @@ async fn test_snapshot_pool_fast_spawn() {
         }
     };
     let elapsed = start.elapsed().as_millis() as f64;
-    
+
     println!("Pool VM acquire time: {:.2}ms", elapsed);
     println!("Acquired VM ID: {}", vm_id);
-    
+
     // Target is 10-50ms for pool-based spawning
     // With real Firecracker snapshots, this should be achievable
     println!("  Target:  10-50ms (with snapshots)");
-    println!("  Status:  {}", if elapsed < 50.0 { "✅ PASS" } else { "⚠️  ABOVE TARGET" });
-    
+    println!(
+        "  Status:  {}",
+        if elapsed < 50.0 {
+            "✅ PASS"
+        } else {
+            "⚠️  ABOVE TARGET"
+        }
+    );
+
     assert!(elapsed >= 0.0, "Acquire time should be positive");
 }
 
@@ -164,13 +182,24 @@ async fn test_snapshot_pool_fast_spawn() {
 fn test_memory_footprint_target() {
     // Measure actual memory usage from /proc/self/status
     let memory_mb = measure_process_memory_mb();
-    
+
     println!("Process memory footprint: {:.2}MB", memory_mb);
     println!("Target: <200MB");
-    println!("Status: {}", if memory_mb < 200.0 { "✅ PASS" } else { "⚠️  ABOVE TARGET" });
-    
+    println!(
+        "Status: {}",
+        if memory_mb < 200.0 {
+            "✅ PASS"
+        } else {
+            "⚠️  ABOVE TARGET"
+        }
+    );
+
     // Assert target is met
-    assert!(memory_mb < 200.0, "Memory footprint {}MB exceeds 200MB target", memory_mb);
+    assert!(
+        memory_mb < 200.0,
+        "Memory footprint {}MB exceeds 200MB target",
+        memory_mb
+    );
 }
 
 /// Measure process memory usage in MB (RSS)
@@ -189,7 +218,7 @@ fn measure_process_memory_mb() -> f64 {
             }
         }
     }
-    
+
     // Fallback: estimate based on typical Rust binary size
     50.0
 }
@@ -202,33 +231,43 @@ fn measure_process_memory_mb() -> f64 {
 async fn test_tool_call_latency() {
     let iterations = 100;
     let mut latencies = Vec::new();
-    
-    println!("🧪 Measuring tool call latency ({} iterations)...", iterations);
-    
+
+    println!(
+        "🧪 Measuring tool call latency ({} iterations)...",
+        iterations
+    );
+
     for _ in 0..iterations {
         let start = Instant::now();
-        
+
         // Simulate tool call overhead with a lightweight async operation
         // This measures the overhead of the async runtime + basic processing
         tokio::task::yield_now().await;
-        
+
         let elapsed = start.elapsed().as_millis() as f64;
         latencies.push(elapsed);
     }
-    
+
     // Calculate statistics
     let avg = latencies.iter().sum::<f64>() / latencies.len() as f64;
     let p95_index = ((iterations as f64) * 0.95) as usize;
     let mut sorted = latencies.clone();
     sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
     let p95 = sorted[p95_index.min(iterations - 1)];
-    
+
     println!("\n📊 Tool Call Latency Results:");
     println!("  Average: {:.2}ms", avg);
     println!("  P95:     {:.2}ms", p95);
     println!("  Target:  <100ms");
-    println!("  Status:  {}", if p95 < 100.0 { "✅ PASS" } else { "⚠️  ABOVE TARGET" });
-    
+    println!(
+        "  Status:  {}",
+        if p95 < 100.0 {
+            "✅ PASS"
+        } else {
+            "⚠️  ABOVE TARGET"
+        }
+    );
+
     // Assert target is met
     assert!(p95 < 100.0, "P95 latency {}ms exceeds 100ms target", p95);
 }
@@ -238,7 +277,7 @@ async fn test_tool_call_latency() {
 async fn test_orchestrator_startup_time() {
     // Measure orchestrator initialization
     // This includes VM pool initialization
-    
+
     // Use temp directory to avoid permission issues
     let temp_dir = match tempfile::TempDir::new() {
         Ok(t) => t,
@@ -249,9 +288,9 @@ async fn test_orchestrator_startup_time() {
     };
     let snapshot_path = temp_dir.path().to_path_buf();
     std::env::set_var("LUMINAGUARD_SNAPSHOT_PATH", snapshot_path.to_str().unwrap());
-    
+
     let start = Instant::now();
-    
+
     // Initialize pool (simulates orchestrator startup)
     let config = PoolConfig {
         snapshot_path,
@@ -259,7 +298,7 @@ async fn test_orchestrator_startup_time() {
         refresh_interval_secs: 3600,
         max_snapshot_age_secs: 3600,
     };
-    
+
     let pool = match SnapshotPool::new(config).await {
         Ok(p) => p,
         Err(e) => {
@@ -267,16 +306,27 @@ async fn test_orchestrator_startup_time() {
             return;
         }
     };
-    
+
     let elapsed = start.elapsed().as_millis() as f64;
-    
+
     println!("Orchestrator startup time: {:.2}ms", elapsed);
     println!("Target: <500ms");
-    println!("Status: {}", if elapsed < 500.0 { "✅ PASS" } else { "⚠️  ABOVE TARGET" });
-    
+    println!(
+        "Status: {}",
+        if elapsed < 500.0 {
+            "✅ PASS"
+        } else {
+            "⚠️  ABOVE TARGET"
+        }
+    );
+
     // Assert target is met
-    assert!(elapsed < 500.0, "Startup time {}ms exceeds 500ms target", elapsed);
-    
+    assert!(
+        elapsed < 500.0,
+        "Startup time {}ms exceeds 500ms target",
+        elapsed
+    );
+
     // Clean up pool
     drop(pool);
 }
@@ -292,7 +342,7 @@ async fn test_performance_summary() {
     println!("Target: VM spawn <200ms (baseline), <100ms (with snapshots)");
     println!("Target: Tool call latency <100ms");
     println!("--------------------------------------------------------");
-    
+
     // Run quick benchmarks - use temp directory to avoid permission issues
     let temp_dir = match tempfile::TempDir::new() {
         Ok(t) => t,
@@ -303,7 +353,7 @@ async fn test_performance_summary() {
     };
     let snapshot_path = temp_dir.path().to_path_buf();
     std::env::set_var("LUMINAGUARD_SNAPSHOT_PATH", snapshot_path.to_str().unwrap());
-    
+
     // Measure pool creation
     let start = Instant::now();
     let config = PoolConfig {
@@ -319,7 +369,7 @@ async fn test_performance_summary() {
         }
     };
     let pool_init_time = start.elapsed().as_millis() as f64;
-    
+
     // Measure VM acquire
     let start = Instant::now();
     let vm_id = match pool.acquire_vm().await {
@@ -330,16 +380,16 @@ async fn test_performance_summary() {
         }
     };
     let acquire_time = start.elapsed().as_millis() as f64;
-    
+
     // Measure memory
     let memory_mb = measure_process_memory_mb();
-    
+
     println!("\n📊 Measured Performance:");
     println!("  Pool initialization:     {:.2}ms", pool_init_time);
     println!("  VM acquire from pool:    {:.2}ms", acquire_time);
     println!("  Memory footprint:        {:.2}MB", memory_mb);
     println!("  Acquired VM ID:          {}", vm_id);
-    
+
     let all_targets_met = pool_init_time < 500.0 && acquire_time < 50.0 && memory_mb < 200.0;
     if all_targets_met {
         println!("\n✅ All targets met!");
@@ -347,6 +397,6 @@ async fn test_performance_summary() {
         println!("\n⚠️  Some targets not met - see individual test results");
     }
     println!("\n========================================================\n");
-    
+
     assert!(true, "Performance summary printed");
 }

@@ -8,5 +8,5 @@
 
 pub mod delivery;
 pub mod manager;
-pub mod retry;
 pub mod queue;
+pub mod retry;

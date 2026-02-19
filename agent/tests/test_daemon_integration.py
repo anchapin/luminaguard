@@ -93,7 +93,9 @@ class TestRateLimiter:
 
     def test_rate_limiter_enabled(self):
         """Test rate limiting with enabled config"""
-        config = RateLimitConfig(max_events_per_second=10, max_burst_size=50, enabled=True)
+        config = RateLimitConfig(
+            max_events_per_second=10, max_burst_size=50, enabled=True
+        )
         limiter = RateLimiter(config)
 
         # Should allow some events in initial burst
@@ -125,7 +127,9 @@ class TestRateLimiter:
     @pytest.mark.asyncio
     async def test_rate_limiter_wait_for_allowance(self):
         """Test async wait for rate limit allowance"""
-        config = RateLimitConfig(max_events_per_second=1, max_burst_size=1, enabled=True)
+        config = RateLimitConfig(
+            max_events_per_second=1, max_burst_size=1, enabled=True
+        )
         limiter = RateLimiter(config)
 
         # Use burst
@@ -270,9 +274,10 @@ class TestRabbitMQConsumer:
         consumer.register_handler("task.created", test_handler)
         consumer.unregister_handler("task.created", test_handler)
 
-        assert "task.created" not in consumer._event_handlers or len(
-            consumer._event_handlers["task.created"]
-        ) == 0
+        assert (
+            "task.created" not in consumer._event_handlers
+            or len(consumer._event_handlers["task.created"]) == 0
+        )
 
 
 class TestRedisConsumer:
@@ -442,9 +447,10 @@ class TestIntegrationManager:
         manager.register_event_handler("task.created", test_handler, "rabbitmq")
 
         assert "task.created" in consumer1._event_handlers
-        assert "task.created" not in consumer2._event_handlers or len(
-            consumer2._event_handlers.get("task.created", [])
-        ) == 0
+        assert (
+            "task.created" not in consumer2._event_handlers
+            or len(consumer2._event_handlers.get("task.created", [])) == 0
+        )
 
     @pytest.mark.asyncio
     async def test_integration_manager_lifecycle(self):

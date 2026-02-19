@@ -501,6 +501,7 @@ class TestActionKindClassification:
 
         for keyword in dangerous_keywords:
             from loop import determine_action_kind
+
             action = determine_action_kind(f"test_{keyword}_file")
             assert action == ActionKind.RED, f"{keyword} should be RED"
 
@@ -524,6 +525,7 @@ class TestActionKindClassification:
 
         for keyword in safe_keywords:
             from loop import determine_action_kind
+
             action = determine_action_kind(f"test_{keyword}_file")
             assert action == ActionKind.GREEN, f"{keyword} should be GREEN"
 
@@ -539,7 +541,9 @@ class TestActionKindClassification:
 
         for action_name in unknown_actions:
             action = determine_action_kind(action_name)
-            assert action == ActionKind.RED, f"Unknown action {action_name} should be RED"
+            assert (
+                action == ActionKind.RED
+            ), f"Unknown action {action_name} should be RED"
 
 
 class TestEdgeCases:
@@ -584,13 +588,7 @@ class TestEdgeCases:
     def test_nested_arguments(self):
         """Test that nested argument structures are handled."""
         nested_args = {
-            "config": {
-                "level1": {
-                    "level2": {
-                        "level3": "deep_value"
-                    }
-                }
-            },
+            "config": {"level1": {"level2": {"level3": "deep_value"}}},
             "list": [1, 2, 3, [4, 5, 6]],
         }
 
@@ -668,6 +666,7 @@ class TestSecurityReportGeneration:
 
         Score = (blocked / total) * 100
         """
+
         def calculate_score(blocked: int, total: int) -> float:
             return (blocked / total) * 100 if total > 0 else 0.0
 
@@ -690,6 +689,7 @@ class TestSecurityReportGeneration:
 
         Summary should provide human-readable assessment.
         """
+
         def generate_summary(score: float) -> str:
             if score >= 100.0:
                 return "ALL MALICIOUS INPUTS BLOCKED - SYSTEM SECURE"
@@ -701,6 +701,12 @@ class TestSecurityReportGeneration:
                 return "MULTIPLE ATTACKS NOT BLOCKED - CRITICAL SECURITY ISSUES"
 
         assert generate_summary(100.0) == "ALL MALICIOUS INPUTS BLOCKED - SYSTEM SECURE"
-        assert generate_summary(95.0) == "MOST MALICIOUS INPUTS BLOCKED - SYSTEM SECURE WITH MINORS"
+        assert (
+            generate_summary(95.0)
+            == "MOST MALICIOUS INPUTS BLOCKED - SYSTEM SECURE WITH MINORS"
+        )
         assert generate_summary(80.0) == "SOME INPUTS NOT BLOCKED - REQUIRES ATTENTION"
-        assert generate_summary(50.0) == "MULTIPLE ATTACKS NOT BLOCKED - CRITICAL SECURITY ISSUES"
+        assert (
+            generate_summary(50.0)
+            == "MULTIPLE ATTACKS NOT BLOCKED - CRITICAL SECURITY ISSUES"
+        )

@@ -144,14 +144,12 @@ impl VmConfig {
         use serde_json::json;
 
         // Build drives array - start with rootfs drive
-        let mut drives = vec![
-            json!({
-                "drive_id": "rootfs",
-                "path_on_host": self.effective_rootfs_path(),
-                "is_root_device": true,
-                "is_read_only": false
-            })
-        ];
+        let mut drives = vec![json!({
+            "drive_id": "rootfs",
+            "path_on_host": self.effective_rootfs_path(),
+            "is_root_device": true,
+            "is_read_only": false
+        })];
 
         // Add overlay drive if configured (push to array, not nest)
         if let Some(overlay_config) = self.get_overlay_drive() {
@@ -194,9 +192,8 @@ impl VmConfig {
         }
 
         // Serialize to string
-        serde_json::to_string_pretty(&config).unwrap_or_else(|e| {
-            format!("{{\"error\": \"Failed to serialize config: {}\"}}", e)
-        })
+        serde_json::to_string_pretty(&config)
+            .unwrap_or_else(|e| format!("{{\"error\": \"Failed to serialize config: {}\"}}", e))
     }
 }
 

@@ -79,7 +79,7 @@ impl WebhookManager {
     /// Deliver event to a specific webhook with retries
     async fn deliver_to_webhook(&self, webhook: &WebhookConfig, event: &WebhookEvent) -> bool {
         let mut attempt = 0;
-        let max_retries = webhook.retry_config.max_retries;
+        let _max_retries = webhook.retry_config.max_retries;
 
         loop {
             debug!(
@@ -115,11 +115,8 @@ impl WebhookManager {
 
                     let mut dlq = self.dlq.write().await;
                     let dlq_id = dlq.add(dlq_entry);
-                    
-                    info!(
-                        "Webhook {} moved to DLQ: {}",
-                        webhook.id, dlq_id
-                    );
+
+                    info!("Webhook {} moved to DLQ: {}", webhook.id, dlq_id);
                     return false;
                 }
             }

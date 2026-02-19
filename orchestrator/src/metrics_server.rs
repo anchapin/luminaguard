@@ -16,7 +16,7 @@ use tracing::{error, info};
 use crate::metrics;
 
 /// Start the metrics HTTP server
-/// 
+///
 /// # Arguments
 /// * `port` - Port to listen on (default 9090)
 ///
@@ -31,13 +31,13 @@ pub async fn start_metrics_server(port: u16) -> Result<()> {
         .route("/health", get(health_handler));
 
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
-    
+
     info!("Starting metrics server on {}", addr);
 
     let listener = tokio::net::TcpListener::bind(&addr)
         .await
         .context("Failed to bind metrics server")?;
-    
+
     axum::serve(listener, app)
         .await
         .context("Metrics server error")?;
@@ -54,7 +54,8 @@ async fn metrics_handler() -> Response {
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 format!("Error gathering metrics: {}", e),
-            ).into_response()
+            )
+                .into_response()
         }
     }
 }

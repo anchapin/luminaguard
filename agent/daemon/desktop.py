@@ -135,7 +135,9 @@ class FileSystemManager:
             logger.error(f"Failed to write file {path}: {e}")
             return False
 
-    async def list_directory(self, path: Path, recursive: bool = False) -> Optional[List[Path]]:
+    async def list_directory(
+        self, path: Path, recursive: bool = False
+    ) -> Optional[List[Path]]:
         """List directory contents.
 
         Args:

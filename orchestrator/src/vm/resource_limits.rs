@@ -43,6 +43,7 @@ pub struct ResourceLimitTestResult {
 }
 
 /// Resource limits test harness
+#[allow(dead_code)]
 pub struct ResourceLimitsTestHarness {
     /// Test results
     pub results: Vec<ResourceLimitTestResult>,
@@ -93,19 +94,29 @@ impl ResourceLimitsTestHarness {
         let total_time = start.elapsed();
 
         // Calculate metrics
-        let memory_tests_count = self.results.iter()
+        let memory_tests_count = self
+            .results
+            .iter()
             .filter(|r| r.test_name.contains("memory_limit"))
             .count();
-        let oom_tests_count = self.results.iter()
+        let oom_tests_count = self
+            .results
+            .iter()
             .filter(|r| r.test_name.contains("oom"))
             .count();
-        let cpu_tests_count = self.results.iter()
+        let cpu_tests_count = self
+            .results
+            .iter()
             .filter(|r| r.test_name.contains("cpu"))
             .count();
-        let disk_tests_count = self.results.iter()
+        let disk_tests_count = self
+            .results
+            .iter()
             .filter(|r| r.test_name.contains("disk"))
             .count();
-        let isolation_tests_count = self.results.iter()
+        let isolation_tests_count = self
+            .results
+            .iter()
             .filter(|r| r.test_name.contains("isolation"))
             .count();
 
@@ -127,6 +138,7 @@ impl ResourceLimitsTestHarness {
     /// Test: 64MB memory limit enforcement
     ///
     /// Expected: ENFORCED - VM cannot exceed 64MB memory
+    #[cfg(unix)]
     fn test_memory_limit_64mb(&mut self) {
         let test_name = "memory_limit_64mb";
 
@@ -141,6 +153,7 @@ impl ResourceLimitsTestHarness {
     /// Test: 128MB memory limit enforcement
     ///
     /// Expected: ENFORCED - VM cannot exceed 128MB memory
+    #[cfg(unix)]
     fn test_memory_limit_128mb(&mut self) {
         let test_name = "memory_limit_128mb";
 
@@ -155,6 +168,7 @@ impl ResourceLimitsTestHarness {
     /// Test: 256MB memory limit enforcement
     ///
     /// Expected: ENFORCED - VM cannot exceed 256MB memory
+    #[cfg(unix)]
     fn test_memory_limit_256mb(&mut self) {
         let test_name = "memory_limit_256mb";
 
@@ -169,6 +183,7 @@ impl ResourceLimitsTestHarness {
     /// Test: 512MB memory limit enforcement
     ///
     /// Expected: ENFORCED - VM cannot exceed 512MB memory
+    #[cfg(unix)]
     fn test_memory_limit_512mb(&mut self) {
         let test_name = "memory_limit_512mb";
 
@@ -181,15 +196,22 @@ impl ResourceLimitsTestHarness {
     }
 
     /// Internal helper for memory limit tests
-    fn test_memory_limit_internal(&self, test_name: &str, limit_mb: u32) -> ResourceLimitTestResult {
+    #[cfg(unix)]
+    fn test_memory_limit_internal(
+        &self,
+        test_name: &str,
+        limit_mb: u32,
+    ) -> ResourceLimitTestResult {
         let start = Instant::now();
 
         // Get memory before test
         let memory_before = self.read_system_memory();
 
         // Create jailer config with memory limit
-        let jailer_config = JailerConfig::new(test_name.to_string())
-            .with_cgroup("memory.limit_in_bytes".to_string(), (limit_mb * 1024 * 1024).to_string());
+        let jailer_config = JailerConfig::new(test_name.to_string()).with_cgroup(
+            "memory.limit_in_bytes".to_string(),
+            (limit_mb * 1024 * 1024).to_string(),
+        );
 
         // Validate configuration
         let validated = jailer_config.validate();
@@ -221,6 +243,7 @@ impl ResourceLimitsTestHarness {
     /// Test: OOM graceful degradation
     ///
     /// Expected: ENFORCED - VM gracefully handles OOM, no crash
+    #[cfg(unix)]
     fn test_oom_graceful_degradation(&mut self) {
         let test_name = "oom_graceful_degradation";
         let start = Instant::now();
@@ -256,7 +279,11 @@ impl ResourceLimitsTestHarness {
             execution_time_ms: elapsed.as_secs_f64() * 1000.0,
             details: format!(
                 "OOM control: {}",
-                if oom_control_configured { "CONFIGURED" } else { "NOT CONFIGURED" }
+                if oom_control_configured {
+                    "CONFIGURED"
+                } else {
+                    "NOT CONFIGURED"
+                }
             ),
             memory_before_mb: None,
             memory_after_mb: None,
@@ -268,7 +295,10 @@ impl ResourceLimitsTestHarness {
         if oom_control_configured {
             info!("✓ PASS: {} - OOM control configured", test_name);
         } else {
-            error!("✗ FAIL: {} - OOM control NOT configured - CRASH RISK", test_name);
+            error!(
+                "✗ FAIL: {} - OOM control NOT configured - CRASH RISK",
+                test_name
+            );
         }
     }
 
@@ -297,7 +327,11 @@ impl ResourceLimitsTestHarness {
             execution_time_ms: elapsed.as_secs_f64() * 1000.0,
             details: format!(
                 "OOM killer: {}",
-                if oom_killer_enabled { "ENABLED" } else { "NOT ENABLED" }
+                if oom_killer_enabled {
+                    "ENABLED"
+                } else {
+                    "NOT ENABLED"
+                }
             ),
             memory_before_mb: None,
             memory_after_mb: None,
@@ -316,6 +350,7 @@ impl ResourceLimitsTestHarness {
     /// Test: CPU limit enforcement
     ///
     /// Expected: ENFORCED - VM cannot exceed CPU quota
+    #[cfg(unix)]
     fn test_cpu_limit_enforcement(&mut self) {
         let test_name = "cpu_limit_enforcement";
         let start = Instant::now();
@@ -360,6 +395,7 @@ impl ResourceLimitsTestHarness {
     /// Test: CPU shares enforcement
     ///
     /// Expected: ENFORCED - CPU shares control relative priority
+    #[cfg(unix)]
     fn test_cpu_shares_enforcement(&mut self) {
         let test_name = "cpu_shares_enforcement";
         let start = Instant::now();
@@ -384,10 +420,7 @@ impl ResourceLimitsTestHarness {
             enforced,
             error_message,
             execution_time_ms: elapsed.as_secs_f64() * 1000.0,
-            details: format!(
-                "CPU shares: {}",
-                shares.unwrap_or(&"NOT SET".to_string())
-            ),
+            details: format!("CPU shares: {}", shares.unwrap_or(&"NOT SET".to_string())),
             memory_before_mb: None,
             memory_after_mb: None,
             peak_memory_mb: None,
@@ -405,6 +438,7 @@ impl ResourceLimitsTestHarness {
     /// Test: Disk quota enforcement
     ///
     /// Expected: ENFORCED - VM cannot exceed disk quota
+    #[cfg(unix)]
     fn test_disk_quota_enforcement(&mut self) {
         let test_name = "disk_quota_enforcement";
         let start = Instant::now();
@@ -413,8 +447,14 @@ impl ResourceLimitsTestHarness {
 
         // Test disk quota via cgroup
         let jailer_config = JailerConfig::new(test_name.to_string())
-            .with_cgroup("blkio.throttle.read_bps_device".to_string(), "10485760".to_string()) // 10MB/s read
-            .with_cgroup("blkio.throttle.write_bps_device".to_string(), "10485760".to_string()); // 10MB/s write
+            .with_cgroup(
+                "blkio.throttle.read_bps_device".to_string(),
+                "10485760".to_string(),
+            ) // 10MB/s read
+            .with_cgroup(
+                "blkio.throttle.write_bps_device".to_string(),
+                "10485760".to_string(),
+            ); // 10MB/s write
 
         let validated = jailer_config.validate();
 
@@ -479,7 +519,11 @@ impl ResourceLimitsTestHarness {
             execution_time_ms: elapsed.as_secs_f64() * 1000.0,
             details: format!(
                 "cgroup v2: {}",
-                if cgroup_v2_available { "AVAILABLE" } else { "NOT AVAILABLE" }
+                if cgroup_v2_available {
+                    "AVAILABLE"
+                } else {
+                    "NOT AVAILABLE"
+                }
             ),
             memory_before_mb: None,
             memory_after_mb: None,
@@ -498,6 +542,7 @@ impl ResourceLimitsTestHarness {
     /// Test: Multiple VMs resource contention
     ///
     /// Expected: ENFORCED - Multiple VMs share resources fairly
+    #[cfg(unix)]
     fn test_multiple_vms_resource_contention(&mut self) {
         let test_name = "multiple_vms_resource_contention";
         let start = Instant::now();
@@ -545,9 +590,15 @@ impl ResourceLimitsTestHarness {
         self.results.push(result);
 
         if enforced {
-            info!("✓ PASS: {} - Multiple VMs configured with fair shares", test_name);
+            info!(
+                "✓ PASS: {} - Multiple VMs configured with fair shares",
+                test_name
+            );
         } else {
-            warn!("⚠ PARTIAL: {} - VM resource contention protection issue", test_name);
+            warn!(
+                "⚠ PARTIAL: {} - VM resource contention protection issue",
+                test_name
+            );
         }
     }
 
@@ -676,8 +727,7 @@ Test Categories:
         // Save JSON report
         let report_path = output_path.join("week3-resource-limits-report.json");
         let report_json = self.to_json()?;
-        fs::write(&report_path, report_json)
-            .context("Failed to write resource limits report")?;
+        fs::write(&report_path, report_json).context("Failed to write resource limits report")?;
 
         // Save summary
         let summary_path = output_path.join("week3-resource-limits-summary.txt");
@@ -719,7 +769,13 @@ pub fn run_resource_limits_validation(output_dir: &str) -> Result<ResourceLimits
     if !report.failed_tests().is_empty() {
         println!("\n⚠️  RESOURCE LIMIT WARNINGS:");
         for test in report.failed_tests() {
-            println!("  - {}: {}", test.test_name, test.error_message.as_ref().unwrap_or(&"Unknown error".to_string()));
+            println!(
+                "  - {}: {}",
+                test.test_name,
+                test.error_message
+                    .as_ref()
+                    .unwrap_or(&"Unknown error".to_string())
+            );
         }
     }
 
@@ -732,6 +788,7 @@ mod tests {
 
     #[test]
     fn test_resource_limit_test_result_serialization() {
+        // This test works on all platforms
         let result = ResourceLimitTestResult {
             test_name: "test_memory_limit".to_string(),
             enforced: true,

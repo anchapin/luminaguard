@@ -89,8 +89,7 @@ impl CrashTestHarness {
             .context("Failed to create temp directory for reliability tests")?;
 
         // Create results directory
-        fs::create_dir_all(&results_path)
-            .context("Failed to create results directory")?;
+        fs::create_dir_all(&results_path).context("Failed to create results directory")?;
 
         Ok(Self {
             kernel_path,
@@ -155,27 +154,28 @@ impl CrashTestHarness {
 
         // Spawn VM
         let spawn_start = Instant::now();
-        let handle = match crate::vm::spawn_vm_with_config(&format!("{}-1", test_name), &config).await {
-            Ok(h) => h,
-            Err(e) => {
-                return Ok(CrashTestResult {
-                    test_name: test_name.clone(),
-                    test_type: CrashTestType::FileOperation,
-                    passed: false,
-                    duration_ms: start_time.elapsed().as_secs_f64() * 1000.0,
-                    cleanup_success: false,
-                    data_corrupted: false,
-                    restart_success: false,
-                    error_message: Some(format!("Failed to spawn VM: {}", e)),
-                    metrics: CrashTestMetrics {
-                        vm_spawn_time_ms: 0.0,
-                        vm_lifecycle_time_ms: 0.0,
-                        kill_to_cleanup_time_ms: 0.0,
-                        ..Default::default()
-                    },
-                });
-            }
-        };
+        let handle =
+            match crate::vm::spawn_vm_with_config(&format!("{}-1", test_name), &config).await {
+                Ok(h) => h,
+                Err(e) => {
+                    return Ok(CrashTestResult {
+                        test_name: test_name.clone(),
+                        test_type: CrashTestType::FileOperation,
+                        passed: false,
+                        duration_ms: start_time.elapsed().as_secs_f64() * 1000.0,
+                        cleanup_success: false,
+                        data_corrupted: false,
+                        restart_success: false,
+                        error_message: Some(format!("Failed to spawn VM: {}", e)),
+                        metrics: CrashTestMetrics {
+                            vm_spawn_time_ms: 0.0,
+                            vm_lifecycle_time_ms: 0.0,
+                            kill_to_cleanup_time_ms: 0.0,
+                            ..Default::default()
+                        },
+                    });
+                }
+            };
         let vm_spawn_time_ms = spawn_start.elapsed().as_secs_f64() * 1000.0;
 
         // Simulate file operations (wait for VM to be active)
@@ -200,7 +200,10 @@ impl CrashTestHarness {
         let data_corrupted = self.check_data_corruption(&test_name);
 
         // Verify restart capability
-        let restart_success = match self.test_restart_after_crash(&format!("{}-restart", test_name)).await {
+        let restart_success = match self
+            .test_restart_after_crash(&format!("{}-restart", test_name))
+            .await
+        {
             Ok(_) => true,
             Err(e) => {
                 tracing::error!("Failed to restart VM: {}", e);
@@ -221,7 +224,11 @@ impl CrashTestHarness {
             cleanup_success,
             data_corrupted,
             restart_success,
-            error_message: if passed { None } else { Some("Test failed".to_string()) },
+            error_message: if passed {
+                None
+            } else {
+                Some("Test failed".to_string())
+            },
             metrics: CrashTestMetrics {
                 vm_spawn_time_ms,
                 vm_lifecycle_time_ms,
@@ -267,27 +274,28 @@ impl CrashTestHarness {
         };
 
         let spawn_start = Instant::now();
-        let handle = match crate::vm::spawn_vm_with_config(&format!("{}-1", test_name), &config).await {
-            Ok(h) => h,
-            Err(e) => {
-                return Ok(CrashTestResult {
-                    test_name: test_name.clone(),
-                    test_type: CrashTestType::NetworkOperation,
-                    passed: false,
-                    duration_ms: start_time.elapsed().as_secs_f64() * 1000.0,
-                    cleanup_success: false,
-                    data_corrupted: false,
-                    restart_success: false,
-                    error_message: Some(format!("Failed to spawn VM: {}", e)),
-                    metrics: CrashTestMetrics {
-                        vm_spawn_time_ms: 0.0,
-                        vm_lifecycle_time_ms: 0.0,
-                        kill_to_cleanup_time_ms: 0.0,
-                        ..Default::default()
-                    },
-                });
-            }
-        };
+        let handle =
+            match crate::vm::spawn_vm_with_config(&format!("{}-1", test_name), &config).await {
+                Ok(h) => h,
+                Err(e) => {
+                    return Ok(CrashTestResult {
+                        test_name: test_name.clone(),
+                        test_type: CrashTestType::NetworkOperation,
+                        passed: false,
+                        duration_ms: start_time.elapsed().as_secs_f64() * 1000.0,
+                        cleanup_success: false,
+                        data_corrupted: false,
+                        restart_success: false,
+                        error_message: Some(format!("Failed to spawn VM: {}", e)),
+                        metrics: CrashTestMetrics {
+                            vm_spawn_time_ms: 0.0,
+                            vm_lifecycle_time_ms: 0.0,
+                            kill_to_cleanup_time_ms: 0.0,
+                            ..Default::default()
+                        },
+                    });
+                }
+            };
         let vm_spawn_time_ms = spawn_start.elapsed().as_secs_f64() * 1000.0;
 
         // Simulate network operation delay
@@ -298,7 +306,10 @@ impl CrashTestHarness {
         let kill_to_cleanup_time_ms = kill_start.elapsed().as_secs_f64() * 1000.0;
 
         let data_corrupted = self.check_data_corruption(&test_name);
-        let restart_success = self.test_restart_after_crash(&format!("{}-restart", test_name)).await.is_ok();
+        let restart_success = self
+            .test_restart_after_crash(&format!("{}-restart", test_name))
+            .await
+            .is_ok();
 
         let metrics_after = self.collect_system_metrics()?;
         let vm_lifecycle_time_ms = start_time.elapsed().as_secs_f64() * 1000.0;
@@ -313,7 +324,11 @@ impl CrashTestHarness {
             cleanup_success,
             data_corrupted,
             restart_success,
-            error_message: if passed { None } else { Some("Test failed".to_string()) },
+            error_message: if passed {
+                None
+            } else {
+                Some("Test failed".to_string())
+            },
             metrics: CrashTestMetrics {
                 vm_spawn_time_ms,
                 vm_lifecycle_time_ms,
@@ -347,27 +362,28 @@ impl CrashTestHarness {
         };
 
         let spawn_start = Instant::now();
-        let handle = match crate::vm::spawn_vm_with_config(&format!("{}-1", test_name), &config).await {
-            Ok(h) => h,
-            Err(e) => {
-                return Ok(CrashTestResult {
-                    test_name: test_name.clone(),
-                    test_type: CrashTestType::ToolExecution,
-                    passed: false,
-                    duration_ms: start_time.elapsed().as_secs_f64() * 1000.0,
-                    cleanup_success: false,
-                    data_corrupted: false,
-                    restart_success: false,
-                    error_message: Some(format!("Failed to spawn VM: {}", e)),
-                    metrics: CrashTestMetrics {
-                        vm_spawn_time_ms: 0.0,
-                        vm_lifecycle_time_ms: 0.0,
-                        kill_to_cleanup_time_ms: 0.0,
-                        ..Default::default()
-                    },
-                });
-            }
-        };
+        let handle =
+            match crate::vm::spawn_vm_with_config(&format!("{}-1", test_name), &config).await {
+                Ok(h) => h,
+                Err(e) => {
+                    return Ok(CrashTestResult {
+                        test_name: test_name.clone(),
+                        test_type: CrashTestType::ToolExecution,
+                        passed: false,
+                        duration_ms: start_time.elapsed().as_secs_f64() * 1000.0,
+                        cleanup_success: false,
+                        data_corrupted: false,
+                        restart_success: false,
+                        error_message: Some(format!("Failed to spawn VM: {}", e)),
+                        metrics: CrashTestMetrics {
+                            vm_spawn_time_ms: 0.0,
+                            vm_lifecycle_time_ms: 0.0,
+                            kill_to_cleanup_time_ms: 0.0,
+                            ..Default::default()
+                        },
+                    });
+                }
+            };
         let vm_spawn_time_ms = spawn_start.elapsed().as_secs_f64() * 1000.0;
 
         // Simulate tool execution delay
@@ -378,7 +394,10 @@ impl CrashTestHarness {
         let kill_to_cleanup_time_ms = kill_start.elapsed().as_secs_f64() * 1000.0;
 
         let data_corrupted = self.check_data_corruption(&test_name);
-        let restart_success = self.test_restart_after_crash(&format!("{}-restart", test_name)).await.is_ok();
+        let restart_success = self
+            .test_restart_after_crash(&format!("{}-restart", test_name))
+            .await
+            .is_ok();
 
         let metrics_after = self.collect_system_metrics()?;
         let vm_lifecycle_time_ms = start_time.elapsed().as_secs_f64() * 1000.0;
@@ -393,7 +412,11 @@ impl CrashTestHarness {
             cleanup_success,
             data_corrupted,
             restart_success,
-            error_message: if passed { None } else { Some("Test failed".to_string()) },
+            error_message: if passed {
+                None
+            } else {
+                Some("Test failed".to_string())
+            },
             metrics: CrashTestMetrics {
                 vm_spawn_time_ms,
                 vm_lifecycle_time_ms,
@@ -464,7 +487,10 @@ impl CrashTestHarness {
         let data_corrupted = self.check_data_corruption(&test_name);
 
         // Test restart after all crashes
-        let restart_success = self.test_restart_after_crash(&format!("{}-restart", test_name)).await.is_ok();
+        let restart_success = self
+            .test_restart_after_crash(&format!("{}-restart", test_name))
+            .await
+            .is_ok();
 
         let metrics_after = self.collect_system_metrics()?;
         let vm_lifecycle_time_ms = start_time.elapsed().as_secs_f64() * 1000.0;
@@ -482,7 +508,10 @@ impl CrashTestHarness {
             error_message: if passed {
                 None
             } else {
-                Some(format!("Cleanups: {}/{}", cleanup_success_count, num_crashes))
+                Some(format!(
+                    "Cleanups: {}/{}",
+                    cleanup_success_count, num_crashes
+                ))
             },
             metrics: CrashTestMetrics {
                 vm_spawn_time_ms: avg_spawn_time_ms,
@@ -567,7 +596,10 @@ impl CrashTestHarness {
             error_message: if passed {
                 None
             } else {
-                Some(format!("Cleanups: {}/{}", cleanup_success_count, num_iterations))
+                Some(format!(
+                    "Cleanups: {}/{}",
+                    cleanup_success_count, num_iterations
+                ))
             },
             metrics: CrashTestMetrics {
                 vm_spawn_time_ms: avg_spawn_time_ms,
@@ -607,27 +639,28 @@ impl CrashTestHarness {
         config.memory_mb = 128; // Minimal memory
 
         let spawn_start = Instant::now();
-        let handle = match crate::vm::spawn_vm_with_config(&format!("{}-1", test_name), &config).await {
-            Ok(h) => h,
-            Err(e) => {
-                return Ok(CrashTestResult {
-                    test_name: test_name.clone(),
-                    test_type: CrashTestType::MemoryPressure,
-                    passed: false,
-                    duration_ms: start_time.elapsed().as_secs_f64() * 1000.0,
-                    cleanup_success: false,
-                    data_corrupted: false,
-                    restart_success: false,
-                    error_message: Some(format!("Failed to spawn VM: {}", e)),
-                    metrics: CrashTestMetrics {
-                        vm_spawn_time_ms: 0.0,
-                        vm_lifecycle_time_ms: 0.0,
-                        kill_to_cleanup_time_ms: 0.0,
-                        ..Default::default()
-                    },
-                });
-            }
-        };
+        let handle =
+            match crate::vm::spawn_vm_with_config(&format!("{}-1", test_name), &config).await {
+                Ok(h) => h,
+                Err(e) => {
+                    return Ok(CrashTestResult {
+                        test_name: test_name.clone(),
+                        test_type: CrashTestType::MemoryPressure,
+                        passed: false,
+                        duration_ms: start_time.elapsed().as_secs_f64() * 1000.0,
+                        cleanup_success: false,
+                        data_corrupted: false,
+                        restart_success: false,
+                        error_message: Some(format!("Failed to spawn VM: {}", e)),
+                        metrics: CrashTestMetrics {
+                            vm_spawn_time_ms: 0.0,
+                            vm_lifecycle_time_ms: 0.0,
+                            kill_to_cleanup_time_ms: 0.0,
+                            ..Default::default()
+                        },
+                    });
+                }
+            };
         let vm_spawn_time_ms = spawn_start.elapsed().as_secs_f64() * 1000.0;
 
         // Wait for VM to stabilize
@@ -652,7 +685,11 @@ impl CrashTestHarness {
             cleanup_success,
             data_corrupted,
             restart_success: true, // Not applicable for this test
-            error_message: if passed { None } else { Some("Test failed".to_string()) },
+            error_message: if passed {
+                None
+            } else {
+                Some("Test failed".to_string())
+            },
             metrics: CrashTestMetrics {
                 vm_spawn_time_ms,
                 vm_lifecycle_time_ms,
@@ -753,11 +790,10 @@ impl CrashTestHarness {
         let filename = format!("crash_test_results_{}.json", timestamp);
         let path = self.results_path.join(filename);
 
-        let json = serde_json::to_string_pretty(results)
-            .context("Failed to serialize test results")?;
+        let json =
+            serde_json::to_string_pretty(results).context("Failed to serialize test results")?;
 
-        fs::write(&path, json)
-            .context("Failed to write test results")?;
+        fs::write(&path, json).context("Failed to write test results")?;
 
         tracing::info!("Test results saved to: {:?}", path);
 
@@ -784,7 +820,11 @@ impl CrashTestHarness {
 
         summary.push_str("Test Results:\n");
         for result in results {
-            let status = if result.passed { "✓ PASS" } else { "✗ FAIL" };
+            let status = if result.passed {
+                "✓ PASS"
+            } else {
+                "✗ FAIL"
+            };
             summary.push_str(&format!(
                 "  {} - {} ({:.2}ms)\n",
                 status, result.test_name, result.duration_ms
@@ -847,13 +887,14 @@ fn read_file_descriptor_count() -> Result<u32> {
 #[cfg(target_os = "linux")]
 fn read_process_count() -> Result<u32> {
     if let Ok(entries) = fs::read_dir("/proc") {
-        let count = entries.filter(|e| {
-            e.as_ref()
-                .ok()
-                .and_then(|entry| entry.file_name().to_str().map(|s| s.parse::<u32>().is_ok()))
-                .unwrap_or(false)
-        })
-        .count() as u32;
+        let count = entries
+            .filter(|e| {
+                e.as_ref()
+                    .ok()
+                    .and_then(|entry| entry.file_name().to_str().map(|s| s.parse::<u32>().is_ok()))
+                    .unwrap_or(false)
+            })
+            .count() as u32;
         return Ok(count);
     }
 

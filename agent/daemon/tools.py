@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
 
 class ToolType(Enum):
     """Tool type enum."""
+
     BASH = "bash"
     GREP = "grep"
     WEB = "web"
@@ -38,6 +39,7 @@ class ToolType(Enum):
 @dataclass
 class ToolConfig:
     """Configuration for daemon tools."""
+
     # Default timeout for bash commands in seconds (default: 30)
     bash_timeout: int = 30
     # Maximum output size in bytes (default: 1MB)
@@ -53,6 +55,7 @@ class ToolConfig:
 @dataclass
 class ToolResult:
     """Result of tool execution."""
+
     success: bool
     output: str
     error: Optional[str] = None
@@ -79,21 +82,22 @@ class BashTool:
     async def execute(self, command: str, timeout: Optional[int] = None) -> ToolResult:
         """
         Execute a bash command.
-        
+
         Args:
             command: Command to execute
             timeout: Timeout in seconds (uses config default if None)
-            
+
         Returns:
             ToolResult with output and status
         """
         import time
+
         start_time = time.time()
-        
+
         timeout = timeout or self.config.bash_timeout
-        
+
         logger.info(f"Executing bash command: {command[:100]}...")
-        
+
         try:
             # Use shell=True but with command limiting
             process = await asyncio.create_subprocess_shell(
@@ -102,7 +106,7 @@ class BashTool:
                 stderr=asyncio.subprocess.PIPE,
                 cwd=self.config.working_dir,
             )
-            
+
             try:
                 stdout, stderr = await asyncio.wait_for(
                     process.communicate(),
@@ -119,13 +123,17 @@ class BashTool:
                     exit_code=-1,
                     duration_ms=duration_ms,
                 )
-            
+
             # Limit output size
-            stdout = stdout[:self.config.max_output_size].decode("utf-8", errors="replace")
-            stderr = stderr[:self.config.max_output_size].decode("utf-8", errors="replace")
-            
+            stdout = stdout[: self.config.max_output_size].decode(
+                "utf-8", errors="replace"
+            )
+            stderr = stderr[: self.config.max_output_size].decode(
+                "utf-8", errors="replace"
+            )
+
             duration_ms = (time.time() - start_time) * 1000
-            
+
             if process.returncode == 0:
                 return ToolResult(
                     success=True,
@@ -141,7 +149,7 @@ class BashTool:
                     exit_code=process.returncode,
                     duration_ms=duration_ms,
                 )
-                
+
         except Exception as e:
             duration_ms = (time.time() - start_time) * 1000
             logger.error(f"Bash execution error: {e}")
@@ -171,7 +179,7 @@ class GrepTool:
     ) -> ToolResult:
         """
         Search for pattern in file(s).
-        
+
         Args:
             pattern: Regex pattern to search
             path: File or directory path
@@ -179,19 +187,20 @@ class GrepTool:
             case_insensitive: Case insensitive search
             line_numbers: Show line numbers
             context: Lines of context around match
-            
+
         Returns:
             ToolResult with matches
         """
         import time
+
         start_time = time.time()
-        
+
         logger.info(f"Grep pattern '{pattern}' in {path}")
-        
+
         try:
             # Build grep command
             cmd = ["grep"]
-            
+
             if recursive:
                 cmd.append("-r")
             if case_insensitive:
@@ -200,26 +209,28 @@ class GrepTool:
                 cmd.append("-n")
             if context > 0:
                 cmd.extend([f"-C{context}"])
-            
+
             # Add pattern and path
             cmd.extend([pattern, path])
-            
+
             process = await asyncio.create_subprocess_exec(
                 *cmd,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
-            
+
             stdout, stderr = await asyncio.wait_for(
                 process.communicate(),
                 timeout=30,
             )
-            
-            stdout = stdout[:self.config.max_output_size].decode("utf-8", errors="replace")
+
+            stdout = stdout[: self.config.max_output_size].decode(
+                "utf-8", errors="replace"
+            )
             stderr = stderr.decode("utf-8", errors="replace")
-            
+
             duration_ms = (time.time() - start_time) * 1000
-            
+
             if process.returncode == 0:
                 return ToolResult(
                     success=True,
@@ -243,7 +254,7 @@ class GrepTool:
                     exit_code=process.returncode,
                     duration_ms=duration_ms,
                 )
-                
+
         except asyncio.TimeoutError:
             duration_ms = (time.time() - start_time) * 1000
             return ToolResult(
@@ -281,23 +292,24 @@ class WebTool:
     ) -> ToolResult:
         """
         Fetch a URL.
-        
+
         Args:
             url: URL to fetch
             method: HTTP method
             headers: Request headers
             data: Request body
             timeout: Request timeout
-            
+
         Returns:
             ToolResult with response
         """
         import time
         import aiohttp
+
         start_time = time.time()
-        
+
         logger.info(f"Fetching {method} {url}")
-        
+
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.request(
@@ -308,20 +320,20 @@ class WebTool:
                     timeout=aiohttp.ClientTimeout(total=timeout),
                 ) as response:
                     content = await response.text()
-                    content = content[:self.config.max_output_size]
-                    
+                    content = content[: self.config.max_output_size]
+
                     duration_ms = (time.time() - start_time) * 1000
-                    
+
                     # Build response headers
                     resp_headers = dict(response.headers)
-                    
+
                     return ToolResult(
                         success=True,
                         output=content,
                         exit_code=response.status,
                         duration_ms=duration_ms,
                     )
-                    
+
         except asyncio.TimeoutError:
             duration_ms = (time.time() - start_time) * 1000
             return ToolResult(
@@ -360,22 +372,22 @@ class CurlTool:
     async def execute(self, args: str) -> ToolResult:
         """
         Execute curl-like command.
-        
+
         Args:
             args: Arguments in curl format (simplified)
-            
+
         Returns:
             ToolResult with response
         """
         # Simple curl argument parser
         # Supports: curl <url> [-X METHOD] [-H "Header"] [-d DATA]
-        
+
         parts = shlex.split(args)
         url = None
         method = "GET"
         headers = {}
         data = None
-        
+
         i = 0
         while i < len(parts):
             part = parts[i]
@@ -404,7 +416,7 @@ class CurlTool:
                 if not url:
                     url = part
             i += 1
-        
+
         if not url:
             return ToolResult(
                 success=False,
@@ -412,14 +424,14 @@ class CurlTool:
                 error="No URL provided",
                 exit_code=-1,
             )
-        
+
         return await self._web.fetch(url, method, headers, data)
 
 
 class DaemonTools:
     """
     Unified daemon tools manager.
-    
+
     Provides access to all built-in tools:
     - bash: Execute shell commands
     - grep: Pattern matching
@@ -434,20 +446,20 @@ class DaemonTools:
         custom_tools: Optional[Dict[str, Callable[..., Awaitable[Any]]]] = None,
     ):
         self.config = config or ToolConfig()
-        
+
         # Initialize built-in tools
         self.bash = BashTool(self.config)
         self.grep = GrepTool(self.config)
         self.web = WebTool(self.config)
         self.curl = CurlTool(self.config)
-        
+
         # Custom tools
         self.custom_tools: Dict[str, Callable[..., Awaitable[Any]]] = custom_tools or {}
 
     def register_tool(self, name: str, handler: Callable[..., Awaitable[Any]]) -> None:
         """
         Register a custom tool.
-        
+
         Args:
             name: Tool name
             handler: Async callable to handle tool execution
@@ -458,16 +470,16 @@ class DaemonTools:
     async def execute(self, tool: str, *args, **kwargs) -> ToolResult:
         """
         Execute a tool by name.
-        
+
         Args:
             tool: Tool name (bash, grep, web, curl, or custom)
             *args, **kwargs: Arguments for the tool
-            
+
         Returns:
             ToolResult
         """
         tool_lower = tool.lower()
-        
+
         if tool_lower == "bash":
             return await self.bash.execute(*args, **kwargs)
         elif tool_lower == "grep":
@@ -494,14 +506,15 @@ class DaemonTools:
     ) -> ToolResult:
         """Execute a custom tool."""
         import time
+
         start_time = time.time()
-        
+
         try:
             handler = self.custom_tools[name]
             result = await handler(*args, **kwargs)
-            
+
             duration_ms = (time.time() - start_time) * 1000
-            
+
             return ToolResult(
                 success=True,
                 output=json.dumps(result) if not isinstance(result, str) else result,
@@ -532,11 +545,11 @@ def create_daemon_tools(
 ) -> DaemonTools:
     """
     Create daemon tools instance.
-    
+
     Args:
         config: Tool configuration
         custom_tools: Custom tool handlers
-        
+
     Returns:
         DaemonTools instance
     """

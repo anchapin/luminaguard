@@ -76,7 +76,10 @@ fn calculate_stats(values: &[f64]) -> Metrics {
 }
 
 fn benchmark_vm_spawn() -> Metrics {
-    println!("🧪 Benchmarking VM spawn time ({} iterations)...", ITERATIONS);
+    println!(
+        "🧪 Benchmarking VM spawn time ({} iterations)...",
+        ITERATIONS
+    );
 
     let mut spawn_times = Vec::new();
 
@@ -111,7 +114,11 @@ fn benchmark_vm_spawn() -> Metrics {
     println!("  Target:   <200ms");
     println!(
         "  Status:   {}",
-        if stats.median < 200.0 { "✅ PASS" } else { "❌ FAIL" }
+        if stats.median < 200.0 {
+            "✅ PASS"
+        } else {
+            "❌ FAIL"
+        }
     );
     println!();
 
@@ -119,7 +126,10 @@ fn benchmark_vm_spawn() -> Metrics {
 }
 
 fn benchmark_memory() -> Metrics {
-    println!("🧪 Benchmarking memory operations ({} iterations)...", ITERATIONS);
+    println!(
+        "🧪 Benchmarking memory operations ({} iterations)...",
+        ITERATIONS
+    );
 
     let mut memory_times = Vec::new();
 
@@ -150,7 +160,10 @@ fn benchmark_memory() -> Metrics {
 }
 
 fn benchmark_cpu() -> Metrics {
-    println!("🧪 Benchmarking CPU operations ({} iterations)...", ITERATIONS);
+    println!(
+        "🧪 Benchmarking CPU operations ({} iterations)...",
+        ITERATIONS
+    );
 
     let mut cpu_times = Vec::new();
 
@@ -160,7 +173,11 @@ fn benchmark_cpu() -> Metrics {
         // Simulate CPU-bound operations
         let data = vec![0u8; 1024 * 1024];
         let _found = data.iter().position(|&x| x == 255);
-        let _sorted = data.iter().cloned().filter(|&x| x > 128).collect::<Vec<_>>();
+        let _sorted = data
+            .iter()
+            .cloned()
+            .filter(|&x| x > 128)
+            .collect::<Vec<_>>();
 
         let elapsed = start.elapsed().as_secs_f64() * 1000.0;
         cpu_times.push(elapsed);
@@ -181,7 +198,10 @@ fn benchmark_cpu() -> Metrics {
 }
 
 fn benchmark_network() -> Metrics {
-    println!("🧪 Benchmarking network latency ({} iterations)...", ITERATIONS);
+    println!(
+        "🧪 Benchmarking network latency ({} iterations)...",
+        ITERATIONS
+    );
 
     let mut network_times = Vec::new();
 
@@ -207,7 +227,11 @@ fn benchmark_network() -> Metrics {
     println!("  Target:   <50ms");
     println!(
         "  Status:   {}",
-        if stats.median < 50.0 { "✅ PASS" } else { "⚠️  WARNING" }
+        if stats.median < 50.0 {
+            "✅ PASS"
+        } else {
+            "⚠️  WARNING"
+        }
     );
     println!();
 
@@ -260,7 +284,11 @@ fn main() {
     println!("  P99:      {:.2}ms", spawn_time.p99);
     println!(
         "  Status:   {}",
-        if spawn_time.median < 200.0 { "✅ PASS" } else { "❌ FAIL" }
+        if spawn_time.median < 200.0 {
+            "✅ PASS"
+        } else {
+            "❌ FAIL"
+        }
     );
     println!();
 
@@ -282,7 +310,11 @@ fn main() {
     println!("  P99:      {:.2}ms", network.p99);
     println!(
         "  Status:   {}",
-        if network.median < 50.0 { "✅ PASS" } else { "⚠️  WARNING" }
+        if network.median < 50.0 {
+            "✅ PASS"
+        } else {
+            "⚠️  WARNING"
+        }
     );
     println!();
 

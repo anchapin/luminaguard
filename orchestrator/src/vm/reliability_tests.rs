@@ -23,7 +23,7 @@ mod tests {
     /// Test crash test result serialization
     #[test]
     fn test_crash_test_result_serialization() {
-        use crate::vm::reliability::{CrashTestResult, CrashTestMetrics, CrashTestType};
+        use crate::vm::reliability::{CrashTestMetrics, CrashTestResult, CrashTestType};
 
         let result = CrashTestResult {
             test_name: "test_crash".to_string(),
@@ -94,7 +94,9 @@ mod tests {
     /// Test summary generation with mixed results
     #[test]
     fn test_summary_generation_with_mixed_results() {
-        use crate::vm::reliability::{CrashTestHarness, CrashTestResult, CrashTestMetrics, CrashTestType};
+        use crate::vm::reliability::{
+            CrashTestHarness, CrashTestMetrics, CrashTestResult, CrashTestType,
+        };
 
         let temp_dir = tempfile::TempDir::new().unwrap();
         let results_path = temp_dir.path().join("results");
@@ -156,7 +158,9 @@ mod tests {
     /// Test summary generation with all passing tests
     #[test]
     fn test_summary_generation_all_passing() {
-        use crate::vm::reliability::{CrashTestHarness, CrashTestResult, CrashTestMetrics, CrashTestType};
+        use crate::vm::reliability::{
+            CrashTestHarness, CrashTestMetrics, CrashTestResult, CrashTestType,
+        };
 
         let temp_dir = tempfile::TempDir::new().unwrap();
         let results_path = temp_dir.path().join("results");
@@ -205,7 +209,9 @@ mod tests {
     /// Test summary generation with target not met
     #[test]
     fn test_summary_generation_target_not_met() {
-        use crate::vm::reliability::{CrashTestHarness, CrashTestResult, CrashTestMetrics, CrashTestType};
+        use crate::vm::reliability::{
+            CrashTestHarness, CrashTestMetrics, CrashTestResult, CrashTestType,
+        };
 
         let temp_dir = tempfile::TempDir::new().unwrap();
         let results_path = temp_dir.path().join("results");
@@ -227,7 +233,11 @@ mod tests {
                 cleanup_success: i < 8,
                 data_corrupted: false,
                 restart_success: true,
-                error_message: if i < 8 { None } else { Some("Failed".to_string()) },
+                error_message: if i < 8 {
+                    None
+                } else {
+                    Some("Failed".to_string())
+                },
                 metrics: CrashTestMetrics::default(),
             })
             .collect();
@@ -244,7 +254,9 @@ mod tests {
     /// Test that results can be saved to file
     #[test]
     fn test_save_results_to_file() {
-        use crate::vm::reliability::{CrashTestHarness, CrashTestResult, CrashTestMetrics, CrashTestType};
+        use crate::vm::reliability::{
+            CrashTestHarness, CrashTestMetrics, CrashTestResult, CrashTestType,
+        };
 
         let temp_dir = tempfile::TempDir::new().unwrap();
         let results_path = temp_dir.path().join("results");
@@ -309,7 +321,7 @@ mod tests {
     /// Test crash test result with error message
     #[test]
     fn test_crash_test_result_with_error() {
-        use crate::vm::reliability::{CrashTestResult, CrashTestMetrics, CrashTestType};
+        use crate::vm::reliability::{CrashTestMetrics, CrashTestResult, CrashTestType};
 
         let result = CrashTestResult {
             test_name: "test_error".to_string(),
