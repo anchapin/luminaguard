@@ -1023,6 +1023,22 @@ impl NetworkPartitionTestHarness {
     }
 }
 
+impl Default for NetworkPartitionMetrics {
+    fn default() -> Self {
+        Self {
+            connection_loss_time_ms: 0.0,
+            recovery_time_ms: 0.0,
+            requests_before_partition: 0,
+            requests_after_partition: 0,
+            queued_operations: 0,
+            cached_responses: 0,
+            successful_requests_before_recovery: 0,
+            failed_requests_during_partition: 0,
+            recovery_attempts: 0,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1232,21 +1248,5 @@ mod tests {
         assert!(summary.contains("Passed: 1"));
         assert!(summary.contains("test1"));
         assert!(summary.contains("test2"));
-    }
-}
-
-impl Default for NetworkPartitionMetrics {
-    fn default() -> Self {
-        Self {
-            connection_loss_time_ms: 0.0,
-            recovery_time_ms: 0.0,
-            requests_before_partition: 0,
-            requests_after_partition: 0,
-            queued_operations: 0,
-            cached_responses: 0,
-            successful_requests_before_recovery: 0,
-            failed_requests_during_partition: 0,
-            recovery_attempts: 0,
-        }
     }
 }

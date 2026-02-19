@@ -373,64 +373,6 @@ pub(crate) fn should_skip_hypervisor_tests() -> bool {
     std::env::var("SKIP_HYPERVISOR_TESTS").is_ok() || cfg!(not(target_os = "linux"))
 }
 
-#[cfg(test)]
-mod inline_tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn test_vm_spawn_and_destroy() {
-        if should_skip_hypervisor_tests() {
-            tracing::warn!("Skipping hypervisor-dependent test");
-            return;
-        }
-
-        // Check if Firecracker resources exist
-        let kernel_path = if std::path::Path::new("/tmp/luminaguard-fc-test/vmlinux.bin").exists() {
-            "/tmp/luminaguard-fc-test/vmlinux.bin".to_string()
-        } else {
-            tracing::warn!("Skipping test: Firecracker kernel not available at /tmp/luminaguard-fc-test/vmlinux.bin. Run: ./scripts/download-firecracker-assets.sh");
-            return;
-        };
-        let rootfs_path = if std::path::Path::new("/tmp/luminaguard-fc-test/rootfs.ext4").exists() {
-            "/tmp/luminaguard-fc-test/rootfs.ext4".to_string()
-        } else {
-            tracing::warn!("Skipping test: Firecracker rootfs not available at /tmp/luminaguard-fc-test/rootfs.ext4. Run: ./scripts/download-firecracker-assets.sh");
-            return;
-        };
-
-        // Ensure test assets exist
-        let _ = std::fs::create_dir_all("/tmp/luminaguard-fc-test");
-
-        use config::VmConfig;
-        let config = VmConfig {
-            kernel_path: kernel_path.to_string(),
-            rootfs_path: rootfs_path.to_string(),
-            ..VmConfig::new("test-task".to_string())
-        };
-
-        let result = spawn_vm_with_config("test-task", &config).await;
-
-        // If assets don't exist, we expect an error
-        if result.is_err() {
-            println!("Skipping test: Firecracker assets not available");
-            return;
-        }
-
-        let handle = result.unwrap();
-        assert_eq!(handle.id, "test-task");
-        assert!(handle.spawn_time_ms > 0.0);
-
-        destroy_vm(handle).await.unwrap();
-    }
-
-    #[test]
-    fn test_vm_id_format() {
-        let task_id = "task-123";
-        let expected_id = task_id.to_string();
-        assert_eq!(expected_id, "task-123");
-    }
-}
-
 /// Verify that a VM is properly network-isolated
 ///
 /// # Arguments
@@ -596,4 +538,62 @@ pub async fn destroy_vm_jailed(handle: VmHandle, _jailer_config: &JailerConfig) 
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod inline_tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_vm_spawn_and_destroy() {
+        if should_skip_hypervisor_tests() {
+            tracing::warn!("Skipping hypervisor-dependent test");
+            return;
+        }
+
+        // Check if Firecracker resources exist
+        let kernel_path = if std::path::Path::new("/tmp/luminaguard-fc-test/vmlinux.bin").exists() {
+            "/tmp/luminaguard-fc-test/vmlinux.bin".to_string()
+        } else {
+            tracing::warn!("Skipping test: Firecracker kernel not available at /tmp/luminaguard-fc-test/vmlinux.bin. Run: ./scripts/download-firecracker-assets.sh");
+            return;
+        };
+        let rootfs_path = if std::path::Path::new("/tmp/luminaguard-fc-test/rootfs.ext4").exists() {
+            "/tmp/luminaguard-fc-test/rootfs.ext4".to_string()
+        } else {
+            tracing::warn!("Skipping test: Firecracker rootfs not available at /tmp/luminaguard-fc-test/rootfs.ext4. Run: ./scripts/download-firecracker-assets.sh");
+            return;
+        };
+
+        // Ensure test assets exist
+        let _ = std::fs::create_dir_all("/tmp/luminaguard-fc-test");
+
+        use config::VmConfig;
+        let config = VmConfig {
+            kernel_path: kernel_path.to_string(),
+            rootfs_path: rootfs_path.to_string(),
+            ..VmConfig::new("test-task".to_string())
+        };
+
+        let result = spawn_vm_with_config("test-task", &config).await;
+
+        // If assets don't exist, we expect an error
+        if result.is_err() {
+            println!("Skipping test: Firecracker assets not available");
+            return;
+        }
+
+        let handle = result.unwrap();
+        assert_eq!(handle.id, "test-task");
+        assert!(handle.spawn_time_ms > 0.0);
+
+        destroy_vm(handle).await.unwrap();
+    }
+
+    #[test]
+    fn test_vm_id_format() {
+        let task_id = "task-123";
+        let expected_id = task_id.to_string();
+        assert_eq!(expected_id, "task-123");
+    }
 }

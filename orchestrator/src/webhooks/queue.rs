@@ -182,7 +182,6 @@ pub struct DLQStats {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::Utc;
 
     #[test]
     fn test_dlq_create_entry() {

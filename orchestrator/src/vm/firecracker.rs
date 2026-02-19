@@ -496,7 +496,7 @@ mod tests {
         } else {
             println!("Firecracker binary available: false (tests requiring real execution will be skipped)");
         }
-        assert!(exists || !exists); // Always passes, just reports status
+        // Just report status - no assertion needed, test always passes
     }
 
     /// Integration test: Start and stop Firecracker with real binary
@@ -992,7 +992,7 @@ mod tests {
         };
 
         // Should fail to connect to non-existent socket
-        let result = FirecrackerClient::new(&socket_path.to_str().unwrap().to_string()).await;
+        let result = FirecrackerClient::new(socket_path.to_str().unwrap()).await;
 
         match result {
             Ok(mut client) => {
@@ -1002,7 +1002,7 @@ mod tests {
                 assert!(res.is_err());
             }
             Err(e) => {
-                assert!(true); // Failed to connect as expected
+                // Failed to connect as expected
                 println!("API request without server test passed: {:?}", e);
             }
         }

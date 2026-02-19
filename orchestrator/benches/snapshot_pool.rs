@@ -8,8 +8,9 @@
 // - VM spawn time: target 10-50ms
 // - Pool acquisition overhead
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use luminaguard_orchestrator::vm;
+use std::hint::black_box;
 use tempfile::TempDir;
 use tokio::runtime::Runtime;
 
@@ -29,9 +30,11 @@ fn bench_vm_spawn_from_pool(c: &mut Criterion) {
     });
 
     c.bench_function("vm_spawn_from_pool", |b| {
-        b.to_async(&rt).iter(|| async {
-            let handle = vm::spawn_vm(black_box("benchmark-task")).await.unwrap();
-            black_box(handle);
+        b.iter(|| {
+            rt.block_on(async {
+                let handle = vm::spawn_vm(black_box("benchmark-task")).await.unwrap();
+                black_box(handle);
+            });
         });
     });
 
@@ -43,12 +46,14 @@ fn bench_cold_boot_vm(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
 
     c.bench_function("cold_boot_vm", |b| {
-        b.to_async(&rt).iter(|| async {
-            // Call cold boot directly
-            let handle = vm::spawn_vm(black_box("cold-benchmark-task"))
-                .await
-                .unwrap();
-            black_box(handle);
+        b.iter(|| {
+            rt.block_on(async {
+                // Call cold boot directly
+                let handle = vm::spawn_vm(black_box("cold-benchmark-task"))
+                    .await
+                    .unwrap();
+                black_box(handle);
+            });
         });
     });
 }
@@ -75,16 +80,18 @@ fn bench_concurrent_spawns(c: &mut Criterion) {
             BenchmarkId::from_parameter(concurrent_count),
             concurrent_count,
             |b, &count| {
-                b.to_async(&rt).iter(|| async {
-                    let mut handles = Vec::new();
+                b.iter(|| {
+                    rt.block_on(async {
+                        let mut handles = Vec::new();
 
-                    for i in 0..count {
-                        let task_id = format!("concurrent-{}", i);
-                        let handle = vm::spawn_vm(black_box(&task_id)).await.unwrap();
-                        handles.push(handle);
-                    }
+                        for i in 0..count {
+                            let task_id = format!("concurrent-{}", i);
+                            let handle = vm::spawn_vm(black_box(&task_id)).await.unwrap();
+                            handles.push(handle);
+                        }
 
-                    black_box(handles);
+                        black_box(handles);
+                    });
                 });
             },
         );
@@ -111,9 +118,11 @@ fn bench_pool_stats(c: &mut Criterion) {
     });
 
     c.bench_function("pool_stats", |b| {
-        b.to_async(&rt).iter(|| async {
-            let stats = vm::pool_stats().await.unwrap();
-            black_box(stats);
+        b.iter(|| {
+            rt.block_on(async {
+                let stats = vm::pool_stats().await.unwrap();
+                black_box(stats);
+            });
         });
     });
 

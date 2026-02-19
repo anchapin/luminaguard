@@ -874,7 +874,7 @@ mod tests {
 
             for sys in &required {
                 assert!(
-                    whitelist.contains(&sys),
+                    whitelist.contains(sys),
                     "Required syscall {} not found in whitelist",
                     sys
                 );
@@ -921,7 +921,7 @@ mod tests {
 
         for sys in &dangerous {
             assert!(
-                !whitelist.contains(&sys),
+                !whitelist.contains(sys),
                 "Dangerous syscall {} should be blocked",
                 sys
             );
@@ -955,7 +955,7 @@ mod tests {
 
         for sys in &vsock_syscalls {
             assert!(
-                whitelist.contains(&sys),
+                whitelist.contains(sys),
                 "VSOCK syscall {} should be allowed",
                 sys
             );
