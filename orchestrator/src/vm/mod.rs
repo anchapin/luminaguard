@@ -13,6 +13,7 @@ pub mod apple_hv;
 pub mod approval_cliff_tests;
 pub mod chaos;
 pub mod config;
+pub mod daemon_logging;
 #[cfg(unix)]
 pub mod firecracker;
 pub mod firewall;
