@@ -444,7 +444,7 @@ mod tests {
         manager.reset_all_periods().await;
 
         let stats = manager.get_user_stats("user-reset").await;
-        let api_stats = stats.iter().find(|s| s.quota_type == QuotaType::ApiCalls);
+        let _api_stats = stats.iter().find(|s| s.quota_type == QuotaType::ApiCalls);
         // After reset, period usage should be 0
         // Note: The quota object is cloned, so we need to get fresh stats
     }

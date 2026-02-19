@@ -217,15 +217,19 @@ mod tests {
 
     #[test]
     fn test_config_validation_fails() {
-        let mut config = VmConfig::default();
-        config.vcpu_count = 0;
+        let config = VmConfig {
+            vcpu_count: 0,
+            ..Default::default()
+        };
         assert!(config.validate().is_err());
     }
 
     #[test]
     fn test_config_validation_fails_networking() {
-        let mut config = VmConfig::default();
-        config.enable_networking = true;
+        let config = VmConfig {
+            enable_networking: true,
+            ..Default::default()
+        };
         let result = config.validate();
         assert!(result.is_err());
         assert!(result

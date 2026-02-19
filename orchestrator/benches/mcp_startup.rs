@@ -10,7 +10,7 @@ fn bench_startup(c: &mut Criterion) {
     let command_args_raw: Vec<String> = env::var("MCP_STARTUP_BENCH_ARGS")
         .ok()
         .map(|v| v.split_whitespace().map(|s| s.to_string()).collect())
-        .unwrap_or_else(Vec::new);
+        .unwrap_or_default();
     let command_args: Vec<&str> = command_args_raw.iter().map(|s| s.as_str()).collect();
 
     let rt = tokio::runtime::Runtime::new().expect("Failed to create Tokio runtime for benchmark");

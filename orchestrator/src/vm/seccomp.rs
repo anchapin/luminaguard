@@ -648,8 +648,10 @@ mod tests {
 
     #[test]
     fn test_validate_seccomp_rules_no_audit() {
-        let mut filter = SeccompFilter::new(SeccompLevel::Basic);
-        filter.audit_enabled = false;
+        let filter = SeccompFilter {
+            audit_enabled: false,
+            ..SeccompFilter::new(SeccompLevel::Basic)
+        };
 
         let result = validate_seccomp_rules(&filter);
         assert!(result.is_err());
@@ -699,8 +701,10 @@ mod tests {
 
     #[test]
     fn test_should_audit_disabled() {
-        let mut filter = SeccompFilter::default();
-        filter.audit_enabled = false;
+        let filter = SeccompFilter {
+            audit_enabled: false,
+            ..Default::default()
+        };
 
         assert!(!filter.should_audit("execve"));
         assert!(!filter.should_audit("mount"));

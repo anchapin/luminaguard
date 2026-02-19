@@ -174,9 +174,11 @@ mod tests {
 
     #[test]
     fn test_max_delay_capped() {
-        let mut config = RetryConfig::default();
-        config.max_total_delay_ms = 5000;
-        config.use_jitter = false;
+        let config = RetryConfig {
+            max_total_delay_ms: 5000,
+            use_jitter: false,
+            ..Default::default()
+        };
 
         // Use attempt 4 which is within max_retries (5) but would produce a large delay
         // 1000 * 2^4 = 16000, which should be capped to 5000
@@ -201,9 +203,11 @@ mod tests {
 
     #[test]
     fn test_no_exponential_backoff() {
-        let mut config = RetryConfig::default();
-        config.use_exponential_backoff = false;
-        config.use_jitter = false;
+        let config = RetryConfig {
+            use_exponential_backoff: false,
+            use_jitter: false,
+            ..Default::default()
+        };
 
         let delay0 = calculate_retry_delay(0, &config);
         let delay1 = calculate_retry_delay(1, &config);
