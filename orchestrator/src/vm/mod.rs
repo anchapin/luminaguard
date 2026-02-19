@@ -13,6 +13,7 @@ pub mod approval_cliff_tests;
 pub mod approval_handler;
 pub mod chaos;
 pub mod config;
+pub mod daemon_logging;
 #[cfg(unix)]
 pub mod firecracker;
 pub mod firewall;
