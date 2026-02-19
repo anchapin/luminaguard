@@ -178,8 +178,9 @@ mod tests {
         config.max_total_delay_ms = 5000;
         config.use_jitter = false;
         
-        // Very high attempt number should be capped
-        let delay = calculate_retry_delay(10, &config);
+        // Use attempt 4 which is within max_retries (5) but would produce a large delay
+        // 1000 * 2^4 = 16000, which should be capped to 5000
+        let delay = calculate_retry_delay(4, &config);
         assert!(matches!(delay, RetryDecision::Retry(d) if d <= 5000));
     }
 

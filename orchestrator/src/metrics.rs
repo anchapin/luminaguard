@@ -161,6 +161,9 @@ mod tests {
 
     #[test]
     fn test_approval_metrics() {
+        // Initialize metrics first (may fail if already registered, which is fine)
+        let _ = init();
+        
         APPROVAL_REQUESTS_TOTAL.inc();
         APPROVALS_GRANTED_TOTAL.inc();
         // Verify counters increased

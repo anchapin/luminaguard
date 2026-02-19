@@ -192,6 +192,7 @@ fn is_retryable_status(status: u16) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::Utc;
 
     #[test]
     fn test_webhook_config_new() {
