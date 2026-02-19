@@ -29,6 +29,7 @@ pub mod reliability;
 pub mod resource_limits;
 pub mod rootfs;
 pub mod seccomp;
+pub mod startup_optimizer;
 pub mod security_escape_simple;
 pub mod security_integration_tests;
 // pub mod security_validation;
