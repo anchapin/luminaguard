@@ -187,7 +187,10 @@ async fn test_reconnection_after_server_restart() {
 
     // Create client and initialize
     let mut client = luminaguard_orchestrator::mcp::client::McpClient::new(transport.clone());
-    client.initialize().await.expect("Initial connection should succeed");
+    client
+        .initialize()
+        .await
+        .expect("Initial connection should succeed");
 
     // Simulate server restart (disconnect then reconnect)
     transport.disconnect();
@@ -335,24 +338,24 @@ async fn test_multiple_concurrent_clients() {
     for i in 0..5 {
         let handle = tokio::spawn(async move {
             let transport = ReconnectMockTransport::new();
-            
+
             // Note: responses are popped from the queue in LIFO order
             // So push tools response first, then init response
             transport.push_response(create_tools_response()).await;
             transport.push_response(create_init_response()).await;
-            
+
             let mut client = luminaguard_orchestrator::mcp::client::McpClient::new(transport);
 
-            client.initialize().await.expect(&format!(
-                "Client {} should initialize successfully",
-                i
-            ));
+            client
+                .initialize()
+                .await
+                .expect(&format!("Client {} should initialize successfully", i));
 
             // Each client should be able to list tools
-            let tools = client.list_tools().await.expect(&format!(
-                "Client {} should list tools successfully",
-                i
-            ));
+            let tools = client
+                .list_tools()
+                .await
+                .expect(&format!("Client {} should list tools successfully", i));
 
             tools.len()
         });
@@ -418,7 +421,6 @@ async fn test_recovery_from_server_error() {
     assert!(result.is_ok(), "Should succeed after recovery");
 }
 
-
 // ============================================================================
 // Test: Connection state management
 // ============================================================================
@@ -452,7 +454,10 @@ async fn test_double_initialization_prevention() {
     let mut client = luminaguard_orchestrator::mcp::client::McpClient::new(transport);
 
     // First initialization
-    client.initialize().await.expect("First init should succeed");
+    client
+        .initialize()
+        .await
+        .expect("First init should succeed");
 
     // Second initialization should fail
     let result = client.initialize().await;
@@ -473,7 +478,9 @@ async fn test_tool_call_with_transient_failure() {
 
     // Set up for tool call with transient failure
     transport.set_fail_count(1);
-    transport.push_response(create_tool_response("success")).await;
+    transport
+        .push_response(create_tool_response("success"))
+        .await;
 
     let retry_config = luminaguard_orchestrator::mcp::retry::RetryConfig::default()
         .max_attempts(3)
@@ -544,7 +551,9 @@ async fn test_capability_negotiation() {
     client.initialize().await.expect("Should initialize");
 
     // Check capabilities were stored
-    let caps = client.server_capabilities().expect("Should have capabilities");
+    let caps = client
+        .server_capabilities()
+        .expect("Should have capabilities");
     assert_eq!(caps.server_info.name, "capable-server");
     assert_eq!(caps.server_info.version, "2.0.0");
 }
@@ -573,9 +582,14 @@ async fn test_protocol_version_mismatch() {
 
     // Should still initialize (version check is advisory)
     let result = client.initialize().await;
-    assert!(result.is_ok(), "Should initialize even with version mismatch");
+    assert!(
+        result.is_ok(),
+        "Should initialize even with version mismatch"
+    );
 
     // But we can check the version
-    let caps = client.server_capabilities().expect("Should have capabilities");
+    let caps = client
+        .server_capabilities()
+        .expect("Should have capabilities");
     assert_ne!(caps.protocol_version, "2024-11-05");
 }
