@@ -120,7 +120,10 @@ impl QuotaStore {
         let mut quotas = self.quotas.write().await;
 
         if !quotas.contains_key(key) {
-            let quota_id = format!("{:?}-{}-{:?}", key.entity_type, key.entity_id, key.quota_type);
+            let quota_id = format!(
+                "{:?}-{}-{:?}",
+                key.entity_type, key.entity_id, key.quota_type
+            );
             let quota = Quota::new(key.quota_type, quota_id);
             quotas.insert(key.clone(), quota);
         }
@@ -168,11 +171,7 @@ impl QuotaStore {
     /// Get usage history for a key
     pub async fn get_usage_history(&self, key: &QuotaKey) -> Vec<UsageRecord> {
         let history = self.usage_history.read().await;
-        history
-            .iter()
-            .filter(|r| &r.key == key)
-            .cloned()
-            .collect()
+        history.iter().filter(|r| &r.key == key).cloned().collect()
     }
 
     /// Get all usage history

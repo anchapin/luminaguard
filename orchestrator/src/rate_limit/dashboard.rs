@@ -110,15 +110,9 @@ impl DashboardBuilder {
                 let entity_id = parts[1].to_string();
 
                 if entity_type_str == "User" {
-                    user_stats_map
-                        .entry(entity_id)
-                        .or_default()
-                        .push(stat);
+                    user_stats_map.entry(entity_id).or_default().push(stat);
                 } else if entity_type_str == "Agent" {
-                    agent_stats_map
-                        .entry(entity_id)
-                        .or_default()
-                        .push(stat);
+                    agent_stats_map.entry(entity_id).or_default().push(stat);
                 }
             }
         }
@@ -157,11 +151,7 @@ impl DashboardBuilder {
         let summary = self.build_summary(&user_stats, &agent_stats, &history);
 
         // Get recent history (last 100 records)
-        let recent_history: Vec<UsageRecord> = history
-            .into_iter()
-            .rev()
-            .take(100)
-            .collect();
+        let recent_history: Vec<UsageRecord> = history.into_iter().rev().take(100).collect();
 
         DashboardData {
             timestamp: chrono::Utc::now(),
@@ -218,10 +208,7 @@ impl DashboardBuilder {
             }
         }
 
-        let rate_limited_count = history
-            .iter()
-            .filter(|r| !r.success)
-            .count() as u64;
+        let rate_limited_count = history.iter().filter(|r| !r.success).count() as u64;
 
         let avg_utilization_percent = if quota_count > 0 {
             total_utilization / quota_count as f64
