@@ -57,23 +57,23 @@ mod vz_bindings {
             Self
         }
 
-        pub fn set_cpu_count(&mut self, count: usize) {
+        pub fn set_cpu_count(&mut self, _count: usize) {
             // Real implementation would call [config setCPUCount:count]
         }
 
-        pub fn set_memory_size(&mut self, size: usize) {
+        pub fn set_memory_size(&mut self, _size: usize) {
             // Real implementation would call [config setMemorySize:size]
         }
 
-        pub fn set_boot_loader(&mut self, boot_loader: &VZLinuxBootLoader) {
+        pub fn set_boot_loader(&mut self, _boot_loader: &VZLinuxBootLoader) {
             // Real implementation would call [config setBootLoader:boot_loader]
         }
 
-        pub fn set_storage_devices(&mut self, devices: &[&VZVirtioBlockDeviceConfiguration]) {
+        pub fn set_storage_devices(&mut self, _devices: &[&VZVirtioBlockDeviceConfiguration]) {
             // Real implementation would call [config setStorageDevices:@(devices)]
         }
 
-        pub fn set_network_devices(&mut self, devices: &[&VZNetworkDeviceConfiguration]) {
+        pub fn set_network_devices(&mut self, _devices: &[&VZNetworkDeviceConfiguration]) {
             // Real implementation would call [config setNetworkDevices:@(devices)]
         }
 
@@ -307,6 +307,7 @@ impl AppleHvInstance {
             info!("macOS VM {} started successfully", vm_id);
 
             // 4. Message Loop
+            #[allow(clippy::never_loop)]
             while let Ok(cmd) = cmd_rx.recv() {
                 match cmd {
                     AppleHvCommand::Stop => {
