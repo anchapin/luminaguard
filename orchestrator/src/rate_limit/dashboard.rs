@@ -112,12 +112,12 @@ impl DashboardBuilder {
                 if entity_type_str == "User" {
                     user_stats_map
                         .entry(entity_id)
-                        .or_insert_with(Vec::new)
+                        .or_default()
                         .push(stat);
                 } else if entity_type_str == "Agent" {
                     agent_stats_map
                         .entry(entity_id)
-                        .or_insert_with(Vec::new)
+                        .or_default()
                         .push(stat);
                 }
             }
