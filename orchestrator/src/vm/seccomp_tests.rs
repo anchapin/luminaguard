@@ -200,7 +200,10 @@ impl SeccompTestHarness {
             }
             Err(e) => {
                 passed = false;
-                error_msg = Some(format!("Failed to verify dangerous syscalls blocked: {}", e));
+                error_msg = Some(format!(
+                    "Failed to verify dangerous syscalls blocked: {}",
+                    e
+                ));
             }
         }
 
@@ -892,10 +895,7 @@ impl SeccompTestHarness {
             Ok(time_ms) => {
                 if time_ms > 1.0 {
                     passed = false;
-                    error_msg = Some(format!(
-                        "Blocked syscall rejection too slow: {}ms",
-                        time_ms
-                    ));
+                    error_msg = Some(format!("Blocked syscall rejection too slow: {}ms", time_ms));
                 }
             }
             Err(e) => {
@@ -1020,10 +1020,7 @@ impl SeccompTestHarness {
             "Verify audit logging is enabled by default".to_string(),
             "audit_logging".to_string(),
             "Basic".to_string(),
-            ["logging", "audit"]
-                .iter()
-                .map(|s| s.to_string())
-                .collect(),
+            ["logging", "audit"].iter().map(|s| s.to_string()).collect(),
         );
     }
 

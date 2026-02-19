@@ -21,8 +21,7 @@ use luminaguard_orchestrator::vm::security_integration_tests::IntegrationTestHar
 #[tokio::main]
 async fn main() -> Result<()> {
     // Initialize logging
-    FmtSubscriber::builder()
-        .init();
+    FmtSubscriber::builder().init();
 
     // Parse arguments
     let args: Vec<String> = env::args().collect();
@@ -87,7 +86,10 @@ async fn main() -> Result<()> {
         }
         for result in results {
             if !result.passed {
-                println!("    - {} ({}ms)", result.test_name, result.execution_time_ms as i32);
+                println!(
+                    "    - {} ({}ms)",
+                    result.test_name, result.execution_time_ms as i32
+                );
                 if let Some(err) = &result.error_message {
                     println!("      Error: {}", err);
                 }

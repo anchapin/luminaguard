@@ -49,7 +49,7 @@ fn has_vm_resources() -> bool {
 async fn e2e_complete_agent_workflow() {
     // This test validates the full workflow using mock components
     // when Firecracker is not available, ensuring code paths are tested.
-    
+
     println!("\n=== E2E: Complete Agent Workflow ===");
 
     // Phase 1: Validate VM config
@@ -61,13 +61,16 @@ async fn e2e_complete_agent_workflow() {
     // Phase 2: Test spawn with mock (when no real resources)
     println!("Phase 2: Testing VM spawn path...");
     let spawn_result = spawn_vm("e2e-test-vm").await;
-    
+
     if has_firecracker() && has_vm_resources() {
         // Real execution path
-        assert!(spawn_result.is_ok(), "VM spawn should succeed with resources");
+        assert!(
+            spawn_result.is_ok(),
+            "VM spawn should succeed with resources"
+        );
         let handle = spawn_result.unwrap();
         println!("  ✅ VM spawned successfully");
-        
+
         // Phase 3: Verify isolation
         println!("Phase 3: Verifying security isolation...");
         match verify_network_isolation(&handle) {
@@ -514,77 +517,99 @@ async fn e2e_agent_performance_under_load() {
 
 // Week 1: Security Escape Validation - Main Test Runner
 
-use crate::vm::security_escape_simple::{SecurityTestHarness, SecurityReport};
+use crate::vm::security_escape_simple::{SecurityReport, SecurityTestHarness};
 use std::fs;
 
 #[tokio::test]
 async fn test_security_validation() {
     println!("\n========== SECURITY ESCAPE VALIDATION ==========\n");
-    
+
     let mut harness = SecurityTestHarness::new();
     let report = harness.run_all_tests();
-    
+
     println!("\n{}", report.summary());
-    
+
     // Verify security score
     let score = report.security_score();
     println!("\nSecurity Score: {:.1}%", score);
-    
+
     if score >= 100.0 {
         println!("✅ ALL ESCAPE ATTEMPTS BLOCKED - SYSTEM SECURE");
     }
-    
+
     // Save report to metrics directory
     fs::create_dir_all(".beads/metrics/security").expect("Failed to create metrics directory");
-    
+
     let report_json = report.to_json().expect("Failed to serialize report");
-    fs::write(".beads/metrics/security/security-validation-report.json", report_json).expect("Failed to write report");
-    
-    fs::write(".beads/metrics/security/security-validation-summary.txt", report.summary()).expect("Failed to write summary");
-    
+    fs::write(
+        ".beads/metrics/security/security-validation-report.json",
+        report_json,
+    )
+    .expect("Failed to write report");
+
+    fs::write(
+        ".beads/metrics/security/security-validation-summary.txt",
+        report.summary(),
+    )
+    .expect("Failed to write summary");
+
     println!("\nReport saved to: .beads/metrics/security/security-validation-report.json");
     println!("Summary saved to: .beads/metrics/security/security-validation-summary.txt");
-    
+
     // Verify report contains expected test categories
     assert!(!report.test_results.is_empty(), "Should have test results");
-    
+
     // Calculate and verify score
     let expected_score = (report.blocked_count as f64 / report.total_tests as f64) * 100.0;
-    assert!((score - expected_score).abs() < 0.01, "Score calculation incorrect");
+    assert!(
+        (score - expected_score).abs() < 0.01,
+        "Score calculation incorrect"
+    );
 }
 
 #[tokio::test]
 async fn test_comprehensive_security_validation() {
     println!("\n========== SECURITY ESCAPE VALIDATION ==========\n");
-    
+
     let mut harness = SecurityTestHarness::new();
     let report = harness.run_all_tests();
-    
+
     println!("\n{}", report.summary());
-    
+
     // Verify security score
     let score = report.security_score();
     println!("\nSecurity Score: {:.1}%", score);
-    
+
     if score >= 100.0 {
         println!("✅ ALL ESCAPE ATTEMPTS BLOCKED - SYSTEM SECURE");
     }
-    
+
     // Save report to metrics directory
     fs::create_dir_all(".beads/metrics/security").expect("Failed to create metrics directory");
-    
+
     let report_json = report.to_json().expect("Failed to serialize report");
-    fs::write(".beads/metrics/security-validation-report.json", report_json).expect("Failed to write report");
-    
-    fs::write(".beads/metrics/security-validation-summary.txt", report.summary()).expect("Failed to write summary");
-    
+    fs::write(
+        ".beads/metrics/security-validation-report.json",
+        report_json,
+    )
+    .expect("Failed to write report");
+
+    fs::write(
+        ".beads/metrics/security-validation-summary.txt",
+        report.summary(),
+    )
+    .expect("Failed to write summary");
+
     println!("\nReport saved to: .beads/metrics/security-validation-report.json");
     println!("Summary saved to: .beads/metrics/security-validation-summary.txt");
-    
+
     // Verify report contains expected test categories
     assert!(!report.test_results.is_empty(), "Should have test results");
-    
+
     // Calculate and verify score
     let expected_score = (report.blocked_count as f64 / report.total_tests as f64) * 100.0;
-    assert!((score - expected_score).abs() < 0.01, "Score calculation incorrect");
+    assert!(
+        (score - expected_score).abs() < 0.01,
+        "Score calculation incorrect"
+    );
 }

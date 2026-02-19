@@ -45,15 +45,26 @@ impl std::fmt::Display for FirewallError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             FirewallError::PrivilegeRequired => {
-                write!(f, "Firewall configuration requires root privileges or CAP_NET_ADMIN capability")
+                write!(
+                    f,
+                    "Firewall configuration requires root privileges or CAP_NET_ADMIN capability"
+                )
             }
             FirewallError::IptablesNotAvailable => {
                 write!(f, "iptables is not installed or not accessible")
             }
-            FirewallError::ChainCreationFailed(msg) => write!(f, "Failed to create firewall chain: {}", msg),
-            FirewallError::RuleAdditionFailed(msg) => write!(f, "Failed to add firewall rules: {}", msg),
-            FirewallError::LinkingFailed(msg) => write!(f, "Failed to link firewall chain: {}", msg),
-            FirewallError::CleanupFailed(msg) => write!(f, "Failed to cleanup firewall rules: {}", msg),
+            FirewallError::ChainCreationFailed(msg) => {
+                write!(f, "Failed to create firewall chain: {}", msg)
+            }
+            FirewallError::RuleAdditionFailed(msg) => {
+                write!(f, "Failed to add firewall rules: {}", msg)
+            }
+            FirewallError::LinkingFailed(msg) => {
+                write!(f, "Failed to link firewall chain: {}", msg)
+            }
+            FirewallError::CleanupFailed(msg) => {
+                write!(f, "Failed to cleanup firewall rules: {}", msg)
+            }
         }
     }
 }
@@ -170,7 +181,10 @@ impl FirewallManager {
                 // Continue without privilege checks
             }
             FirewallMode::Enforce => {
-                info!("Configuring firewall isolation for VM: {} (mode=Enforce)", self.vm_id);
+                info!(
+                    "Configuring firewall isolation for VM: {} (mode=Enforce)",
+                    self.vm_id
+                );
                 // Check privileges below
             }
         }
@@ -191,28 +205,17 @@ impl FirewallManager {
 
         // Create a new chain for this VM
         self.create_chain().map_err(|e| {
-            anyhow::anyhow!(
-                "{}",
-                FirewallError::ChainCreationFailed(e.to_string())
-            )
+            anyhow::anyhow!("{}", FirewallError::ChainCreationFailed(e.to_string()))
         })?;
 
         // Add rules to drop all traffic
-        self.add_drop_rules().map_err(|e| {
-            anyhow::anyhow!(
-                "{}",
-                FirewallError::RuleAdditionFailed(e.to_string())
-            )
-        })?;
+        self.add_drop_rules()
+            .map_err(|e| anyhow::anyhow!("{}", FirewallError::RuleAdditionFailed(e.to_string())))?;
 
         // Link the chain if interface is specified
         if let Some(ref iface) = self.interface {
-            self.link_chain(iface).map_err(|e| {
-                anyhow::anyhow!(
-                    "{}",
-                    FirewallError::LinkingFailed(e.to_string())
-                )
-            })?;
+            self.link_chain(iface)
+                .map_err(|e| anyhow::anyhow!("{}", FirewallError::LinkingFailed(e.to_string())))?;
         } else {
             warn!(
                 "No interface specified for VM {}. Firewall chain created but NOT linked to system traffic. Isolation verification may fail.",
@@ -234,7 +237,10 @@ impl FirewallManager {
     /// Best-effort cleanup: tries to remove all rules even if some fail.
     pub fn cleanup(&self) -> Result<()> {
         if self.mode == FirewallMode::Disabled {
-            info!("Firewall cleanup skipped for VM: {} (mode=Disabled)", self.vm_id);
+            info!(
+                "Firewall cleanup skipped for VM: {} (mode=Disabled)",
+                self.vm_id
+            );
             return Ok(());
         }
 
@@ -619,7 +625,8 @@ mod tests {
         let test_mgr = FirewallManager::test("vm-test".to_string());
         assert_eq!(test_mgr.mode(), FirewallMode::Test);
 
-        let disabled_mgr = FirewallManager::with_mode("vm-disabled".to_string(), FirewallMode::Disabled);
+        let disabled_mgr =
+            FirewallManager::with_mode("vm-disabled".to_string(), FirewallMode::Disabled);
         assert_eq!(disabled_mgr.mode(), FirewallMode::Disabled);
     }
 
@@ -634,8 +641,7 @@ mod tests {
 
     #[test]
     fn test_firewall_mode_with_interface() {
-        let manager = FirewallManager::test("vm-1".to_string())
-            .with_interface("tap0".to_string());
+        let manager = FirewallManager::test("vm-1".to_string()).with_interface("tap0".to_string());
 
         assert_eq!(manager.mode(), FirewallMode::Test);
         assert_eq!(manager.interface, Some("tap0".to_string()));
@@ -646,24 +652,27 @@ mod tests {
         let errors = vec![
             (
                 FirewallError::PrivilegeRequired,
-                "Firewall configuration requires root privileges or CAP_NET_ADMIN capability"
+                "Firewall configuration requires root privileges or CAP_NET_ADMIN capability",
             ),
-            (FirewallError::IptablesNotAvailable, "iptables is not installed or not accessible"),
+            (
+                FirewallError::IptablesNotAvailable,
+                "iptables is not installed or not accessible",
+            ),
             (
                 FirewallError::ChainCreationFailed("test".to_string()),
-                "Failed to create firewall chain: test"
+                "Failed to create firewall chain: test",
             ),
             (
                 FirewallError::RuleAdditionFailed("test".to_string()),
-                "Failed to add firewall rules: test"
+                "Failed to add firewall rules: test",
             ),
             (
                 FirewallError::LinkingFailed("test".to_string()),
-                "Failed to link firewall chain: test"
+                "Failed to link firewall chain: test",
             ),
             (
                 FirewallError::CleanupFailed("test".to_string()),
-                "Failed to cleanup firewall rules: test"
+                "Failed to cleanup firewall rules: test",
             ),
         ];
 

@@ -148,7 +148,10 @@ impl DeadLetterQueue {
     pub fn stats(&self) -> DLQStats {
         let entries = self.entries.values().collect::<Vec<_>>();
         let total = entries.len();
-        let awaiting_review = entries.iter().filter(|e| e.status == "awaiting_review").count();
+        let awaiting_review = entries
+            .iter()
+            .filter(|e| e.status == "awaiting_review")
+            .count();
         let reviewed = entries.iter().filter(|e| e.status == "reviewed").count();
         let resolved = entries.iter().filter(|e| e.status == "resolved").count();
 

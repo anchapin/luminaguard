@@ -70,7 +70,7 @@ async fn simulate_agent_workload(agent_id: &str) -> AgentExecutionResult {
 
     // Simulate VM spawn overhead
     let _vm_data = vec![0u8; 4096]; // 4KB kernel load
-    let _memory = vec![0u8; 2048];   // 2KB memory setup
+    let _memory = vec![0u8; 2048]; // 2KB memory setup
 
     // Simulate process creation (variable latency)
     let spawn_latency = 50 + rand::random::<u64>() % 60; // 50-110ms
@@ -162,9 +162,7 @@ async fn run_concurrent_test(agent_count: usize) -> ConcurrentTestResults {
     let tasks: Vec<_> = (0..agent_count)
         .map(|i| {
             let agent_id = format!("agent-{}", i);
-            tokio::spawn(async move {
-                simulate_agent_workload(&agent_id).await
-            })
+            tokio::spawn(async move { simulate_agent_workload(&agent_id).await })
         })
         .collect();
 
@@ -182,9 +180,12 @@ async fn run_concurrent_test(agent_count: usize) -> ConcurrentTestResults {
     let total_time = start_total.elapsed().as_secs_f64() * 1000.0;
 
     // Calculate averages
-    let avg_spawn: f64 = agent_results.iter().map(|r| r.spawn_time_ms).sum::<f64>() / agent_count as f64;
-    let avg_execute: f64 = agent_results.iter().map(|r| r.execute_time_ms).sum::<f64>() / agent_count as f64;
-    let avg_cleanup: f64 = agent_results.iter().map(|r| r.cleanup_time_ms).sum::<f64>() / agent_count as f64;
+    let avg_spawn: f64 =
+        agent_results.iter().map(|r| r.spawn_time_ms).sum::<f64>() / agent_count as f64;
+    let avg_execute: f64 =
+        agent_results.iter().map(|r| r.execute_time_ms).sum::<f64>() / agent_count as f64;
+    let avg_cleanup: f64 =
+        agent_results.iter().map(|r| r.cleanup_time_ms).sum::<f64>() / agent_count as f64;
 
     // Calculate throughput (operations/minute)
     // Assuming each agent performs 10 operations
@@ -329,12 +330,16 @@ fn bench_scaling_behavior(c: &mut Criterion) {
     let mut group = c.benchmark_group("scaling_behavior");
 
     for agent_count in [5, 10, 25, 50].iter() {
-        group.bench_with_input(BenchmarkId::from_parameter(agent_count), agent_count, |b, &count| {
-            b.iter(|| {
-                let results = rt.block_on(run_concurrent_test(black_box(count)));
-                black_box(results);
-            });
-        });
+        group.bench_with_input(
+            BenchmarkId::from_parameter(agent_count),
+            agent_count,
+            |b, &count| {
+                b.iter(|| {
+                    let results = rt.block_on(run_concurrent_test(black_box(count)));
+                    black_box(results);
+                });
+            },
+        );
     }
 
     group.finish();

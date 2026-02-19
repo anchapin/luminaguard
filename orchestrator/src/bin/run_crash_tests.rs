@@ -27,22 +27,29 @@ async fn main() -> Result<()> {
         .with_max_level(Level::INFO)
         .finish();
 
-    tracing::subscriber::set_global_default(subscriber)
-        .expect("setting default subscriber failed");
+    tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
 
     // Parse arguments
     let args: Vec<String> = env::args().collect();
 
     if args.len() < 3 {
-        eprintln!("Usage: {} <kernel_path> <rootfs_path> [results_path]", args[0]);
+        eprintln!(
+            "Usage: {} <kernel_path> <rootfs_path> [results_path]",
+            args[0]
+        );
         eprintln!();
         eprintln!("Arguments:");
         eprintln!("  kernel_path   Path to VM kernel image (vmlinux.bin)");
         eprintln!("  rootfs_path   Path to VM root filesystem (rootfs.ext4)");
-        eprintln!("  results_path  Path to store test results (default: .beads/metrics/reliability)");
+        eprintln!(
+            "  results_path  Path to store test results (default: .beads/metrics/reliability)"
+        );
         eprintln!();
         eprintln!("Example:");
-        eprintln!("  {} /tmp/kernel /tmp/rootfs .beads/metrics/reliability", args[0]);
+        eprintln!(
+            "  {} /tmp/kernel /tmp/rootfs .beads/metrics/reliability",
+            args[0]
+        );
         std::process::exit(1);
     }
 

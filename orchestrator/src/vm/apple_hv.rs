@@ -42,8 +42,8 @@ use crate::vm::hypervisor::{Hypervisor, VmInstance};
 // On actual macOS, these would bind to the real framework
 #[cfg(target_os = "macos")]
 mod vz_bindings {
-    use std::path::PathBuf;
     use anyhow::Result;
+    use std::path::PathBuf;
 
     // NOTE: These are placeholder types representing the real Virtualization.framework API.
     // When building on macOS with proper bindings, these would be the actual types.
@@ -596,7 +596,8 @@ mod tests {
                 let error_msg = e.to_string();
                 // Accept either "Root filesystem not found" or just "rootfs" for cross-platform compatibility
                 assert!(
-                    error_msg.contains("Root filesystem not found") || error_msg.to_lowercase().contains("rootfs"),
+                    error_msg.contains("Root filesystem not found")
+                        || error_msg.to_lowercase().contains("rootfs"),
                     "Error should mention rootfs, got: {}",
                     error_msg
                 );

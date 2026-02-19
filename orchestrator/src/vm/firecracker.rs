@@ -285,17 +285,17 @@ pub async fn stop_firecracker(mut process: FirecrackerProcess) -> Result<()> {
 }
 
 /// Start a Firecracker VM from a pre-created snapshot for fast spawning
-/// 
+///
 /// This enables sub-200ms VM spawn times by loading from a snapshot instead
 /// of doing a full cold boot (~110ms).
-/// 
+///
 /// # Arguments
-/// 
+///
 /// * `config` - VM configuration
 /// * `snapshot_id` - ID of the snapshot to load
-/// 
+///
 /// # Returns
-/// 
+///
 /// * `FirecrackerProcess` - The spawned VM process
 pub async fn start_firecracker_from_snapshot(
     config: &VmConfig,
@@ -309,7 +309,7 @@ pub async fn start_firecracker_from_snapshot(
 
     // Import the snapshot module functions
     use crate::vm::snapshot::load_snapshot_with_api;
-    
+
     // Prepare socket path
     let socket_path = format!("/tmp/firecracker-{}.socket", config.vm_id);
     if Path::new(&socket_path).exists() {
@@ -327,7 +327,7 @@ pub async fn start_firecracker_from_snapshot(
     let mut child = command
         .spawn()
         .context("Failed to spawn firecracker process")?;
-    
+
     let pid = child
         .id()
         .ok_or_else(|| anyhow!("Failed to get firecracker PID"))?;
@@ -365,7 +365,7 @@ pub async fn start_firecracker_from_snapshot(
 
     let elapsed = start_time.elapsed();
     let spawn_time_ms = elapsed.as_secs_f64() * 1000.0;
-    
+
     // For snapshot-based spawns, we expect much faster times
     info!(
         "VM {} started from snapshot in {:.2}ms (target: <200ms)",
@@ -954,7 +954,7 @@ mod tests {
             pid: 54321,
             socket_path: "/tmp/snapshot-vm.socket".to_string(),
             child_process: None,
-            spawn_time_ms: 45.2,  // Much faster with snapshot!
+            spawn_time_ms: 45.2, // Much faster with snapshot!
             created_at: std::time::Instant::now(),
             from_snapshot: true,
             snapshot_id: Some("snapshot-001".to_string()),
@@ -963,11 +963,13 @@ mod tests {
         assert!(process.from_snapshot);
         assert_eq!(process.spawn_time_ms, 45.2);
         assert_eq!(process.snapshot_id, Some("snapshot-001".to_string()));
-        
+
         // Verify snapshot spawn is under 200ms target
-        assert!(process.spawn_time_ms < 200.0, 
-            "Snapshot spawn should be under 200ms, got {:.2}ms", 
-            process.spawn_time_ms);
+        assert!(
+            process.spawn_time_ms < 200.0,
+            "Snapshot spawn should be under 200ms, got {:.2}ms",
+            process.spawn_time_ms
+        );
 
         println!(
             "Snapshot spawn tracking test passed: {:.2}ms from snapshot {}",

@@ -22,8 +22,7 @@ use luminaguard_orchestrator::vm::chaos::ChaosTestHarness;
 #[tokio::main]
 async fn main() -> Result<()> {
     // Initialize logging
-    FmtSubscriber::builder()
-        .init();
+    FmtSubscriber::builder().init();
 
     // Parse arguments
     let args: Vec<String> = env::args().collect();
@@ -37,7 +36,9 @@ async fn main() -> Result<()> {
     fs::create_dir_all(&results_path)?;
 
     info!("=== LuminaGuard Chaos Engineering Test Suite ===");
-    info!("Testing: Resilience under VM kills, network partitions, CPU throttling, memory pressure");
+    info!(
+        "Testing: Resilience under VM kills, network partitions, CPU throttling, memory pressure"
+    );
     info!("Results directory: {:?}", results_path);
     info!("");
 
@@ -45,11 +46,8 @@ async fn main() -> Result<()> {
     let start_time = std::time::Instant::now();
 
     info!("Initializing chaos test harness...");
-    let harness = ChaosTestHarness::new(
-        Default::default(),
-        Default::default(),
-        results_path.clone(),
-    )?;
+    let harness =
+        ChaosTestHarness::new(Default::default(), Default::default(), results_path.clone())?;
 
     info!("Running chaos engineering tests...");
     let results = harness.run_all_tests().await?;
@@ -77,11 +75,18 @@ async fn main() -> Result<()> {
     // Detailed results by test type
     println!("\nDETAILED RESULTS:\n");
     for result in &results {
-        let status = if result.passed { "✅ PASS" } else { "❌ FAIL" };
+        let status = if result.passed {
+            "✅ PASS"
+        } else {
+            "❌ FAIL"
+        };
         println!("{} {}", status, result.test_name);
         println!("  Type:                 {:?}", result.test_type);
         println!("  Duration:             {:.0}ms", result.duration_ms);
-        println!("  MTTR:                 {:.0}ms (Mean Time To Recovery)", result.mttr_ms);
+        println!(
+            "  MTTR:                 {:.0}ms (Mean Time To Recovery)",
+            result.mttr_ms
+        );
         println!("  Success Rate:         {:.1}%", result.success_rate);
         println!("  Cascade Failures:     {}", result.cascade_failures);
         println!("  Graceful Degradation: {}", result.graceful_degradation);
@@ -146,7 +151,10 @@ async fn main() -> Result<()> {
         summary.push_str(&format!("  Duration: {:.0}ms\n", result.duration_ms));
         summary.push_str(&format!("  MTTR: {:.0}ms\n", result.mttr_ms));
         summary.push_str(&format!("  Success Rate: {:.1}%\n", result.success_rate));
-        summary.push_str(&format!("  Cascade Failures: {}\n", result.cascade_failures));
+        summary.push_str(&format!(
+            "  Cascade Failures: {}\n",
+            result.cascade_failures
+        ));
         summary.push_str(&format!(
             "  Operations: {}/{}\n",
             result.metrics.successful_operations, result.metrics.total_operations

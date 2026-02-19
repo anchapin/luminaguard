@@ -172,9 +172,9 @@ fn bench_comprehensive_workflow(c: &mut Criterion) {
 fn save_manual_measurements() {
     let metrics = ManualMeasurements {
         timestamp: chrono::Utc::now().to_rfc3339(),
-        spawn_time_ms: 110.0, // Expected from Wave 2
-        memory_mb: 150.0,     // Expected baseline
-        cpu_percent: 30.0,     // Expected baseline
+        spawn_time_ms: 110.0,     // Expected from Wave 2
+        memory_mb: 150.0,         // Expected baseline
+        cpu_percent: 30.0,        // Expected baseline
         network_latency_ms: 40.0, // Expected baseline
     };
 

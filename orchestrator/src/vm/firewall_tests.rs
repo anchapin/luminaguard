@@ -360,7 +360,8 @@ impl FirewallTestHarness {
             Ok(is_blocked) => {
                 if !is_blocked {
                     passed = false;
-                    error_msg = Some("VM1 can reach VM2 via broadcast (should be blocked)".to_string());
+                    error_msg =
+                        Some("VM1 can reach VM2 via broadcast (should be blocked)".to_string());
                 }
             }
             Err(e) => {
@@ -397,13 +398,17 @@ impl FirewallTestHarness {
                 Ok(is_blocked) => {
                     if !is_blocked {
                         passed = false;
-                        error_msg = Some(format!("{} can reach {} (should be blocked)", vm_a, vm_b));
+                        error_msg =
+                            Some(format!("{} can reach {} (should be blocked)", vm_a, vm_b));
                         break;
                     }
                 }
                 Err(e) => {
                     passed = false;
-                    error_msg = Some(format!("Failed to verify {}-{} isolation: {}", vm_a, vm_b, e));
+                    error_msg = Some(format!(
+                        "Failed to verify {}-{} isolation: {}",
+                        vm_a, vm_b, e
+                    ));
                     break;
                 }
             }
@@ -416,7 +421,12 @@ impl FirewallTestHarness {
             start.elapsed().as_secs_f64() * 1000.0,
             "Verify 4 VM pairs are completely isolated".to_string(),
             "cross_vm_communication".to_string(),
-            vec!["vm1".to_string(), "vm2".to_string(), "vm3".to_string(), "vm4".to_string()],
+            vec![
+                "vm1".to_string(),
+                "vm2".to_string(),
+                "vm3".to_string(),
+                "vm4".to_string(),
+            ],
         );
     }
 
@@ -494,7 +504,8 @@ impl FirewallTestHarness {
                 Ok(is_blocked) => {
                     if !is_blocked {
                         passed = false;
-                        error_msg = Some(format!("Port {} is accessible (should be blocked)", port));
+                        error_msg =
+                            Some(format!("Port {} is accessible (should be blocked)", port));
                         break;
                     }
                 }
@@ -526,7 +537,8 @@ impl FirewallTestHarness {
             Ok(is_blocked) => {
                 if !is_blocked {
                     passed = false;
-                    error_msg = Some("Port range 8000-8100 is accessible (should be blocked)".to_string());
+                    error_msg =
+                        Some("Port range 8000-8100 is accessible (should be blocked)".to_string());
                 }
             }
             Err(e) => {
@@ -555,7 +567,8 @@ impl FirewallTestHarness {
             Ok(is_blocked) => {
                 if !is_blocked {
                     passed = false;
-                    error_msg = Some("UDP port scanning is possible (should be blocked)".to_string());
+                    error_msg =
+                        Some("UDP port scanning is possible (should be blocked)".to_string());
                 }
             }
             Err(e) => {
@@ -1033,9 +1046,7 @@ impl FirewallTestHarness {
     }
 
     fn verify_ping_rules_exist(&self) -> anyhow::Result<bool> {
-        let output = Command::new("iptables")
-            .args(["-L", "-v"])
-            .output()?;
+        let output = Command::new("iptables").args(["-L", "-v"]).output()?;
 
         let rules = String::from_utf8_lossy(&output.stdout);
         Ok(rules.contains("DROP") && rules.contains("LUMINAGUARD"))
@@ -1115,9 +1126,7 @@ impl FirewallTestHarness {
     }
 
     fn verify_chain_structure(&self) -> anyhow::Result<bool> {
-        let output = Command::new("iptables")
-            .args(["-L", "-v"])
-            .output()?;
+        let output = Command::new("iptables").args(["-L", "-v"]).output()?;
 
         let rules = String::from_utf8_lossy(&output.stdout);
         Ok(rules.contains("LUMINAGUARD_"))
@@ -1136,9 +1145,7 @@ impl FirewallTestHarness {
     }
 
     fn verify_rules_active(&self) -> anyhow::Result<bool> {
-        let output = Command::new("iptables")
-            .args(["-L", "FORWARD"])
-            .output()?;
+        let output = Command::new("iptables").args(["-L", "FORWARD"]).output()?;
 
         Ok(output.status.success())
     }
@@ -1156,9 +1163,7 @@ impl FirewallTestHarness {
     }
 
     fn verify_separate_rules_per_vm(&self) -> anyhow::Result<bool> {
-        let output = Command::new("iptables")
-            .args(["-L", "-v"])
-            .output()?;
+        let output = Command::new("iptables").args(["-L", "-v"]).output()?;
 
         let rules = String::from_utf8_lossy(&output.stdout);
         // Check for multiple LUMINAGUARD chains
@@ -1243,7 +1248,10 @@ mod tests {
 
         assert!(report.isolation_score >= 0.0);
         assert!(report.isolation_score <= 100.0);
-        assert_eq!(report.total_tests, report.passed_count + report.failed_count);
+        assert_eq!(
+            report.total_tests,
+            report.passed_count + report.failed_count
+        );
     }
 
     #[test]

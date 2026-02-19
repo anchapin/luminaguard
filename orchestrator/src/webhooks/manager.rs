@@ -115,11 +115,8 @@ impl WebhookManager {
 
                     let mut dlq = self.dlq.write().await;
                     let dlq_id = dlq.add(dlq_entry);
-                    
-                    info!(
-                        "Webhook {} moved to DLQ: {}",
-                        webhook.id, dlq_id
-                    );
+
+                    info!("Webhook {} moved to DLQ: {}", webhook.id, dlq_id);
                     return false;
                 }
             }

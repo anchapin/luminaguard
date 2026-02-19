@@ -15,13 +15,13 @@ pub mod config;
 pub mod firecracker;
 pub mod firewall;
 pub mod firewall_tests;
-pub mod seccomp_tests;
 #[cfg(windows)]
 pub mod hyperv;
 pub mod hypervisor;
 #[cfg(unix)]
 pub mod jailer;
 pub mod pool;
+pub mod seccomp_tests;
 // Issue #259: Enable network_partition module
 pub mod network_partition;
 pub mod network_partition_tests;

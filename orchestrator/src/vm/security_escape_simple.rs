@@ -92,9 +92,16 @@ impl SecurityTestHarness {
 
         // Check for all setuid-related syscalls
         let setuid_syscalls = [
-            "setuid", "setgid", "seteuid", "setegid",
-            "setreuid", "setregid", "setresuid", "setresgid",
-            "setfsuid", "setfsgid",
+            "setuid",
+            "setgid",
+            "seteuid",
+            "setegid",
+            "setreuid",
+            "setregid",
+            "setresuid",
+            "setresgid",
+            "setfsuid",
+            "setfsgid",
         ];
 
         let blocked_syscalls: Vec<_> = setuid_syscalls
@@ -114,7 +121,10 @@ impl SecurityTestHarness {
             } else {
                 Some(format!(
                     "Not all setuid syscalls blocked: {:?}",
-                    setuid_syscalls.iter().filter(|&sys| whitelist.contains(sys)).collect::<Vec<_>>()
+                    setuid_syscalls
+                        .iter()
+                        .filter(|&sys| whitelist.contains(sys))
+                        .collect::<Vec<_>>()
                 ))
             },
             execution_time_ms: elapsed.as_secs_f64() * 1000.0,
@@ -171,7 +181,10 @@ impl SecurityTestHarness {
             } else {
                 Some(format!(
                     "Capability syscalls not fully blocked: {:?}",
-                    cap_syscalls.iter().filter(|&sys| whitelist.contains(sys)).collect::<Vec<_>>()
+                    cap_syscalls
+                        .iter()
+                        .filter(|&sys| whitelist.contains(sys))
+                        .collect::<Vec<_>>()
                 ))
             },
             execution_time_ms: elapsed.as_secs_f64() * 1000.0,
@@ -228,7 +241,10 @@ impl SecurityTestHarness {
             } else {
                 Some(format!(
                     "Mount syscalls not fully blocked: {:?}",
-                    mount_syscalls.iter().filter(|&sys| whitelist.contains(sys)).collect::<Vec<_>>()
+                    mount_syscalls
+                        .iter()
+                        .filter(|&sys| whitelist.contains(sys))
+                        .collect::<Vec<_>>()
                 ))
             },
             execution_time_ms: elapsed.as_secs_f64() * 1000.0,
@@ -286,7 +302,10 @@ impl SecurityTestHarness {
         if blocked {
             info!("✓ PASS: {} - bind syscall blocked", test_name);
         } else {
-            error!("✗ FAIL: {} - bind syscall NOT blocked - SECURITY RISK", test_name);
+            error!(
+                "✗ FAIL: {} - bind syscall NOT blocked - SECURITY RISK",
+                test_name
+            );
         }
     }
 
@@ -323,7 +342,10 @@ impl SecurityTestHarness {
         if blocked {
             info!("✓ PASS: {} - socket syscall blocked", test_name);
         } else {
-            error!("✗ FAIL: {} - socket syscall NOT blocked - SECURITY RISK", test_name);
+            error!(
+                "✗ FAIL: {} - socket syscall NOT blocked - SECURITY RISK",
+                test_name
+            );
         }
     }
 
@@ -360,7 +382,10 @@ impl SecurityTestHarness {
         if blocked {
             info!("✓ PASS: {} - bind syscall blocked", test_name);
         } else {
-            error!("✗ FAIL: {} - bind syscall NOT blocked - SECURITY RISK", test_name);
+            error!(
+                "✗ FAIL: {} - bind syscall NOT blocked - SECURITY RISK",
+                test_name
+            );
         }
     }
 
@@ -397,7 +422,10 @@ impl SecurityTestHarness {
         if blocked {
             info!("✓ PASS: {} - connect syscall blocked", test_name);
         } else {
-            error!("✗ FAIL: {} - connect syscall NOT blocked - SECURITY RISK", test_name);
+            error!(
+                "✗ FAIL: {} - connect syscall NOT blocked - SECURITY RISK",
+                test_name
+            );
         }
     }
 
@@ -433,7 +461,10 @@ impl SecurityTestHarness {
             } else {
                 Some(format!(
                     "Fork syscalls not fully blocked: {:?}",
-                    fork_syscalls.iter().filter(|&sys| whitelist.contains(sys)).collect::<Vec<_>>()
+                    fork_syscalls
+                        .iter()
+                        .filter(|&sys| whitelist.contains(sys))
+                        .collect::<Vec<_>>()
                 ))
             },
             execution_time_ms: elapsed.as_secs_f64() * 1000.0,
@@ -447,7 +478,10 @@ impl SecurityTestHarness {
         self.results.push(result);
 
         if all_blocked {
-            info!("✓ PASS: {} - all process creation syscalls blocked", test_name);
+            info!(
+                "✓ PASS: {} - all process creation syscalls blocked",
+                test_name
+            );
         } else {
             warn!(
                 "⚠ PARTIAL: {} - {}/{} fork syscalls blocked",
@@ -491,7 +525,10 @@ impl SecurityTestHarness {
         if blocked {
             info!("✓ PASS: {} - ptrace syscall blocked", test_name);
         } else {
-            error!("✗ FAIL: {} - ptrace syscall NOT blocked - SECURITY RISK", test_name);
+            error!(
+                "✗ FAIL: {} - ptrace syscall NOT blocked - SECURITY RISK",
+                test_name
+            );
         }
     }
 
@@ -607,7 +644,10 @@ impl SecurityTestHarness {
             } else {
                 Some(format!(
                     "Hardware I/O syscalls not fully blocked: {:?}",
-                    io_syscalls.iter().filter(|&sys| whitelist.contains(sys)).collect::<Vec<_>>()
+                    io_syscalls
+                        .iter()
+                        .filter(|&sys| whitelist.contains(sys))
+                        .collect::<Vec<_>>()
                 ))
             },
             execution_time_ms: elapsed.as_secs_f64() * 1000.0,
@@ -755,7 +795,9 @@ mod tests {
         // Verify all categories are tested
         let test_names: Vec<_> = report.test_results.iter().map(|r| &r.test_name).collect();
 
-        assert!(test_names.iter().any(|t| t.contains("privilege_escalation")));
+        assert!(test_names
+            .iter()
+            .any(|t| t.contains("privilege_escalation")));
         assert!(test_names.iter().any(|t| t.contains("filesystem_escape")));
         assert!(test_names.iter().any(|t| t.contains("network_escape")));
         assert!(test_names.iter().any(|t| t.contains("process")));

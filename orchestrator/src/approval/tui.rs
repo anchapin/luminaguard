@@ -16,6 +16,7 @@
 use crate::approval::diff::{Change, DiffCard};
 use crate::approval::history::{ApprovalDecision, ApprovalHistory, ApprovalRecord};
 use anyhow::Result;
+use chrono::Utc;
 #[allow(unused_imports)]
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout},
@@ -24,7 +25,6 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph, Wrap},
     Terminal,
 };
-use chrono::Utc;
 use std::time::{Duration, Instant};
 use tracing::{info, warn};
 use uuid::Uuid;
@@ -54,7 +54,7 @@ fn format_file_diff(before: &str, after: &str) -> Vec<String> {
     let mut output = Vec::new();
     let before_lines: Vec<&str> = before.lines().collect();
     let after_lines: Vec<&str> = after.lines().collect();
-    
+
     // Simple diff output (shows removed lines with -, added lines with +)
     let max_lines = before_lines.len().max(after_lines.len());
     for i in 0..max_lines {
@@ -130,7 +130,7 @@ pub async fn present_tui_approval(diff_card: &DiffCard) -> Result<TuiResult> {
     println!("\n┌{:─^78}┐", " ACTION CLASSIFICATION ");
     println!("│{: ^78}│", format!("{} - {}", risk_text, action_class));
     println!("└{:─^78}┘", " ");
-    
+
     println!("\n{} {}", emoji, diff_card.action_type);
     println!("{}", "━".repeat(80));
     println!("Description: {}", diff_card.description);
@@ -144,7 +144,7 @@ pub async fn present_tui_approval(diff_card: &DiffCard) -> Result<TuiResult> {
     if !diff_card.changes.is_empty() {
         println!("\nChanges ({} total):", diff_card.changes.len());
         println!("{}", "─".repeat(80));
-        
+
         for (i, change) in diff_card.changes.iter().enumerate() {
             println!(
                 "\n  [{}/{}] {} - {}",
@@ -157,12 +157,16 @@ pub async fn present_tui_approval(diff_card: &DiffCard) -> Result<TuiResult> {
 
             // Show detailed information based on change type
             match change {
-                Change::FileEdit { path, before, after } => {
+                Change::FileEdit {
+                    path,
+                    before,
+                    after,
+                } => {
                     let file_type = detect_file_type(path);
                     println!("     File: {}", path);
                     println!("     Type: {} ({})", change.change_type(), file_type);
                     println!("     Diff:");
-                    
+
                     // Show line-by-line diff
                     let diff_lines = format_file_diff(before, after);
                     for diff_line in diff_lines.iter().take(10) {
@@ -190,7 +194,10 @@ pub async fn present_tui_approval(diff_card: &DiffCard) -> Result<TuiResult> {
                         println!("     \x1b[32m+{}\x1b[0m", line);
                     }
                     if content_preview.lines().count() > 5 {
-                        println!("     ... ({} more lines)", content_preview.lines().count() - 5);
+                        println!(
+                            "     ... ({} more lines)",
+                            content_preview.lines().count() - 5
+                        );
                     }
                 }
                 Change::FileDelete { path, size_bytes } => {
@@ -198,7 +205,11 @@ pub async fn present_tui_approval(diff_card: &DiffCard) -> Result<TuiResult> {
                     println!("     Size: {} bytes", size_bytes);
                     println!("     ⚠️  WARNING: Permanent deletion - cannot be undone");
                 }
-                Change::CommandExec { command, args, env_vars } => {
+                Change::CommandExec {
+                    command,
+                    args,
+                    env_vars,
+                } => {
                     println!("     Command: {}", command);
                     if !args.is_empty() {
                         println!("     Args: {}", args.join(" "));
@@ -209,7 +220,11 @@ pub async fn present_tui_approval(diff_card: &DiffCard) -> Result<TuiResult> {
                         }
                     }
                 }
-                Change::EmailSend { to, subject, preview } => {
+                Change::EmailSend {
+                    to,
+                    subject,
+                    preview,
+                } => {
                     println!("     To: {}", to);
                     println!("     Subject: {}", subject);
                     println!("     Preview: {}", truncate_text(preview, 70));
@@ -249,7 +264,7 @@ pub async fn present_tui_approval(diff_card: &DiffCard) -> Result<TuiResult> {
             }
         }
     }
-    
+
     println!();
 
     println!("\n{}", "=".repeat(80));
@@ -337,14 +352,14 @@ pub async fn present_and_record_approval(
 ) -> Result<TuiResult> {
     // Get initial decision from TUI
     let result = present_tui_approval(diff_card).await?;
-    
+
     // Convert TuiResult to ApprovalDecision
     let decision = match result {
         TuiResult::Approved => ApprovalDecision::Approved,
         TuiResult::Rejected => ApprovalDecision::Denied,
         TuiResult::Cancelled => ApprovalDecision::DeferredToLater,
     };
-    
+
     // Create audit record
     let record = ApprovalRecord {
         id: Uuid::new_v4().to_string(),
@@ -355,15 +370,15 @@ pub async fn present_and_record_approval(
         justification: None,
         execution_result: None,
     };
-    
+
     // Record to history
     history.record_decision(record)?;
-    
+
     info!(
         "Approval decision recorded: {} - {:?} by {}",
         diff_card.description, result, user
     );
-    
+
     Ok(result)
 }
 
@@ -438,10 +453,14 @@ mod tests {
         let before = "line 1\nline 2\nline 3";
         let after = "line 1\nmodified\nline 3";
         let diff = format_file_diff(before, after);
-        
+
         assert!(!diff.is_empty());
-        assert!(diff.iter().any(|l| l.starts_with('-') && l.contains("line 2")));
-        assert!(diff.iter().any(|l| l.starts_with('+') && l.contains("modified")));
+        assert!(diff
+            .iter()
+            .any(|l| l.starts_with('-') && l.contains("line 2")));
+        assert!(diff
+            .iter()
+            .any(|l| l.starts_with('+') && l.contains("modified")));
     }
 
     #[test]

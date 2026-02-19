@@ -3,14 +3,12 @@
 // This module provides integration tests for network partition scenarios.
 // It runs the full test suite and generates reports.
 
+use crate::mcp::transport::Transport;
 use anyhow::{Context, Result};
 use std::path::PathBuf;
 use std::time::Instant;
-use crate::mcp::transport::Transport;
 
-use crate::vm::network_partition::{
-    NetworkPartitionTestHarness, NetworkPartitionTestResult,
-};
+use crate::vm::network_partition::{NetworkPartitionTestHarness, NetworkPartitionTestResult};
 
 /// Run all network partition tests
 ///
@@ -76,10 +74,7 @@ pub async fn run_network_partition_tests() -> Result<Vec<NetworkPartitionTestRes
 pub struct MockTransportForTesting;
 
 impl Transport for MockTransportForTesting {
-    async fn send(
-        &mut self,
-        _request: &crate::mcp::protocol::McpRequest,
-    ) -> Result<()> {
+    async fn send(&mut self, _request: &crate::mcp::protocol::McpRequest) -> Result<()> {
         // Simulate minimal delay
         tokio::time::sleep(std::time::Duration::from_millis(1)).await;
         Ok(())
@@ -122,7 +117,10 @@ mod tests {
 
         // Verify no cascading failures in all tests
         let cascading_count = results.iter().filter(|r| r.cascading_failure).count();
-        assert_eq!(cascading_count, 0, "No tests should have cascading failures");
+        assert_eq!(
+            cascading_count, 0,
+            "No tests should have cascading failures"
+        );
 
         // Verify no data loss in all tests
         let data_loss_count = results.iter().filter(|r| r.data_lost).count();
