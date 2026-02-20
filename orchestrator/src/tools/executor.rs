@@ -3,7 +3,10 @@
 //! This module provides secure subprocess execution for MCP tools and other commands.
 //! It integrates command validation with timeout handling to ensure safe execution.
 
-use super::{timeout::ExecutionTimeout, validator::{CommandValidator, SafeCommand}};
+use super::{
+    timeout::ExecutionTimeout,
+    validator::{CommandValidator, SafeCommand},
+};
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::process::Stdio;
@@ -216,9 +219,7 @@ impl ToolExecutor {
 
         // Execute with timeout
         let (exit_code, stdout, stderr) = timeout
-            .run(async move {
-                self.execute_internal(command).await
-            })
+            .run(async move { self.execute_internal(command).await })
             .await?;
 
         let duration = start.elapsed();
@@ -263,7 +264,7 @@ impl ToolExecutor {
         }
 
         // Spawn the process
-        let mut child = process
+        let child = process
             .spawn()
             .context(format!("Failed to spawn command: {}", cmd))?;
 
@@ -291,10 +292,7 @@ impl ToolExecutor {
     ///
     /// Returns a vector of execution results in the same order as the commands.
     pub async fn execute_parallel(&self, commands: Vec<ToolCommand>) -> Vec<ToolExecutionResult> {
-        let futures: Vec<_> = commands
-            .into_iter()
-            .map(|cmd| self.execute(cmd))
-            .collect();
+        let futures: Vec<_> = commands.into_iter().map(|cmd| self.execute(cmd)).collect();
 
         futures::future::join_all(futures).await
     }
@@ -387,8 +385,7 @@ mod tests {
         let whitelist = vec!["sleep".to_string()];
         let validator = CommandValidator::with_whitelist(whitelist);
 
-        let command = ToolCommand::new_with_validator(&validator, "sleep", &["10"])
-            .unwrap();
+        let command = ToolCommand::new_with_validator(&validator, "sleep", &["10"]).unwrap();
 
         // Execute with a short timeout
         let timeout = ExecutionTimeout::from_secs(1);
@@ -408,8 +405,7 @@ mod tests {
         let whitelist = vec!["sleep".to_string()];
         let validator = CommandValidator::with_whitelist(whitelist);
 
-        let command = ToolCommand::new_with_validator(&validator, "sleep", &["0"])
-            .unwrap();
+        let command = ToolCommand::new_with_validator(&validator, "sleep", &["0"]).unwrap();
 
         // Execute with a long timeout
         let timeout = ExecutionTimeout::from_secs(10);

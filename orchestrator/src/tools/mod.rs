@@ -44,6 +44,6 @@ mod executor;
 mod timeout;
 mod validator;
 
-pub use executor::{ToolExecutor, ToolExecutionOutput, ToolExecutionResult};
+pub use executor::{ToolExecutionOutput, ToolExecutionResult, ToolExecutor};
 pub use timeout::ExecutionTimeout;
-pub use validator::{CommandValidator, CommandValidationError, SafeCommand};
+pub use validator::{CommandValidationError, CommandValidator, SafeCommand};

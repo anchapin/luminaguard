@@ -3,7 +3,7 @@
 //! This module provides command validation to prevent shell injection attacks.
 //! It uses a whitelist approach to ensure only known-safe commands can be executed.
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use std::path::Path;
 
 /// Error types for command validation
@@ -184,8 +184,7 @@ impl CommandValidator {
             if input.contains(char) {
                 return Err(CommandValidationError::ShellMetacharacter(format!(
                     "{} with {}",
-                    context,
-                    char
+                    context, char
                 ))
                 .into());
             }
@@ -369,7 +368,10 @@ mod tests {
 
     #[test]
     fn test_safe_command_as_tuple() {
-        let safe = SafeCommand::new("npx".to_string(), vec!["-y".to_string(), "package".to_string()]);
+        let safe = SafeCommand::new(
+            "npx".to_string(),
+            vec!["-y".to_string(), "package".to_string()],
+        );
         let (cmd, args) = safe.as_tuple();
         assert_eq!(cmd, "npx");
         assert_eq!(args.len(), 2);
