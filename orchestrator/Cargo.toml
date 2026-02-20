@@ -27,6 +27,13 @@ thiserror = "2.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 
+# Configuration file parsing
+toml = "0.8"
+serde_yaml = "0.9"
+
+# XDG directory support (Linux/Mac config directories)
+directories = "5.0"
+
 # Async traits (for test mocks)
 async-trait = "0.1"
 
