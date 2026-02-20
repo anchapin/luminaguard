@@ -176,87 +176,48 @@ async fn main() -> Result<()> {
 }
 
 /// Run the agent with the specified task
+///
+/// This function attempts to execute the agent inside a VM for true isolation.
+/// If VM execution is not available (missing rootfs, etc.), it falls back to
+/// host execution.
 async fn run_agent(task: String) -> Result<()> {
     info!("🎯 Task: {}", task);
 
     // Generate unique task ID for this agent execution
     let task_id = format!("agent-{}", uuid::Uuid::new_v4());
 
-    // Step 1: Spawn JIT Micro-VM
-    info!("⚡ Spawning JIT Micro-VM for agent execution...");
-    let handle = vm::spawn_vm(&task_id)
-        .await
-        .context("Failed to spawn VM for agent")?;
+    // Try VM-isolated execution first (issue #507)
+    // This provides true isolation by running the agent inside a VM
+    info!("🚀 Attempting VM-isolated agent execution...");
 
-    info!(
-        "VM spawned: {} (spawn time: {:.2}ms)",
-        handle.id, handle.spawn_time_ms
-    );
+    use luminaguard_orchestrator::vm::agent_executor::execute_in_vm_or_fallback;
 
-    // Step 2: Get the vsock path for communication (if available)
-    let vsock_path = handle.vsock_path();
-    if let Some(path) = vsock_path {
-        info!("VM vsock path: {}", path);
+    let result = execute_in_vm_or_fallback(task.clone(), task_id.clone()).await;
+
+    match result {
+        Ok(output) => {
+            // Print agent output
+            if !output.is_empty() {
+                println!("{}", output);
+            }
+
+            // Print summary
+            println!("\n==========================================");
+            println!("🤖 Agent Execution Summary");
+            println!("==========================================");
+            println!("Task ID: {}", task_id);
+            println!("Task: {}", task);
+            println!("Execution Mode: VM-isolated (with host fallback)");
+            println!("==========================================\n");
+
+            info!("✅ Agent execution complete!");
+            Ok(())
+        }
+        Err(e) => {
+            eprintln!("❌ Agent execution failed: {}", e);
+            Err(e)
+        }
     }
-
-    // Step 3: Launch Python reasoning loop
-    // For now, run on host with approval cliff integration
-    // TODO: Move inside VM for true isolation
-    info!("🚀 Launching Python reasoning loop with Approval Cliff...");
-
-    // Build path to Python agent
-    let agent_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .unwrap()
-        .join("agent");
-    let loop_py = agent_dir.join("loop.py");
-    let venv_python = agent_dir.join(".venv/bin/python");
-
-    // Check if we have the Python environment
-    let python_cmd = if venv_python.exists() {
-        venv_python.to_str().unwrap()
-    } else {
-        "python3"
-    };
-
-    info!("Executing: {} {}", python_cmd, loop_py.display());
-
-    // Run the Python agent loop
-    let output = std::process::Command::new(python_cmd)
-        .arg(loop_py)
-        .arg(&task)
-        .output()
-        .context("Failed to execute Python agent loop")?;
-
-    // Print agent output
-    if !output.stdout.is_empty() {
-        println!("{}", String::from_utf8_lossy(&output.stdout));
-    }
-    if !output.stderr.is_empty() {
-        eprintln!("Agent stderr: {}", String::from_utf8_lossy(&output.stderr));
-    }
-
-    // Print summary
-    println!("\n==========================================");
-    println!("🤖 Agent Execution Summary");
-    println!("==========================================");
-    println!("Task ID: {}", task_id);
-    println!("Task: {}", task);
-    println!("VM ID: {}", handle.id);
-    println!("Spawn time: {:.2}ms", handle.spawn_time_ms);
-    println!("Exit code: {:?}", output.status.code());
-    println!("==========================================\n");
-
-    // Step 4: Cleanup - destroy the VM after task completion
-    // This ensures ephemeral security (no persistence)
-    info!("🧹 Cleaning up VM...");
-    vm::destroy_vm(handle)
-        .await
-        .context("Failed to destroy VM")?;
-
-    info!("✅ Agent execution complete!");
-
-    Ok(())
 }
 
 /// Interactive chat mode - allows multiple exchanges with the agent
