@@ -1,7 +1,7 @@
 # LuminaGuard Makefile
 # Unified development automation for Rust + Python monorepo
 
-.PHONY: all install test fmt clean dev help docs lint branch-protection
+.PHONY: all install test fmt clean dev help docs lint branch-protection security-scan
 
 all: test
 
@@ -100,6 +100,16 @@ branch-protection:
 	@echo "🔒 Setting up GitHub branch protection..."
 	@./scripts/setup-branch-protection.sh
 
+security-scan:
+	@echo "🔒 Running security scans..."
+	@echo "[Rust] Running cargo-audit..."
+	@cd orchestrator && cargo audit || echo "  ⚠️  Rust vulnerabilities found - review results above"
+	@echo "[Python] Running bandit..."
+	@cd agent && .venv/bin/pip install bandit[toml] -q && bandit -r . --exclude .venv,tests,__pycache__ || echo "  ⚠️  Python security issues found - review results above"
+	@echo "[Dependencies] Running safety check..."
+	@cd agent && .venv/bin/pip freeze > requirements.txt && .venv/bin/pip install safety -q && safety check || echo "  ⚠️  Dependency vulnerabilities found - review results above"
+	@echo "✅ Security scan complete!"
+
 help:
 	@echo "LuminaGuard Development Commands"
 	@echo ""
@@ -114,6 +124,7 @@ help:
 	@echo "  make test-python Run Python tests only"
 	@echo "  make fmt        Format all code"
 	@echo "  make lint       Run linters (clippy, mypy, pylint)"
+	@echo "  make security-scan  Run security vulnerability scans"
 	@echo ""
 	@echo "Git Workflow:"
 	@echo "  ./scripts/git-workflow.sh start ISSUE-NUM 'desc'  Start feature branch"

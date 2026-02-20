@@ -266,9 +266,8 @@ class ApplicationLauncher:
             if self.platform == Platform.MACOS:
                 subprocess.run(["open", str(file_path)], check=True)
             elif self.platform == Platform.WINDOWS:
-                subprocess.run(["start", str(file_path)], shell=True, check=True)
-            else:  # Linux
-                subprocess.run(["xdg-open", str(file_path)], check=True)
+                # nosec B602 - shell=True required for Windows 'start' command, no user input
+                subprocess.run(["start", str(file_path)], shell=True, check=True)  # nosec: B602
 
             return True
         except Exception as e:

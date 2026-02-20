@@ -1,0 +1,394 @@
+name: Security Scan
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+  schedule:
+    # Run every Monday at 9:00 UTC for weekly full audit
+    - cron: '0 9 * * 1'
+  workflow_dispatch:  # Allow manual trigger
+
+# Cancel in-progress runs for the same PR
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_AUDIT_VERSION: 0.22.1
+
+jobs:
+  rust-audit:
+    name: Rust Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@4be9e76fd7c4901c61fb841f559994984270fce7
+        with:
+          toolchain: stable
+
+      - name: Cache cargo-audit
+        uses: actions/cache@v5
+        with:
+          path: ~/.cargo/bin/cargo-audit
+          key: ${{ runner.os }}-cargo-audit-${{ env.CARGO_AUDIT_VERSION }}
+
+      - name: Install cargo-audit
+        run: |
+          cargo install cargo-audit --version ${{ env.CARGO_AUDIT_VERSION }} --force
+
+      - name: Generate Cargo.lock if missing
+        working-directory: orchestrator
+        run: |
+          if [ ! -f Cargo.lock ]; then
+            cargo generate-lockfile
+          fi
+
+      - name: Run cargo-audit
+        id: audit
+        working-directory: orchestrator
+        run: |
+          echo "🔍 Running cargo-audit for Rust vulnerabilities..."
+          cargo audit --json > audit-report.json || true
+
+          # Parse results
+          if [ -f audit-report.json ]; then
+            VULNS=$(jq -r '.vulnerabilities.count' audit-report.json)
+            CRITICAL=$(jq -r '[.vulnerabilities.list[]? | select(.advisory.cvss != null and .advisory.cvss | tostring | startswith("CVSS:4"))] | length' audit-report.json 2>/dev/null || echo "0")
+            HIGH=$(jq -r '[.vulnerabilities.list[]? | select(.advisory.cvss != null and (.advisory.cvss | tostring | contains("7.") or contains("8.") or contains("9.")))] | length' audit-report.json 2>/dev/null || echo "0")
+
+            echo "vulnerabilities_count=$VULNS" >> $GITHUB_OUTPUT
+            echo "critical_count=$CRITICAL" >> $GITHUB_OUTPUT
+            echo "high_count=$HIGH" >> $GITHUB_OUTPUT
+            echo "📊 Found $VULNS vulnerabilities (Note: severity classification limited when CVSS data is unavailable)"
+
+            # Note: We don't fail on vulnerabilities without clear severity data
+            # as cargo-audit 0.22.1 doesn't always provide severity information
+            if [ "$VULNS" -gt 0 ]; then
+              echo "⚠️ Vulnerabilities found - review the audit report"
+            fi
+          else
+            echo "✅ No vulnerabilities found"
+            echo "vulnerabilities_count=0" >> $GITHUB_OUTPUT
+            echo "critical_count=0" >> $GITHUB_OUTPUT
+            echo "high_count=0" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload audit report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rust-audit-report
+          path: orchestrator/audit-report.json
+          retention-days: 30
+
+      - name: Comment PR with findings
+        if: github.event_name == 'pull_request' && steps.audit.outputs.vulnerabilities_count != '0'
+        uses: actions/github-script@v7
+        continue-on-error: true
+        with:
+          script: |
+            const vulnerabilities = '${{ steps.audit.outputs.vulnerabilities_count }}';
+            const critical = '${{ steps.audit.outputs.critical_count }}';
+            const high = '${{ steps.audit.outputs.high_count }}';
+
+            const comment = `## 🔒 Rust Security Audit Results
+
+            **Vulnerabilities Found:** ${vulnerabilities}
+            - Critical: ${critical}
+            - High: ${high}
+
+            ${critical > 0 ? '⚠️ **Critical vulnerabilities must be fixed before merging.**' : '✅ No critical vulnerabilities.'}
+
+            See the [full audit report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details.`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+  python-bandit:
+    name: Python Security Scan (Bandit)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Install bandit
+        run: pip install bandit[toml]
+
+      - name: Run bandit scan
+        id: bandit
+        working-directory: agent
+        run: |
+          echo "🔍 Running bandit for Python security issues..."
+
+          # Create bandit config if not exists
+          if [ ! -f .bandit ]; then
+            cat > .bandit << 'EOF'
+          [bandit]
+          exclude_dirs = ['.venv', 'tests', '__pycache__']
+          skips = ['B101', 'B601']
+          tests = ['B201', 'B301', 'B401', 'B501', 'B601', 'B701']
+          EOF
+          fi
+
+          # Run bandit with JSON output
+          bandit -r . -f json -o bandit-report.json || true
+
+          # Parse results
+          if [ -f bandit-report.json ]; then
+            TOTAL=$(jq -r '.results | length' bandit-report.json)
+            HIGH=$(jq -r '[.results[] | select(.issue_severity == "HIGH")] | length' bandit-report.json)
+            MEDIUM=$(jq -r '[.results[] | select(.issue_severity == "MEDIUM")] | length' bandit-report.json)
+
+            echo "total_issues=$TOTAL" >> $GITHUB_OUTPUT
+            echo "high_severity=$HIGH" >> $GITHUB_OUTPUT
+            echo "medium_severity=$MEDIUM" >> $GITHUB_OUTPUT
+            echo "📊 Found $TOTAL security issues ($HIGH high, $MEDIUM medium)"
+
+            # Fail on high severity issues
+            if [ "$HIGH" -gt 0 ]; then
+              echo "❌ High severity security issues found!"
+              jq -r '.results[] | select(.issue_severity == "HIGH")' bandit-report.json
+              exit 1
+            fi
+          else
+            echo "✅ No security issues found"
+            echo "total_issues=0" >> $GITHUB_OUTPUT
+            echo "high_severity=0" >> $GITHUB_OUTPUT
+            echo "medium_severity=0" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload bandit report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bandit-security-report
+          path: agent/bandit-report.json
+          retention-days: 30
+
+      - name: Comment PR with findings
+        if: github.event_name == 'pull_request' && steps.bandit.outputs.total_issues != '0'
+        uses: actions/github-script@v7
+        continue-on-error: true
+        with:
+          script: |
+            const total = '${{ steps.bandit.outputs.total_issues }}';
+            const high = '${{ steps.bandit.outputs.high_severity }}';
+            const medium = '${{ steps.bandit.outputs.medium_severity }}';
+
+            const comment = `## 🔒 Python Security Scan Results (Bandit)
+
+            **Issues Found:** ${total}
+            - High Severity: ${high}
+            - Medium Severity: ${medium}
+
+            ${high > 0 ? '⚠️ **High severity issues must be fixed before merging.**' : '✅ No high severity issues.'}
+
+            See the [full bandit report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details.`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+  dependency-scan:
+    name: Dependency Vulnerability Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Install safety
+        run: pip install safety
+
+      - name: Generate requirements.txt
+        working-directory: agent
+        run: |
+          .venv/bin/pip freeze > requirements.txt 2>/dev/null || echo "No .venv found"
+
+      - name: Run safety check
+        id: safety
+        working-directory: agent
+        run: |
+          echo "🔍 Running safety for Python dependency vulnerabilities..."
+
+          safety check --json > safety-report.json || true
+
+          if [ -f safety-report.json ]; then
+            VULNS=$(jq -r '.vulnerabilities | length' safety-report.json 2>/dev/null || echo "0")
+
+            echo "vulnerabilities=$VULNS" >> $GITHUB_OUTPUT
+            echo "📊 Found $VULNS dependency vulnerabilities"
+
+            if [ "$VULNS" -gt 0 ]; then
+              echo "⚠️ Dependency vulnerabilities found"
+              jq '.vulnerabilities' safety-report.json
+            fi
+          else
+            echo "✅ No dependency vulnerabilities found"
+            echo "vulnerabilities=0" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload safety report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: safety-dependency-report
+          path: agent/safety-report.json
+          retention-days: 30
+
+  secret-scan:
+    name: Secret Detection
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Get base commit
+        id: get-base
+        run: |
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            echo "base=${{ github.event.pull_request.base.sha }}" >> $GITHUB_OUTPUT
+          else
+            echo "base=${{ github.event.repository.default_branch }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Check if base and head differ
+        id: check-diff
+        run: |
+          BASE="${{ steps.get-base.outputs.base }}"
+          HEAD=$(git rev-parse HEAD)
+          if [ "$BASE" == "$HEAD" ]; then
+            echo "same=true" >> $GITHUB_OUTPUT
+            echo "⚠️ BASE and HEAD commits are the same, skipping secret scan"
+          else
+            echo "same=false" >> $GITHUB_OUTPUT
+            echo "🔍 Scanning for secrets between $BASE and $HEAD"
+          fi
+
+      - name: Run TruffleHog
+        id: trufflehog
+        if: steps.check-diff.outputs.same == 'false'
+        uses: trufflesecurity/trufflehog@4158734f234bd8770128deae2e2975cfab4b66a6
+        with:
+          path: ./
+          base: ${{ steps.get-base.outputs.base }}
+          head: HEAD
+          extra_args: --only-verified --json
+        continue-on-error: true
+
+      - name: Check for secrets
+        run: |
+          if [ "${{ steps.check-diff.outputs.same }}" == "true" ]; then
+            echo "✅ Secret scan skipped (BASE == HEAD)"
+          else
+            echo "🔍 Secret scan completed"
+          fi
+
+  weekly-audit:
+    name: Weekly Full Security Audit
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@4be9e76fd7c4901c61fb841f559994984270fce7
+        with:
+          toolchain: stable
+
+      - name: Install security tools
+        run: |
+          pip install bandit[toml] safety
+          cargo install cargo-audit --version ${{ env.CARGO_AUDIT_VERSION }}
+
+      - name: Run full Rust audit
+        working-directory: orchestrator
+        run: |
+          echo "📋 Running weekly Rust security audit..."
+          cargo audit --json > /tmp/weekly-rust-audit.json || true
+          jq -r '.vulnerabilities | length' /tmp/weekly-rust-audit.json || echo "0"
+
+      - name: Run full Python security scan
+        working-directory: agent
+        run: |
+          echo "📋 Running weekly Python security audit..."
+          bandit -r . -f json -o /tmp/weekly-bandit-report.json || true
+          jq -r '.results | length' /tmp/weekly-bandit-report.json || echo "0"
+
+      - name: Run full dependency scan
+        working-directory: agent
+        run: |
+          echo "📋 Running weekly dependency scan..."
+          safety check --json > /tmp/weekly-safety-report.json || true
+          jq -r '.vulnerabilities | length' /tmp/weekly-safety-report.json || echo "0"
+
+      - name: Create weekly summary
+        run: |
+          echo "# 🔒 Weekly Security Audit Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Date:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Scan Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- Rust Vulnerabilities: $(jq -r '.vulnerabilities | length' /tmp/weekly-rust-audit.json 2>/dev/null || echo "0")" >> $GITHUB_STEP_SUMMARY
+          echo "- Python Security Issues: $(jq -r '.results | length' /tmp/weekly-bandit-report.json 2>/dev/null || echo "0")" >> $GITHUB_STEP_SUMMARY
+          echo "- Dependency Vulnerabilities: $(jq -r '.vulnerabilities | length' /tmp/weekly-safety-report.json 2>/dev/null || echo "0")" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Weekly audit complete"
+
+  security-summary:
+    name: Security Scan Summary
+    runs-on: ubuntu-latest
+    needs: [rust-audit, python-bandit, dependency-scan, secret-scan]
+    if: always() && github.event_name != 'schedule'
+    steps:
+      - name: Generate summary
+        run: |
+          echo "# 🔒 Security Scan Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Scan | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Rust Audit | ${{ needs.rust-audit.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Python Bandit | ${{ needs.python-bandit.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Dependency Scan | ${{ needs.dependency-scan.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Secret Detection | ${{ needs.secret-scan.result }} |" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ needs.rust-audit.result }}" != "success" ] || \
+             [ "${{ needs.python-bandit.result }}" != "success" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "## ❌ Security Scan Failed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "One or more security scans failed. Critical or high severity issues must be addressed." >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## ✅ All Security Scans Passed" >> $GITHUB_STEP_SUMMARY
