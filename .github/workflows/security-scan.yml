@@ -15,7 +15,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  CARGO_AUDIT_VERSION: 0.20.0
+  CARGO_AUDIT_VERSION: 0.22.1
 
 jobs:
   rust-audit:
@@ -89,6 +89,7 @@ jobs:
       - name: Comment PR with findings
         if: github.event_name == 'pull_request' && steps.audit.outputs.vulnerabilities_count != '0'
         uses: actions/github-script@v7
+        continue-on-error: true
         with:
           script: |
             const vulnerabilities = '${{ steps.audit.outputs.vulnerabilities_count }}';
@@ -181,6 +182,7 @@ jobs:
       - name: Comment PR with findings
         if: github.event_name == 'pull_request' && steps.bandit.outputs.total_issues != '0'
         uses: actions/github-script@v7
+        continue-on-error: true
         with:
           script: |
             const total = '${{ steps.bandit.outputs.total_issues }}';
@@ -264,19 +266,46 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Get base commit
+        id: get-base
+        run: |
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            echo "base=${{ github.event.pull_request.base.sha }}" >> $GITHUB_OUTPUT
+          else
+            echo "base=${{ github.event.repository.default_branch }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Check if base and head differ
+        id: check-diff
+        run: |
+          BASE="${{ steps.get-base.outputs.base }}"
+          HEAD=$(git rev-parse HEAD)
+          if [ "$BASE" == "$HEAD" ]; then
+            echo "same=true" >> $GITHUB_OUTPUT
+            echo "⚠️ BASE and HEAD commits are the same, skipping secret scan"
+          else
+            echo "same=false" >> $GITHUB_OUTPUT
+            echo "🔍 Scanning for secrets between $BASE and $HEAD"
+          fi
+
       - name: Run TruffleHog
         id: trufflehog
+        if: steps.check-diff.outputs.same == 'false'
         uses: trufflesecurity/trufflehog@4158734f234bd8770128deae2e2975cfab4b66a6
         with:
           path: ./
-          base: ${{ github.event.repository.default_branch }}
+          base: ${{ steps.get-base.outputs.base }}
           head: HEAD
           extra_args: --only-verified --json
         continue-on-error: true
 
       - name: Check for secrets
         run: |
-          echo "🔍 Secret scan completed"
+          if [ "${{ steps.check-diff.outputs.same }}" == "true" ]; then
+            echo "✅ Secret scan skipped (BASE == HEAD)"
+          else
+            echo "🔍 Secret scan completed"
+          fi
 
   weekly-audit:
     name: Weekly Full Security Audit
