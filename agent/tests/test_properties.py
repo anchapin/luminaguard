@@ -57,10 +57,10 @@ from loop import (
     ExecutionMode,
 )
 
-
 # =============================================================================
 # Hypothesis Strategies
 # =============================================================================
+
 
 @st.composite
 def agent_state_strategy(draw):
@@ -76,10 +76,10 @@ def agent_state_strategy(draw):
             max_size=50,
         )
     )
-    tools = draw(
-        st.lists(st.text(min_size=1, max_size=50), max_size=20, unique=True)
+    tools = draw(st.lists(st.text(min_size=1, max_size=50), max_size=20, unique=True))
+    context = draw(
+        st.dictionaries(st.text(min_size=1), st.text(max_size=200), max_size=20)
     )
-    context = draw(st.dictionaries(st.text(min_size=1), st.text(max_size=200), max_size=20))
 
     return AgentState(messages=messages, tools=tools, context=context)
 
@@ -88,7 +88,9 @@ def agent_state_strategy(draw):
 def tool_call_strategy(draw):
     """Generate valid ToolCall instances."""
     name = draw(st.text(min_size=1, max_size=50))
-    arguments = draw(st.dictionaries(st.text(min_size=1), st.text(max_size=200), max_size=10))
+    arguments = draw(
+        st.dictionaries(st.text(min_size=1), st.text(max_size=200), max_size=10)
+    )
     action_kind = draw(st.sampled_from([ActionKind.GREEN, ActionKind.RED]))
 
     return ToolCall(name=name, arguments=arguments, action_kind=action_kind)
@@ -258,15 +260,21 @@ class TestReasoningCycleInvariants:
         """
         tools = ["read_file", "write_file", "search"]
 
-        # Track that it doesn't hang
-        start_time = time.time()
-        state = run_loop(task, tools)
-        elapsed = time.time() - start_time
+        # Mock approval to auto-approve (avoid interactive prompts)
+        from unittest.mock import patch
 
-        # Must complete (this is a weak test, but ensures no infinite loops)
-        assert isinstance(state, AgentState)
-        # Should complete reasonably fast (even with max iterations)
-        assert elapsed < 30  # 30 seconds is generous for max 100 iterations
+        with patch("approval_client.present_diff_card") as mock_approval:
+            mock_approval.return_value = True
+
+            # Track that it doesn't hang
+            start_time = time.time()
+            state = run_loop(task, tools)
+            elapsed = time.time() - start_time
+
+            # Must complete (this is a weak test, but ensures no infinite loops)
+            assert isinstance(state, AgentState)
+            # Should complete reasonably fast (even with max iterations)
+            assert elapsed < 30  # 30 seconds is generous for max 100 iterations
 
 
 # =============================================================================
@@ -343,7 +351,9 @@ class TestContextManagement:
         When creating an AgentState with pre-existing messages, all
         messages should be stored correctly without corruption.
         """
-        messages = [{"role": role, "content": content} for role, content in message_pairs]
+        messages = [
+            {"role": role, "content": content} for role, content in message_pairs
+        ]
 
         state = AgentState(messages=messages, tools=[], context={})
 
@@ -534,9 +544,7 @@ class TestToolSelection:
         Tool names can be arbitrary strings and should be handled
         without crashes or unexpected behavior.
         """
-        call = ToolCall(
-            name=tool_name, arguments={}, action_kind=ActionKind.GREEN
-        )
+        call = ToolCall(name=tool_name, arguments={}, action_kind=ActionKind.GREEN)
         mock_client = MockMcpClient()
 
         # Should not crash on any tool name
@@ -593,7 +601,8 @@ class TestSessionManagement:
         session = Session(
             session_id="test",
             created_at=now,
-            last_activity=now + age_seconds,  # Can be negative (future) or positive (past)
+            last_activity=now
+            + age_seconds,  # Can be negative (future) or positive (past)
             state=AgentState(messages=[], tools=[], context={}),
             metadata={},
         )
@@ -869,7 +878,13 @@ class TestExecutionMode:
         assert isinstance(mode.value, str)
         assert len(mode.value) > 0
 
-    @given(st.text(alphabet=st.characters(whitelist_categories=('L', 'N')), min_size=1, max_size=50))
+    @given(
+        st.text(
+            alphabet=st.characters(whitelist_categories=("L", "N")),
+            min_size=1,
+            max_size=50,
+        )
+    )
     @settings(max_examples=30)
     def test_invalid_mode_falls_back_to_host(self, mode_string):
         """
@@ -884,7 +899,7 @@ class TestExecutionMode:
         import os
 
         # Skip strings with null bytes which can't be environment variables
-        assume('\x00' not in mode_string)
+        assume("\x00" not in mode_string)
 
         old_val = os.environ.get("LUMINAGUARD_MODE")
         os.environ["LUMINAGUARD_MODE"] = mode_string
