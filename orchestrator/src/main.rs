@@ -19,8 +19,8 @@ use luminaguard_orchestrator::metrics_server;
 use luminaguard_orchestrator::vm::{self, destroy_vm};
 use serde_json::json;
 use std::fs;
-use tracing::{error, info, Level};
-use tracing_subscriber::EnvFilter;
+use tracing::{error, info, warn, Level};
+use tracing_subscriber::{fmt, EnvFilter, Layer};
 
 /// LuminaGuard: Local-first Agentic AI Runtime
 #[derive(Parser, Debug)]
@@ -109,22 +109,72 @@ async fn main() -> Result<()> {
     // Parse command-line arguments
     let args = Args::parse();
 
-    // Initialize tracing
-    let filter = if args.verbose {
+    // Initialize structured tracing
+    // Environment variable: RUST_LOG (e.g., RUST_LOG=debug,luminaguard_orchestrator=info)
+    // Environment variable: LUMINAGUARD_LOG_FORMAT (json or text, default: text)
+    // Environment variable: LUMINAGUARD_LOG_LEVEL (trace, debug, info, warn, error, default: info)
+    let log_format = std::env::var("LUMINAGUARD_LOG_FORMAT")
+        .unwrap_or_else(|_| "text".to_string())
+        .to_lowercase();
+
+    let default_level = if args.verbose {
         Level::DEBUG
     } else {
-        Level::INFO
+        std::env::var("LUMINAGUARD_LOG_LEVEL")
+            .unwrap_or_else(|_| "info".to_string())
+            .parse::<Level>()
+            .unwrap_or(Level::INFO)
     };
-    tracing_subscriber::fmt()
-        .with_max_level(filter)
-        .with_env_filter(
-            EnvFilter::builder()
-                .with_default_directive(filter.into())
-                .from_env_lossy(),
-        )
-        .init();
 
-    info!("🦊 LuminaGuard Orchestrator v0.1.0 starting...");
+    // Build env filter with defaults
+    let filter = EnvFilter::builder()
+        .with_default_directive(default_level.into())
+        .from_env_lossy();
+
+    match log_format.as_str() {
+        "json" => {
+            // JSON format for production/machine parsing
+            tracing_subscriber::registry()
+                .with(filter)
+                .with(
+                    fmt::layer()
+                        .json()
+                        .with_target(true)
+                        .with_thread_ids(true)
+                        .with_span_events(fmt::format::FmtSpan::CLOSE)
+                )
+                .init();
+            info!(
+                format = "json",
+                level = %default_level,
+                "LuminaGuard Orchestrator starting with JSON logging"
+            );
+        }
+        _ => {
+            // Human-readable text format for development
+            tracing_subscriber::registry()
+                .with(filter)
+                .with(
+                    fmt::layer()
+                        .with_target(true)
+                        .with_thread_ids(false)
+                        .with_file(false)
+                        .with_line_number(false)
+                )
+                .init();
+            info!("🦊 LuminaGuard Orchestrator v0.1.0 starting...");
+            if args.verbose {
+                info!("Debug logging enabled");
+            }
+        }
+    }
+
+    // Log startup information
+    info!(
+        version = env!("CARGO_PKG_VERSION"),
+        git_commit = option_env!("GIT_COMMIT").unwrap_or("unknown"),
+        "LuminaGuard Orchestrator initialized"
+    );
 
     // Match commands
     match args.command {

@@ -5,6 +5,7 @@
 
 pub mod agent_rpc;
 pub mod approval;
+pub mod logging_tests;
 pub mod mcp;
 pub mod mcp_command;
 pub mod metrics;

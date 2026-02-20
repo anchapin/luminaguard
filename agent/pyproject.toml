@@ -21,6 +21,7 @@ dependencies = [
     "cryptography>=42.0",
     "croniter>=2.0",
     "python-dotenv>=1.0",
+    "structlog>=23.0",
 ]
 
 [project.optional-dependencies]

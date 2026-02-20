@@ -39,6 +39,7 @@ use crate::mcp::transport::Transport;
 use anyhow::{Context, Result};
 use serde_json::json;
 use std::sync::atomic::{AtomicU64, Ordering};
+use tracing::{debug, info, warn};
 
 /// High-level MCP client
 ///
@@ -177,10 +178,10 @@ where
                     Ok(()) => match self.transport.recv().await {
                         Ok(response) => {
                             if attempt > 0 {
-                                tracing::info!(
-                                    "Request succeeded on attempt {} after {} retries",
-                                    attempt + 1,
-                                    attempt
+                                info!(
+                                    attempt = attempt + 1,
+                                    retries = attempt,
+                                    "Request succeeded after retries"
                                 );
                             }
                             return Ok(response);
@@ -199,11 +200,11 @@ where
                     if let Some(ref error) = last_error {
                         if config.should_retry_error(error) {
                             let delay = config.calculate_delay(attempt);
-                            tracing::warn!(
-                                "Request attempt {} failed: {}, retrying after {:?}",
-                                attempt + 1,
-                                error,
-                                delay
+                            warn!(
+                                attempt = attempt + 1,
+                                error = %error,
+                                delay_ms = delay.as_millis(),
+                                "Request failed, retrying"
                             );
                             tokio::time::sleep(delay).await;
                             continue;
@@ -263,7 +264,12 @@ where
         }
 
         self.state = ClientState::Initializing;
-        tracing::info!("Initializing MCP connection...");
+
+        let transport_type = std::any::type_name_of_val(&self.transport);
+        info!(
+            transport_type = %transport_type,
+            "Initializing MCP connection"
+        );
 
         // Prepare initialize parameters
         let client_info = ClientInfo {
@@ -287,6 +293,12 @@ where
             self.next_id.fetch_add(1, Ordering::SeqCst),
             "initialize",
             Some(json!(params)),
+        );
+
+        debug!(
+            request_id = request.id,
+            protocol_version = %params.protocol_version,
+            "Sending initialize request"
         );
 
         // Send request and receive response (with optional retry)
@@ -323,16 +335,20 @@ where
         });
 
         self.state = ClientState::Ready;
-        tracing::info!(
-            "MCP connection initialized: {} v{}",
-            self.server_capabilities
-                .as_ref()
-                .map(|c| c.server_info.name.as_str())
-                .unwrap_or("unknown"),
-            self.server_capabilities
-                .as_ref()
-                .map(|c| c.protocol_version.as_str())
-                .unwrap_or("unknown")
+
+        let server_name = self.server_capabilities
+            .as_ref()
+            .map(|c| c.server_info.name.as_str())
+            .unwrap_or("unknown");
+        let server_version = self.server_capabilities
+            .as_ref()
+            .map(|c| c.protocol_version.as_str())
+            .unwrap_or("unknown");
+
+        info!(
+            server_name = %server_name,
+            server_version = %server_version,
+            "MCP connection initialized successfully"
         );
 
         Ok(())
@@ -356,7 +372,7 @@ where
     pub async fn list_tools(&mut self) -> Result<Vec<Tool>> {
         self.ensure_ready()?;
 
-        tracing::debug!("Listing available tools from MCP server");
+        debug!("Listing available tools from MCP server");
 
         // Create tools/list request
         let request = McpRequest::notification(
@@ -389,11 +405,17 @@ where
         // Cache the tools
         self.tools = tools.clone();
 
-        tracing::info!("Listed {} tools from MCP server", tools.len());
+        info!(
+            tool_count = tools.len(),
+            "Listed tools from MCP server"
+        );
 
         // Log tool names for debugging
         for tool in &tools {
-            tracing::debug!("  - {}", tool.name);
+            debug!(
+                tool_name = %tool.name,
+                "Available tool"
+            );
         }
 
         Ok(tools)
@@ -426,7 +448,11 @@ where
     ) -> Result<serde_json::Value> {
         self.ensure_ready()?;
 
-        tracing::debug!("Calling tool: {} with arguments: {:?}", name, arguments);
+        debug!(
+            tool_name = %name,
+            arguments = %serde_json::to_string(&arguments).unwrap_or_else(|_| "failed to serialize".to_string()),
+            "Calling tool"
+        );
 
         // Create tools/call request
         let params = json!({
@@ -459,7 +485,11 @@ where
             .result
             .ok_or_else(|| McpError::internal_error("Tool call response missing result"))?;
 
-        tracing::debug!("Tool '{}' returned result: {:?}", name, result);
+        debug!(
+            tool_name = %name,
+            result_size = serde_json::to_string(&result).unwrap_or_else(|_| "".to_string()).len(),
+            "Tool call completed"
+        );
 
         Ok(result)
     }

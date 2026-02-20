@@ -71,6 +71,7 @@ mod performance_tests;
 use anyhow::{Context, Result};
 use std::sync::Arc;
 use tokio::sync::{Mutex, OnceCell};
+use tracing::{debug, error, info, instrument, span, Level, warn, Instrument};
 
 use crate::vm::config::VmConfig;
 use crate::vm::firewall::FirewallManager;
@@ -147,78 +148,98 @@ impl VmHandle {
 ///     Ok(())
 /// }
 /// ```
+#[instrument(skip_all, fields(task_id = %task_id))]
 pub async fn spawn_vm(task_id: &str) -> Result<VmHandle> {
-    // Try snapshot pool first for fast spawning
-    let pool_result = get_pool().await;
+    let span = span!(Level::INFO, "spawn_vm", task_id = %task_id);
+    async move {
+        // Try snapshot pool first for fast spawning
+        let pool_result = get_pool().await;
 
-    if let Ok(pool) = pool_result {
-        match pool.acquire_vm().await {
-            Ok(vm_id) => {
-                tracing::info!("VM spawned from pool: {}", vm_id);
+        if let Ok(pool) = pool_result {
+            match pool.acquire_vm().await {
+                Ok(vm_id) => {
+                    info!(
+                        pool_vm_id = %vm_id,
+                        source = "snapshot_pool",
+                        "Acquiring VM from pool"
+                    );
 
-                // Extract snapshot ID from vm_id (format: vm-{snapshot_id}-{uuid})
-                // or use the vm_id directly if it's a snapshot ID
-                let snapshot_id = if vm_id.starts_with("vm-") {
-                    // Extract the snapshot ID portion
-                    vm_id
-                        .strip_prefix("vm-")
-                        .and_then(|s| s.split('-').next())
-                        .unwrap_or(&vm_id)
-                        .to_string()
-                } else {
-                    vm_id.clone()
-                };
+                    // Extract snapshot ID from vm_id (format: vm-{snapshot_id}-{uuid})
+                    // or use the vm_id directly if it's a snapshot ID
+                    let snapshot_id = if vm_id.starts_with("vm-") {
+                        // Extract the snapshot ID portion
+                        vm_id
+                            .strip_prefix("vm-")
+                            .and_then(|s| s.split('-').next())
+                            .unwrap_or(&vm_id)
+                            .to_string()
+                    } else {
+                        vm_id.clone()
+                    };
 
-                // Create VM config for the spawned VM
-                let config = VmConfig::new(task_id.to_string());
+                    info!(snapshot_id = %snapshot_id, "Using snapshot from pool");
 
-                // Try to spawn from snapshot using the platform-specific hypervisor
-                #[cfg(unix)]
-                {
-                    use crate::vm::firecracker::start_firecracker_from_snapshot;
+                    // Create VM config for the spawned VM
+                    let config = VmConfig::new(task_id.to_string());
 
-                    match start_firecracker_from_snapshot(&config, &snapshot_id).await {
-                        Ok(process) => {
-                            let spawn_time = process.spawn_time_ms;
+                    // Try to spawn from snapshot using the platform-specific hypervisor
+                    #[cfg(unix)]
+                    {
+                        use crate::vm::firecracker::start_firecracker_from_snapshot;
 
-                            // Register VM with pool for tracking
-                            pool.register_vm(process.id.clone()).await;
+                        match start_firecracker_from_snapshot(&config, &snapshot_id).await {
+                            Ok(process) => {
+                                let spawn_time = process.spawn_time_ms;
 
-                            return Ok(VmHandle {
-                                id: task_id.to_string(),
-                                process: Arc::new(Mutex::new(Some(Box::new(process)))),
-                                spawn_time_ms: spawn_time,
-                                config,
-                                firewall_manager: Some(FirewallManager::new(task_id.to_string())),
-                            });
-                        }
-                        Err(e) => {
-                            tracing::warn!(
-                                "Failed to spawn from snapshot {}: {}, falling back to cold boot",
-                                snapshot_id,
-                                e
-                            );
-                            // Fall through to cold boot
+                                info!(
+                                    spawn_time_ms = spawn_time,
+                                    vm_id = %process.id,
+                                    "VM spawned successfully from snapshot"
+                                );
+
+                                // Register VM with pool for tracking
+                                pool.register_vm(process.id.clone()).await;
+
+                                return Ok(VmHandle {
+                                    id: task_id.to_string(),
+                                    process: Arc::new(Mutex::new(Some(Box::new(process)))),
+                                    spawn_time_ms: spawn_time,
+                                    config,
+                                    firewall_manager: Some(FirewallManager::new(task_id.to_string())),
+                                });
+                            }
+                            Err(e) => {
+                                warn!(
+                                    snapshot_id = %snapshot_id,
+                                    error = %e,
+                                    "Failed to spawn from snapshot, falling back to cold boot"
+                                );
+                                // Fall through to cold boot
+                            }
                         }
                     }
-                }
 
-                #[cfg(not(unix))]
-                {
-                    // On non-Unix platforms, fall through to cold boot
-                    tracing::debug!(
-                        "Snapshot loading not supported on this platform, using cold boot"
-                    );
+                    #[cfg(not(unix))]
+                    {
+                        // On non-Unix platforms, fall through to cold boot
+                        debug!(
+                            platform = std::env::consts::OS,
+                            "Snapshot loading not supported on this platform, using cold boot"
+                        );
+                    }
                 }
-            }
-            Err(e) => {
-                tracing::debug!("Pool not available: {}, using cold boot", e);
+                Err(e) => {
+                    debug!(error = %e, "Pool not available, using cold boot");
+                }
             }
         }
-    }
 
-    // Fallback to cold boot
-    spawn_vm_with_config(task_id, &VmConfig::new(task_id.to_string())).await
+        // Fallback to cold boot
+        info!(source = "cold_boot", "Spawning VM with cold boot");
+        spawn_vm_with_config(task_id, &VmConfig::new(task_id.to_string())).await
+    }
+    .instrument(span)
+    .await
 }
 
 /// Spawn a new JIT Micro-VM with custom configuration
@@ -250,14 +271,24 @@ pub async fn spawn_vm(task_id: &str) -> Result<VmHandle> {
 ///     Ok(())
 /// }
 /// ```
+#[instrument(skip(config), fields(task_id = %task_id, vm_id = %config.vm_id))]
 pub async fn spawn_vm_with_config(task_id: &str, config: &VmConfig) -> Result<VmHandle> {
-    tracing::info!("Spawning VM for task: {}", task_id);
+    info!(
+        task_id = %task_id,
+        vm_id = %config.vm_id,
+        memory_mb = config.memory_mb,
+        vcpu_count = config.vcpu_count,
+        "Starting VM spawn with custom configuration"
+    );
 
     // Apply default seccomp filter if not specified (security best practice)
     let config_with_seccomp = if config.seccomp_filter.is_none() {
         let mut secured_config = config.clone();
         secured_config.seccomp_filter = Some(SeccompFilter::new(SeccompLevel::Basic));
-        tracing::info!("Auto-enabling seccomp filter (Basic level) for security");
+        info!(
+            seccomp_level = "Basic",
+            "Auto-enabling seccomp filter for security"
+        );
         secured_config
     } else {
         config.clone()
@@ -269,15 +300,16 @@ pub async fn spawn_vm_with_config(task_id: &str, config: &VmConfig) -> Result<Vm
     // Apply firewall rules (may fail if not root)
     match firewall_manager.configure_isolation() {
         Ok(_) => {
-            tracing::info!(
-                "Firewall isolation configured for VM: {}",
-                config_with_seccomp.vm_id
+            info!(
+                vm_id = %config_with_seccomp.vm_id,
+                "Firewall isolation configured"
             );
         }
         Err(e) => {
-            tracing::warn!(
-                "Failed to configure firewall (running without root?): {}. \n                VM will still have networking disabled in config, but firewall rules are not applied.",
-                e
+            warn!(
+                vm_id = %config_with_seccomp.vm_id,
+                error = %e,
+                "Failed to configure firewall (running without root?). VM will still have networking disabled in config, but firewall rules are not applied."
             );
             // Continue anyway - networking is still disabled in config
         }
@@ -286,27 +318,55 @@ pub async fn spawn_vm_with_config(task_id: &str, config: &VmConfig) -> Result<Vm
     // Verify firewall rules are active (if configured)
     match firewall_manager.verify_isolation() {
         Ok(true) => {
-            tracing::info!(
-                "Firewall isolation verified for VM: {}",
-                config_with_seccomp.vm_id
+            info!(
+                vm_id = %config_with_seccomp.vm_id,
+                "Firewall isolation verified"
             );
         }
         Ok(false) => {
-            tracing::debug!(
-                "Firewall rules not active for VM: {}",
-                config_with_seccomp.vm_id
+            debug!(
+                vm_id = %config_with_seccomp.vm_id,
+                "Firewall rules not active"
             );
         }
         Err(e) => {
-            tracing::debug!("Failed to verify firewall rules: {}", e);
+            debug!(
+                vm_id = %config_with_seccomp.vm_id,
+                error = %e,
+                "Failed to verify firewall rules"
+            );
         }
     }
 
     // Start VM using the appropriate hypervisor for the platform
     let hypervisor = get_hypervisor();
+    let hypervisor_name = std::any::type_name_of_val(&hypervisor);
+
+    info!(
+        hypervisor = %hypervisor_name,
+        kernel_path = %config_with_seccomp.kernel_path,
+        rootfs_path = %config_with_seccomp.rootfs_path,
+        "Spawning VM instance"
+    );
 
     let instance = hypervisor.spawn(&config_with_seccomp).await?;
     let spawn_time = instance.spawn_time_ms();
+
+    info!(
+        vm_id = %config_with_seccomp.vm_id,
+        spawn_time_ms = spawn_time,
+        "VM spawned successfully"
+    );
+
+    // Warn if spawn time exceeds target
+    if spawn_time > 200.0 {
+        warn!(
+            vm_id = %config_with_seccomp.vm_id,
+            spawn_time_ms = spawn_time,
+            target_ms = 200.0,
+            "Spawn time exceeded target of 200ms"
+        );
+    }
 
     Ok(VmHandle {
         id: task_id.to_string(),
@@ -351,16 +411,41 @@ fn get_hypervisor() -> Box<dyn Hypervisor> {
 ///     Ok(())
 /// }
 /// ```
+#[instrument(skip(handle), fields(vm_id = %handle.id))]
 pub async fn destroy_vm(handle: VmHandle) -> Result<()> {
-    tracing::info!("Destroying VM: {}", handle.id);
+    info!(
+        vm_id = %handle.id,
+        spawn_time_ms = handle.spawn_time_ms,
+        "Destroying VM"
+    );
 
     // Take the process out of the Arc<Mutex>
     let mut process = handle.process.lock().await.take();
 
     if let Some(ref mut proc) = process {
-        proc.stop().await?;
+        info!(vm_id = %handle.id, "Stopping VM process");
+        match proc.stop().await {
+            Ok(_) => {
+                info!(
+                    vm_id = %handle.id,
+                    uptime_ms = handle.spawn_time_ms,
+                    "VM destroyed successfully"
+                );
+            }
+            Err(e) => {
+                error!(
+                    vm_id = %handle.id,
+                    error = %e,
+                    "Failed to stop VM process"
+                );
+                return Err(e);
+            }
+        }
     } else {
-        tracing::warn!("VM {} already destroyed", handle.id);
+        warn!(
+            vm_id = %handle.id,
+            "VM already destroyed or never started"
+        );
     }
 
     Ok(())

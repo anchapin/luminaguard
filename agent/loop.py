@@ -34,6 +34,20 @@ try:
     # When imported as module
     from agent.mcp_client import McpClient, McpError
     from agent.vsock_client import VsockClient
+    from agent.logging_config import get_logger, bind_context
+except ImportError:
+    # When run directly
+    from mcp_client import McpClient, McpError
+    from vsock_client import VsockClient
+    from logging_config import get_logger, bind_context
+
+# Initialize logger
+logger = get_logger("lumina-agent")
+
+try:
+    # When imported as module
+    from agent.mcp_client import McpClient, McpError
+    from agent.vsock_client import VsockClient
 except ImportError:
     # When run directly
     from mcp_client import McpClient, McpError
@@ -302,14 +316,31 @@ def think(state: AgentState, llm_client=None) -> Optional[ToolCall]:
 
 def execute_tool(call: ToolCall, mcp_client) -> Dict[str, Any]:
     """Execute a tool via MCP connection."""
+    logger.info(
+        "executing_tool",
+        tool_name=call.name,
+        action_kind=call.action_kind.value,
+        arguments=call.arguments,
+    )
     try:
         result = mcp_client.call_tool(call.name, call.arguments)
+        logger.info(
+            "tool_execution_success",
+            tool_name=call.name,
+            result_type=type(result).__name__,
+        )
         return {
             "status": "ok",
             "result": result,
             "action_kind": call.action_kind.value,
         }
     except Exception as e:
+        logger.error(
+            "tool_execution_error",
+            tool_name=call.name,
+            error=str(e),
+            exc_info=True,
+        )
         return {
             "status": "error",
             "error": str(e),
@@ -319,14 +350,31 @@ def execute_tool(call: ToolCall, mcp_client) -> Dict[str, Any]:
 
 def execute_tool_vm(call: ToolCall, vsock_client: VsockClient) -> Dict[str, Any]:
     """Execute a tool via vsock connection (when running inside VM)."""
+    logger.info(
+        "executing_tool_vm",
+        tool_name=call.name,
+        action_kind=call.action_kind.value,
+        arguments=call.arguments,
+    )
     try:
         result = vsock_client.execute_tool(call.name, call.arguments)
+        logger.info(
+            "tool_execution_success_vm",
+            tool_name=call.name,
+            result_type=type(result).__name__,
+        )
         return {
             "status": "ok",
             "result": result,
             "action_kind": call.action_kind.value,
         }
     except Exception as e:
+        logger.error(
+            "tool_execution_error_vm",
+            tool_name=call.name,
+            error=str(e),
+            exc_info=True,
+        )
         return {
             "status": "error",
             "error": str(e),
@@ -353,6 +401,13 @@ def run_loop(
     """Run the agent reasoning loop for a given task."""
     if execution_mode is None:
         execution_mode = get_execution_mode()
+
+    logger.info(
+        "agent_loop_starting",
+        task=task[:100],  # Truncate for logging
+        execution_mode=execution_mode.value,
+        available_tools=len(tools),
+    )
 
     print(f"\n🚀 Starting task: {Style.bold(task)}")
     print(f"📍 Execution mode: {execution_mode.value}")
