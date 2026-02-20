@@ -1,0 +1,332 @@
+name: Performance Benchmarks
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    types: [opened, synchronize, reopened]
+  schedule:
+    # Run nightly at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      run_baseline:
+        description: 'Run as baseline (store as reference)'
+        required: false
+        default: false
+        type: boolean
+
+# Cancel in-progress runs for the same branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Rust benchmarks using Criterion
+  rust-benchmarks:
+    name: Rust Benchmarks (Criterion)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0  # Full history for comparison
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@4be9e76fd7c4901c61fb841f559994984270fce7
+        with:
+          toolchain: stable
+
+      - name: Install Criterion comparison tool
+        run: cargo install cargo-criterion
+
+      - name: Cache cargo registry
+        uses: actions/cache@v5
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo index
+        uses: actions/cache@v5
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo build
+        uses: actions/cache@v5
+        with:
+          path: orchestrator/target
+          key: ${{ runner.os }}-cargo-bench-build-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Run Rust benchmarks
+        working-directory: orchestrator
+        run: |
+          echo "Running Rust benchmarks with Criterion..."
+          cargo bench --bench performance_baseline
+          cargo bench --bench mcp_startup
+          cargo bench --bench snapshot_pool
+          cargo bench --bench concurrent_agents
+
+      - name: Compare with baseline (if not baseline run)
+        if: github.event.inputs.run_baseline != 'true'
+        working-directory: orchestrator
+        run: |
+          echo "Comparing with baseline..."
+          # Download baseline if available from artifacts or compare with main
+          git fetch origin main
+          # Run criterion to generate comparison report
+          cargo criterion --message-format short || true
+
+      - name: Upload benchmark results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rust-benchmark-results-${{ github.sha }}
+          path: |
+            orchestrator/target/criterion/
+          retention-days: 30
+
+      - name: Generate benchmark report
+        if: always()
+        run: |
+          echo "## Rust Benchmark Results" > $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Benchmark results are saved to \`target/criterion/\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Key Metrics" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Target | Current | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|--------|---------|--------|" >> $GITHUB_STEP_SUMMARY
+          # Extract results from Criterion JSON output if available
+          find orchestrator/target/criterion -name "new.json" -exec sh -c '
+            echo "Found benchmark results"
+          ' \; || echo "No detailed results found"
+
+      - name: Check for performance regressions (>10%)
+        if: github.event_name == 'pull_request'
+        working-directory: orchestrator
+        run: |
+          echo "Checking for performance regressions..."
+          # Use criterion to check for regressions
+          cargo criterion --fail-threshold 10 || {
+            echo "::warning::Performance regression detected (>10% degradation)"
+            echo "Please review benchmark results in the artifacts"
+            exit 1
+          }
+
+  # Python benchmarks using pytest-benchmark
+  python-benchmarks:
+    name: Python Benchmarks (pytest-benchmark)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip packages
+        uses: actions/cache@v5
+        with:
+          path: agent/.venv
+          key: ${{ runner.os }}-pip-bench-${{ hashFiles('agent/pyproject.toml') }}
+
+      - name: Install dependencies
+        working-directory: agent
+        run: |
+          python -m venv .venv
+          .venv/bin/pip install --upgrade pip
+          .venv/bin/pip install -e ".[dev]"
+
+      - name: Run Python benchmarks
+        working-directory: agent
+        run: |
+          echo "Running Python benchmarks with pytest-benchmark..."
+          .venv/bin/pytest tests/benchmarks/ \
+            --benchmark-only \
+            --benchmark-autosave \
+            --benchmark-save-data \
+            --benchmark-json benchmark-results.json \
+            --benchmark-columns=mean,stddev,ops,rounds
+
+      - name: Compare with baseline
+        if: github.event.inputs.run_baseline != 'true'
+        working-directory: agent
+        run: |
+          echo "Comparing Python benchmarks with baseline..."
+          .venv/bin/pytest tests/benchmarks/ \
+            --benchmark-only \
+            --benchmark-compare \
+            --benchmark-json benchmark-comparison.json || true
+
+      - name: Upload benchmark results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-benchmark-results-${{ github.sha }}
+          path: |
+            agent/.benchmarks/
+            agent/benchmark-results.json
+            agent/benchmark-comparison.json
+          retention-days: 30
+
+      - name: Generate benchmark report
+        if: always()
+        run: |
+          echo "## Python Benchmark Results" > $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Benchmark results saved to artifacts" >> $GITHUB_STEP_SUMMARY
+
+      - name: Check for Python performance regressions (>10%)
+        if: github.event_name == 'pull_request'
+        working-directory: agent
+        run: |
+          echo "Checking Python benchmarks for regressions..."
+          if [ -f benchmark-comparison.json ]; then
+            .venv/bin/python -c "
+            import json
+            with open('benchmark-comparison.json') as f:
+                data = json.load(f)
+                for bench in data.get('benchmarks', []):
+                    name = bench.get('name', 'unknown')
+                    current = bench.get('stats', {}).get('mean', 0)
+                    baseline = bench.get('baseline', {}).get('mean', 0)
+                    if baseline > 0:
+                        change = ((current - baseline) / baseline) * 100
+                        if change > 10:
+                            print(f'::warning::Regression in {name}: {change:.1f}% increase')
+                            exit(1)
+            " || {
+              echo "::warning::Python benchmark regression detected (>10% degradation)"
+              exit 1
+            }
+          fi
+
+  # Store baseline results (for historical tracking)
+  store-baseline:
+    name: Store Baseline Results
+    runs-on: ubuntu-latest
+    needs: [rust-benchmarks, python-benchmarks]
+    if: github.event.inputs.run_baseline == 'true' || github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Download Rust benchmark results
+        uses: actions/download-artifact@v4
+        with:
+          name: rust-benchmark-results-${{ github.sha }}
+          path: .baseline/rust
+
+      - name: Download Python benchmark results
+        uses: actions/download-artifact@v4
+        with:
+          name: python-benchmark-results-${{ github.sha }}
+          path: .baseline/python
+
+      - name: Store baseline as GitHub Release asset
+        uses: softprops/action-gh-release@v2
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        with:
+          tag_name: baseline-${{ github.sha }}
+          name: Performance Baseline - ${{ github.sha }}
+          files: |
+            .baseline/rust/**/*
+            .baseline/python/**/*
+          draft: false
+          prerelease: true
+          generate_release_notes: true
+
+      - name: Generate summary
+        run: |
+          echo "## Baseline Results Stored" > $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Baseline commit: \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Results stored for future comparison" >> $GITHUB_STEP_SUMMARY
+
+  # Performance dashboard (optional - generates HTML report)
+  performance-dashboard:
+    name: Generate Performance Dashboard
+    runs-on: ubuntu-latest
+    needs: [rust-benchmarks, python-benchmarks]
+    if: always()
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Download all benchmark results
+        uses: actions/download-artifact@v4
+        with:
+          path: all-results
+
+      - name: Generate dashboard HTML
+        run: |
+          cat > performance-dashboard.html << 'EOF'
+          <!DOCTYPE html>
+          <html>
+          <head>
+              <title>LuminaGuard Performance Dashboard</title>
+              <style>
+                  body { font-family: Arial, sans-serif; margin: 20px; }
+                  .metric { margin: 20px 0; padding: 15px; background: #f5f5f5; border-radius: 5px; }
+                  .target { color: green; }
+                  .warning { color: orange; }
+                  .error { color: red; }
+                  table { border-collapse: collapse; width: 100%; }
+                  th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                  th { background-color: #4CAF50; color: white; }
+              </style>
+          </head>
+          <body>
+              <h1>LuminaGuard Performance Dashboard</h1>
+              <p><strong>Commit:</strong> ${{ github.sha }}</p>
+              <p><strong>Branch:</strong> ${{ github.ref_name }}</p>
+              <p><strong>Date:</strong> $(date -u)</p>
+
+              <h2>Performance Targets</h2>
+              <div class="metric">
+                  <h3>Startup Time</h3>
+                  <p>Target: <span class="target">&lt; 500ms</span></p>
+              </div>
+              <div class="metric">
+                  <h3>VM Spawn Time</h3>
+                  <p>Target: <span class="target">&lt; 200ms</span></p>
+              </div>
+              <div class="metric">
+                  <h3>Memory Footprint</h3>
+                  <p>Target: <span class="target">&lt; 200MB baseline</span></p>
+              </div>
+              <div class="metric">
+                  <h3>Tool Call Latency</h3>
+                  <p>Target: <span class="target">&lt; 100ms</span></p>
+              </div>
+
+              <h2>Benchmark Results</h2>
+              <p>Detailed results available in workflow artifacts</p>
+          </body>
+          </html>
+          EOF
+
+      - name: Upload dashboard
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-dashboard
+          path: performance-dashboard.html
+          retention-days: 30
+
+      - name: Deploy to GitHub Pages (if enabled)
+        if: github.ref == 'refs/heads/main'
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: .
+          publish_branch: gh-pages
+          keep_files: true
+          destination_dir: performance
+        continue-on-error: true
