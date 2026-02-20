@@ -245,12 +245,9 @@ impl VmAgentExecutor {
 
         // For now, simulate execution with a timeout
         let timeout = std::time::Duration::from_secs(self.config.execution_timeout_secs);
-        let result = tokio::time::timeout(timeout, async {
-            // Wait for vsock handler to complete
-            // In production, this would be the actual agent execution
-            vsock_task.await
-        })
-        .await;
+        // Wait for vsock handler to complete
+        // In production, this would be the actual agent execution
+        let result = tokio::time::timeout(timeout, vsock_task).await;
 
         // Destroy VM
         destroy_vm(handle).await.context("Failed to destroy VM")?;
