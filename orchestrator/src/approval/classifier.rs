@@ -169,9 +169,8 @@ impl ToolClassifier {
         match tool_name {
             "read_file" => ActionType::ReadFile,
             "read_resource" | "read_prompt" => ActionType::ViewFile,
-            "list_files" | "list_directory" | "list_directories" | "list_resources" | "list_prompts" => {
-                ActionType::ListDirectory
-            }
+            "list_files" | "list_directory" | "list_directories" | "list_resources"
+            | "list_prompts" => ActionType::ListDirectory,
             "search_files" | "grep" => ActionType::SearchWeb,
             "get_file_info" | "stat" | "get_info" | "info" | "status" => ActionType::ViewFile,
             "check_file" => ActionType::CheckLogs,
@@ -511,8 +510,7 @@ mod tests {
 
     #[test]
     fn test_classify_list_directory() {
-        let result =
-            ToolClassifier::classify_tool("list_directory", &json!({"path": "/tmp"}));
+        let result = ToolClassifier::classify_tool("list_directory", &json!({"path": "/tmp"}));
         assert!(!result.requires_approval);
         assert_eq!(result.action_type, ActionType::ListDirectory);
         assert_eq!(result.risk_level, RiskLevel::None);
@@ -552,8 +550,7 @@ mod tests {
 
     #[test]
     fn test_classify_read_resource() {
-        let result =
-            ToolClassifier::classify_tool("read_resource", &json!({"uri": "file:///tmp"}));
+        let result = ToolClassifier::classify_tool("read_resource", &json!({"uri": "file:///tmp"}));
         assert!(!result.requires_approval);
         assert_eq!(result.action_type, ActionType::ViewFile);
         assert_eq!(result.risk_level, RiskLevel::None);
@@ -562,8 +559,10 @@ mod tests {
     // Red action tests
     #[test]
     fn test_classify_write_file() {
-        let result =
-            ToolClassifier::classify_tool("write_file", &json!({"path": "test.txt", "content": "hello"}));
+        let result = ToolClassifier::classify_tool(
+            "write_file",
+            &json!({"path": "test.txt", "content": "hello"}),
+        );
         assert!(result.requires_approval);
         assert_eq!(result.action_type, ActionType::EditFile);
         assert_eq!(result.risk_level, RiskLevel::High);
@@ -785,7 +784,8 @@ mod tests {
 
     #[test]
     fn test_classify_by_parameters_write() {
-        let result = ToolClassifier::classify_tool("some_tool", &json!({"write": true, "content": "test"}));
+        let result =
+            ToolClassifier::classify_tool("some_tool", &json!({"write": true, "content": "test"}));
         assert!(result.requires_approval);
         assert_eq!(result.action_type, ActionType::EditFile);
     }
@@ -870,7 +870,10 @@ mod tests {
     // External API call tests
     #[test]
     fn test_read_only_external_call() {
-        let result = ToolClassifier::classify_tool("api_get_data", &json!({"url": "https://api.example.com/data"}));
+        let result = ToolClassifier::classify_tool(
+            "api_get_data",
+            &json!({"url": "https://api.example.com/data"}),
+        );
         assert!(!result.requires_approval);
         assert_eq!(result.action_type, ActionType::ReadFile);
     }
@@ -878,7 +881,10 @@ mod tests {
     #[test]
     fn test_write_external_call() {
         // Use invoke instead of post to avoid SendEmail classification
-        let result = ToolClassifier::classify_tool("api_invoke_method", &json!({"url": "https://api.example.com/data"}));
+        let result = ToolClassifier::classify_tool(
+            "api_invoke_method",
+            &json!({"url": "https://api.example.com/data"}),
+        );
         assert!(result.requires_approval);
         assert_eq!(result.action_type, ActionType::ExternalCall);
     }
