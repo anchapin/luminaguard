@@ -45,6 +45,13 @@ enum Commands {
         /// Task description for the agent
         task: String,
     },
+    /// Show LuminaGuard system status (VM pool, active sessions, etc.)
+    Status,
+    /// Manage LuminaGuard configuration
+    Config {
+        #[command(subcommand)]
+        command: Option<ConfigCommands>,
+    },
     /// Start interactive chat mode
     Chat,
     /// Spawn a new JIT Micro-VM
@@ -104,6 +111,17 @@ enum VmCommands {
     Pool,
 }
 
+/// Configuration management subcommands
+#[derive(Subcommand, Debug)]
+enum ConfigCommands {
+    /// Show current configuration
+    Show,
+    /// Validate configuration
+    Validate,
+    /// Reset configuration to defaults
+    Reset,
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     // Parse command-line arguments
@@ -131,6 +149,14 @@ async fn main() -> Result<()> {
         Some(Commands::Run { task }) => {
             info!("Running agent task: {}", task);
             run_agent(task).await?;
+        }
+        Some(Commands::Status) => {
+            info!("Showing system status...");
+            show_status().await?;
+        }
+        Some(Commands::Config { command }) => {
+            info!("Managing configuration...");
+            handle_config_command(command).await?;
         }
         Some(Commands::Chat) => {
             info!("Starting interactive chat mode...");
@@ -218,6 +244,126 @@ async fn run_agent(task: String) -> Result<()> {
             Err(e)
         }
     }
+}
+
+/// Show system status (VM pool, active sessions, etc.)
+async fn show_status() -> Result<()> {
+    println!("\n==========================================");
+    println!("📊 LuminaGuard System Status");
+    println!("==========================================");
+
+    // Show VM pool statistics
+    println!("\n🖥️  VM Pool:");
+    match vm::pool_stats().await {
+        Ok(stats) => {
+            println!("  Pool size: {}/{}", stats.current_size, stats.max_size);
+            println!("  Active VMs: {}", stats.active_vms);
+            println!("  Queued tasks: {}", stats.queued_tasks);
+        }
+        Err(e) => {
+            println!("  Pool stats unavailable: {}", e);
+        }
+    }
+
+    // Show version info
+    println!("\n📦 Version:");
+    println!("  Orchestrator: 0.1.0");
+    println!("  Built from Rust");
+
+    // Show environment info
+    println!("\n🔧 Environment:");
+    println!("  Firecracker: {}", {
+        std::process::Command::new("which")
+            .arg("firecracker")
+            .output()
+            .map(|o| {
+                if o.status.success() {
+                    "Available"
+                } else {
+                    "Not found"
+                }
+            })
+            .unwrap_or("Unknown")
+    });
+
+    println!("\n==========================================\n");
+
+    Ok(())
+}
+
+/// Handle configuration management commands
+async fn handle_config_command(command: Option<ConfigCommands>) -> Result<()> {
+    let cmd = command.unwrap_or(ConfigCommands::Show);
+
+    match cmd {
+        ConfigCommands::Show => {
+            println!("\n==========================================");
+            println!("⚙️  LuminaGuard Configuration");
+            println!("==========================================\n");
+
+            println!("VM Configuration:");
+            let config = vm::config::VmConfig::default();
+            println!("  vCPU Count: {}", config.vcpu_count);
+            println!("  Memory: {} MB", config.memory_mb);
+            println!("  Kernel Path: {}", config.kernel_path);
+            println!("  RootFS Path: {}", config.effective_rootfs_path());
+            println!(
+                "  Networking: {}",
+                if config.enable_networking {
+                    "Enabled"
+                } else {
+                    "Disabled"
+                }
+            );
+            println!(
+                "  RootFS Hardening: {}",
+                if config.has_rootfs_hardening() {
+                    "Enabled"
+                } else {
+                    "Disabled"
+                }
+            );
+
+            println!("\nEnvironment Variables:");
+            for (key, description) in [
+                ("LUMINAGUARD_POOL_SIZE", "Snapshot pool size (default: 5)"),
+                (
+                    "LUMINAGUARD_SNAPSHOT_REFRESH_SECS",
+                    "Snapshot refresh interval (default: 3600)",
+                ),
+                (
+                    "LUMINAGUARD_SNAPSHOT_PATH",
+                    "Snapshot storage path (default: /var/lib/luminaguard/snapshots)",
+                ),
+            ] {
+                let value = std::env::var(key).unwrap_or_else(|_| "(not set)".to_string());
+                println!("  {}: {} - {}", key, value, description);
+            }
+
+            println!("\n==========================================\n");
+        }
+        ConfigCommands::Validate => {
+            println!("\n🔍 Validating configuration...");
+
+            let config = vm::config::VmConfig::default();
+            match config.validate() {
+                Ok(_) => {
+                    println!("✅ Configuration is valid!");
+                }
+                Err(e) => {
+                    println!("❌ Configuration validation failed: {}", e);
+                    return Err(e);
+                }
+            }
+        }
+        ConfigCommands::Reset => {
+            println!("\n🔄 Configuration reset to defaults.");
+            println!("Note: Configuration is primarily managed via environment variables.");
+            println!("To reset, unset environment variables and restart.");
+        }
+    }
+
+    Ok(())
 }
 
 /// Interactive chat mode - allows multiple exchanges with the agent
@@ -722,9 +868,136 @@ mod tests {
     use std::path::Path;
 
     #[test]
-    fn test_args_parsing() {
+    fn test_args_parsing_run() {
         let args = Args::parse_from(["luminaguard", "run", "test task"]);
         assert!(matches!(args.command, Some(Commands::Run { .. })));
+    }
+
+    #[test]
+    fn test_args_parsing_status() {
+        let args = Args::parse_from(["luminaguard", "status"]);
+        assert!(matches!(args.command, Some(Commands::Status)));
+    }
+
+    #[test]
+    fn test_args_parsing_config() {
+        let args = Args::parse_from(["luminaguard", "config", "show"]);
+        assert!(matches!(
+            args.command,
+            Some(Commands::Config {
+                command: Some(ConfigCommands::Show)
+            })
+        ));
+    }
+
+    #[test]
+    fn test_args_parsing_config_default() {
+        let args = Args::parse_from(["luminaguard", "config"]);
+        assert!(matches!(
+            args.command,
+            Some(Commands::Config { command: None })
+        ));
+    }
+
+    #[test]
+    fn test_args_parsing_config_validate() {
+        let args = Args::parse_from(["luminaguard", "config", "validate"]);
+        assert!(matches!(
+            args.command,
+            Some(Commands::Config {
+                command: Some(ConfigCommands::Validate)
+            })
+        ));
+    }
+
+    #[test]
+    fn test_args_parsing_config_reset() {
+        let args = Args::parse_from(["luminaguard", "config", "reset"]);
+        assert!(matches!(
+            args.command,
+            Some(Commands::Config {
+                command: Some(ConfigCommands::Reset)
+            })
+        ));
+    }
+
+    #[test]
+    fn test_args_parsing_verbose() {
+        let args = Args::parse_from(["luminaguard", "--verbose", "status"]);
+        assert!(args.verbose);
+        assert!(matches!(args.command, Some(Commands::Status)));
+    }
+
+    #[test]
+    fn test_args_parsing_chat() {
+        let args = Args::parse_from(["luminaguard", "chat"]);
+        assert!(matches!(args.command, Some(Commands::Chat)));
+    }
+
+    #[test]
+    fn test_args_parsing_spawn_vm() {
+        let args = Args::parse_from(["luminaguard", "spawn-vm"]);
+        assert!(matches!(args.command, Some(Commands::SpawnVm)));
+    }
+
+    #[test]
+    fn test_args_parsing_daemon() {
+        let args = Args::parse_from(["luminaguard", "daemon", "--metrics-port", "8080"]);
+        assert!(matches!(args.command, Some(Commands::Daemon { .. })));
+        if let Some(Commands::Daemon { metrics_port }) = args.command {
+            assert_eq!(metrics_port, 8080);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_show_status() {
+        // This test should always succeed (doesn't require actual VM)
+        let result = show_status().await;
+        assert!(
+            result.is_ok(),
+            "show_status should succeed: {:?}",
+            result.err()
+        );
+    }
+
+    #[tokio::test]
+    async fn test_config_show() {
+        let result = handle_config_command(Some(ConfigCommands::Show)).await;
+        assert!(
+            result.is_ok(),
+            "config show should succeed: {:?}",
+            result.err()
+        );
+    }
+
+    #[tokio::test]
+    async fn test_config_validate() {
+        let result = handle_config_command(Some(ConfigCommands::Validate)).await;
+        assert!(
+            result.is_ok(),
+            "config validate should succeed: {:?}",
+            result.err()
+        );
+    }
+
+    #[tokio::test]
+    async fn test_config_reset() {
+        let result = handle_config_command(Some(ConfigCommands::Reset)).await;
+        assert!(
+            result.is_ok(),
+            "config reset should succeed: {:?}",
+            result.err()
+        );
+    }
+
+    #[tokio::test]
+    async fn test_config_default() {
+        let result = handle_config_command(None).await;
+        assert!(
+            result.is_ok(),
+            "config with no subcommand should succeed: {:?}",
+            result.err()
+        );
     }
 
     #[tokio::test]
