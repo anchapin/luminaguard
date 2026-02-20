@@ -276,18 +276,18 @@ mod tests {
         assert!(result.is_ok());
 
         let metrics_text = result.unwrap();
-        
+
         // The registry may be empty if metrics weren't registered (e.g., if init() was
         // already called by another test). In that case, we just verify the function works.
         // On Windows, there can be timing issues with lazy_static initialization.
-        // 
+        //
         // If metrics are registered, check for expected metric names.
         // If registry is empty, just verify we got valid output (empty string is valid).
         if !metrics_text.is_empty() {
             // Check for metric names (they may have luminaguard_ prefix depending on registry)
             // Note: metric names include underscores: vm_spawn_time_seconds, active_vms_total, etc.
             assert!(
-                metrics_text.contains("vm_spawn_time") 
+                metrics_text.contains("vm_spawn_time")
                     || metrics_text.contains("active_vms")
                     || metrics_text.contains("vms_spawned")
                     || metrics_text.contains("memory_usage")
