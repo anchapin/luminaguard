@@ -14,6 +14,7 @@ use luminaguard_orchestrator::approval::action::ActionType;
 use luminaguard_orchestrator::approval::action::RiskLevel;
 use luminaguard_orchestrator::approval::diff::{Change, DiffCard};
 use luminaguard_orchestrator::approval::tui::TuiResult;
+use luminaguard_orchestrator::config::Config;
 use luminaguard_orchestrator::mcp::{McpClient, StdioTransport};
 use luminaguard_orchestrator::metrics_server;
 use luminaguard_orchestrator::vm::{self, destroy_vm};
@@ -32,6 +33,10 @@ struct Args {
     /// Enable verbose logging
     #[arg(short, long)]
     verbose: bool,
+
+    /// Path to configuration file (default: ~/.config/luminaguard/config.toml)
+    #[arg(short, long)]
+    config: Option<String>,
 
     /// Agent command to run
     #[command(subcommand)]
@@ -109,22 +114,46 @@ async fn main() -> Result<()> {
     // Parse command-line arguments
     let args = Args::parse();
 
-    // Initialize tracing
+    // Load configuration
+    let config = if let Some(config_path) = args.config {
+        Config::load_from_path(&config_path).context("Failed to load configuration")?
+    } else {
+        Config::load().context("Failed to load configuration")?
+    };
+    info!("Loaded configuration from {:?}", Config::config_path());
+
+    // Initialize tracing with config values
     let filter = if args.verbose {
         Level::DEBUG
     } else {
-        Level::INFO
+        config.log_level().unwrap_or(Level::INFO)
     };
-    tracing_subscriber::fmt()
-        .with_max_level(filter)
-        .with_env_filter(
-            EnvFilter::builder()
-                .with_default_directive(filter.into())
-                .from_env_lossy(),
-        )
-        .init();
+
+    // Apply log format from config
+    if config.logging.format.to_lowercase() == "pretty" {
+        tracing_subscriber::fmt()
+            .pretty()
+            .with_max_level(filter)
+            .with_env_filter(
+                EnvFilter::builder()
+                    .with_default_directive(filter.into())
+                    .from_env_lossy(),
+            )
+            .init();
+    } else {
+        tracing_subscriber::fmt()
+            .compact()
+            .with_max_level(filter)
+            .with_env_filter(
+                EnvFilter::builder()
+                    .with_default_directive(filter.into())
+                    .from_env_lossy(),
+            )
+            .init();
+    }
 
     info!("🦊 LuminaGuard Orchestrator v0.1.0 starting...");
+    info!("Log level: {}, Format: {}", config.logging.level, config.logging.format);
 
     // Match commands
     match args.command {

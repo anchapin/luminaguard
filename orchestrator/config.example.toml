@@ -1,0 +1,91 @@
+# LuminaGuard Configuration File
+#
+# Default location: ~/.config/luminaguard/config.toml
+# Can also be specified with --config flag on the command line
+#
+# Environment variables can override these settings:
+# - LUMINAGUARD_LOG_LEVEL
+# - LUMINAGUARD_LOG_FORMAT
+# - LUMINAGUARD_POOL_SIZE
+# - LUMINAGUARD_SNAPSHOT_PATH
+# - LUMINAGUARD_SNAPSHOT_REFRESH_SECS
+# - LUMINAGUARD_VCPU_COUNT
+# - LUMINAGUARD_MEMORY_MB
+# - LUMINAGUARD_METRICS_ENABLED
+# - LUMINAGUARD_METRICS_PORT
+
+[logging]
+# Log level: trace, debug, info, warn, error
+level = "info"
+
+# Log format: json, pretty, compact
+format = "compact"
+
+# Whether to log to file
+log_to_file = false
+
+# Log file path (if log_to_file is true)
+# log_file = "/var/log/luminaguard/orchestrator.log"
+
+[vm]
+# Number of vCPUs for VMs
+vcpu_count = 1
+
+# Memory size in MB for VMs (minimum: 128)
+memory_mb = 512
+
+# Kernel image path
+kernel_path = "./resources/vmlinux"
+
+# Root filesystem path
+rootfs_path = "./resources/rootfs.ext4"
+
+[vm.pool]
+# Number of snapshots to maintain in pool (1-20)
+pool_size = 5
+
+# Snapshot storage location
+snapshot_path = "/var/lib/luminaguard/snapshots"
+
+# Snapshot refresh interval in seconds (minimum: 60)
+refresh_interval_secs = 3600
+
+# Maximum snapshot age before refresh (in seconds)
+max_snapshot_age_secs = 3600
+
+# MCP server configurations
+# Each server has a unique name as the key
+[mcp_servers.filesystem]
+# Command to spawn the MCP server
+command = "npx"
+
+# Arguments for the MCP server
+args = ["-y", "@modelcontextprotocol/server-filesystem", "/tmp"]
+
+# Transport type: stdio, http
+transport = "stdio"
+
+# Timeout in seconds for MCP requests
+timeout_secs = 30
+
+# Whether to retry failed requests
+retry = true
+
+# Example HTTP MCP server configuration
+# [mcp_servers.custom_http]
+# command = ""
+# args = []
+# transport = "http"
+# url = "https://api.example.com/mcp"
+# timeout_secs = 60
+# retry = true
+
+[metrics]
+# Whether to enable metrics collection
+enabled = false
+
+# Port for metrics server
+port = 9090
+
+# Metrics export interval in seconds
+export_interval_secs = 60
