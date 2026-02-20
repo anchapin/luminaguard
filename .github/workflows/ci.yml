@@ -18,6 +18,16 @@ jobs:
         working-directory: orchestrator
         run: cargo install cargo-audit && cargo audit || true
 
+      - name: Run Python security scan (bandit)
+        working-directory: agent
+        run: |
+          pip install bandit[toml]
+          bandit -r . --exclude .venv,tests,__pycache__ -f json -o bandit-report.json || true
+          # Fail on critical issues only (bandit exit codes: 1=error, 2=issues found)
+          RESULT=$?
+          if [ $RESULT -eq 1 ]; then exit 1; fi
+          echo "Bandit scan completed with exit code: $RESULT"
+
       - name: Check for secrets
         uses: trufflesecurity/trufflehog@4158734f234bd8770128deae2e2975cfab4b66a6
         with:

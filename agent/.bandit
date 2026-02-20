@@ -1,0 +1,6 @@
+[bandit]
+exclude_dirs = ['.venv', 'tests', '__pycache__', '.pytest_cache']
+# Skip: B101 (assert statements used in tests), B601 (paramiko - used with proper verification)
+skips = ['B101', 'B601']
+# Focus on high-impact security issues
+tests = ['B201', 'B301', 'B401', 'B501', 'B601', 'B701']
