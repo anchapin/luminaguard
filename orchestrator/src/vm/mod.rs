@@ -157,9 +157,60 @@ pub async fn spawn_vm(task_id: &str) -> Result<VmHandle> {
             Ok(vm_id) => {
                 tracing::info!("VM spawned from pool: {}", vm_id);
 
-                // TODO: Load snapshot from pool and return handle
-                // For now, fall through to cold boot
-                // This will be implemented in Phase 2
+                // Extract snapshot ID from vm_id (format: vm-{snapshot_id}-{uuid})
+                // or use the vm_id directly if it's a snapshot ID
+                let snapshot_id = if vm_id.starts_with("vm-") {
+                    // Extract the snapshot ID portion
+                    vm_id
+                        .strip_prefix("vm-")
+                        .and_then(|s| s.split('-').next())
+                        .unwrap_or(&vm_id)
+                        .to_string()
+                } else {
+                    vm_id.clone()
+                };
+
+                // Create VM config for the spawned VM
+                let config = VmConfig::new(task_id.to_string());
+
+                // Try to spawn from snapshot using the platform-specific hypervisor
+                #[cfg(unix)]
+                {
+                    use crate::vm::firecracker::start_firecracker_from_snapshot;
+
+                    match start_firecracker_from_snapshot(&config, &snapshot_id).await {
+                        Ok(process) => {
+                            let spawn_time = process.spawn_time_ms;
+
+                            // Register VM with pool for tracking
+                            pool.register_vm(process.id.clone()).await;
+
+                            return Ok(VmHandle {
+                                id: task_id.to_string(),
+                                process: Arc::new(Mutex::new(Some(Box::new(process)))),
+                                spawn_time_ms: spawn_time,
+                                config,
+                                firewall_manager: Some(FirewallManager::new(task_id.to_string())),
+                            });
+                        }
+                        Err(e) => {
+                            tracing::warn!(
+                                "Failed to spawn from snapshot {}: {}, falling back to cold boot",
+                                snapshot_id,
+                                e
+                            );
+                            // Fall through to cold boot
+                        }
+                    }
+                }
+
+                #[cfg(not(unix))]
+                {
+                    // On non-Unix platforms, fall through to cold boot
+                    tracing::debug!(
+                        "Snapshot loading not supported on this platform, using cold boot"
+                    );
+                }
             }
             Err(e) => {
                 tracing::debug!("Pool not available: {}, using cold boot", e);
