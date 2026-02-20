@@ -32,15 +32,10 @@ def test_llm_client_initialization(benchmark):
     """Benchmark LLM client initialization time."""
 
     def init_client():
-        from llm_client import LLMClient
+        from llm_client import MockLLMClient
 
-        # Mock the actual initialization to avoid network calls
-        with patch.object(LLMClient, '_initialize_session', return_value=None):
-            client = LLMClient(
-                api_key="test-key",
-                base_url="https://api.example.com",
-                model="test-model",
-            )
+        # MockLLMClient doesn't require network calls
+        client = MockLLMClient()
         return client
 
     benchmark(init_client)

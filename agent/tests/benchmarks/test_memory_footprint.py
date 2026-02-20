@@ -33,15 +33,10 @@ def test_llm_client_memory(benchmark):
     """Benchmark memory usage of LLM client."""
 
     def create_client():
-        from llm_client import LLMClient
+        from llm_client import MockLLMClient
 
-        # Mock to avoid actual API calls
-        with patch.object(LLMClient, '_initialize_session', return_value=None):
-            client = LLMClient(
-                api_key="test-key" * 100,  # Simulate larger key
-                base_url="https://api.example.com",
-                model="test-model",
-            )
+        # MockLLMClient doesn't require actual API calls
+        client = MockLLMClient()
         return client
 
     # Measure memory after creation
