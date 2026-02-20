@@ -15,9 +15,9 @@ tokio = { version = "1.40", features = ["full"] }
 # CLI argument parsing
 clap = { version = "4.4", features = ["derive"] }
 
-# Logging
+# Logging and tracing
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json", "fmt"] }
 
 # Error handling
 anyhow = "1.0"
