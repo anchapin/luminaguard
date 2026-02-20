@@ -191,7 +191,7 @@ async fn run_agent(task: String) -> Result<()> {
     info!("🚀 Attempting VM-isolated agent execution...");
 
     use luminaguard_orchestrator::vm::agent_executor::execute_in_vm_or_fallback;
-    
+
     let result = execute_in_vm_or_fallback(task.clone(), task_id.clone()).await;
 
     match result {

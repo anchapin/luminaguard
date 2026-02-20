@@ -122,7 +122,9 @@ pub struct DefaultApprovalHandler {
 
 impl DefaultApprovalHandler {
     pub fn new(auto_approve_low_risk: bool) -> Self {
-        Self { auto_approve_low_risk }
+        Self {
+            auto_approve_low_risk,
+        }
     }
 }
 
@@ -191,7 +193,7 @@ impl VmAgentExecutor {
     #[cfg(unix)]
     pub async fn execute_task(&self, request: AgentTaskRequest) -> Result<AgentTaskResponse> {
         use crate::vm::config::VmConfig;
-        use crate::vm::{spawn_vm_with_config, destroy_vm};
+        use crate::vm::{destroy_vm, spawn_vm_with_config};
         use std::time::Instant;
 
         let start_time = Instant::now();
@@ -232,9 +234,7 @@ impl VmAgentExecutor {
         };
 
         // Spawn the vsock handler task
-        let vsock_task = tokio::spawn(async move {
-            vsock_listener.run_handler(handler).await
-        });
+        let vsock_task = tokio::spawn(async move { vsock_listener.run_handler(handler).await });
 
         // Send task to guest agent (via vsock)
         // Note: In a full implementation, we would:
@@ -486,7 +486,10 @@ mod tests {
 
         assert_eq!(decoded.task_id, "test-123");
         assert!(decoded.success);
-        assert_eq!(decoded.result, Some("Program written successfully".to_string()));
+        assert_eq!(
+            decoded.result,
+            Some("Program written successfully".to_string())
+        );
     }
 
     #[test]
