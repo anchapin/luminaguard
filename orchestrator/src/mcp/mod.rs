@@ -58,7 +58,6 @@ mod integration;
 mod proptests;
 
 #[cfg(test)]
-
 #[cfg(test)]
 mod tests {
     use crate::mcp::{McpError, McpRequest};
