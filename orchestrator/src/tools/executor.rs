@@ -146,13 +146,15 @@ impl ToolCommand {
 /// # Example
 ///
 /// ```no_run
-/// use luminaguard_orchestrator::tools::{ToolExecutor, ToolCommand};
+/// use luminaguard_orchestrator::tools::ToolExecutor;
 ///
 /// #[tokio::main]
 /// async fn main() -> anyhow::Result<()> {
 ///     let executor = ToolExecutor::new();
 ///
-///     let command = ToolCommand::new("npx", &["-y", "@modelcontextprotocol/server-filesystem"])?;
+///     // Command validation is handled internally by ToolExecutor
+///     // Just provide command and arguments
+///     let command = SafeCommand::new("npx", vec!["-y", "@modelcontextprotocol/server-filesystem"]);
 ///     let output = executor.execute(command).await?;
 ///
 ///     println!("Exit code: {:?}", output.exit_code);

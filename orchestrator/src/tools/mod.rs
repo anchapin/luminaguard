@@ -21,13 +21,13 @@
 //! # Example
 //!
 //! ```no_run
-//! use luminaguard_orchestrator::tools::{ToolExecutor, ToolCommand};
+//! use luminaguard_orchestrator::tools::ToolExecutor;
 //!
 //! #[tokio::main]
 //! async fn main() -> anyhow::Result<()> {
 //!     let executor = ToolExecutor::new();
 //!
-//!     let command = ToolCommand::new(
+//!     // Command validation and execution is handled internally
 //!         "npx",
 //!         &["-y", "@modelcontextprotocol/server-filesystem", "/tmp"]
 //!     )?;
