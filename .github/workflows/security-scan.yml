@@ -38,7 +38,7 @@ jobs:
 
       - name: Install cargo-audit
         run: |
-          cargo install cargo-audit --version ${{ env.CARGO_AUDIT_VERSION }}
+          cargo install cargo-audit --version ${{ env.CARGO_AUDIT_VERSION }} --force
 
       - name: Generate Cargo.lock if missing
         working-directory: orchestrator
