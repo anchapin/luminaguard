@@ -719,12 +719,266 @@ async fn present_approval(diff_card_path: &str) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use proptest::prelude::*;
     use std::path::Path;
 
     #[test]
     fn test_args_parsing() {
         let args = Args::parse_from(["luminaguard", "run", "test task"]);
         assert!(matches!(args.command, Some(Commands::Run { .. })));
+    }
+
+    #[test]
+    fn test_verbose_flag() {
+        let args = Args::parse_from(["luminaguard", "--verbose", "run", "test"]);
+        assert!(args.verbose);
+    }
+
+    #[test]
+    fn test_verbose_flag_short() {
+        let args = Args::parse_from(["luminaguard", "-v", "run", "test"]);
+        assert!(args.verbose);
+    }
+
+    #[test]
+    fn test_no_verbose_flag() {
+        let args = Args::parse_from(["luminaguard", "run", "test"]);
+        assert!(!args.verbose);
+    }
+
+    #[test]
+    fn test_parse_run_command() {
+        let args = Args::parse_from(["luminaguard", "run", "my test task"]);
+        match args.command {
+            Some(Commands::Run { task }) => {
+                assert_eq!(task, "my test task");
+            }
+            _ => panic!("Expected Run command"),
+        }
+    }
+
+    #[test]
+    fn test_parse_chat_command() {
+        let args = Args::parse_from(["luminaguard", "chat"]);
+        assert!(matches!(args.command, Some(Commands::Chat)));
+    }
+
+    #[test]
+    fn test_parse_spawn_vm_command() {
+        let args = Args::parse_from(["luminaguard", "spawn-vm"]);
+        assert!(matches!(args.command, Some(Commands::SpawnVm)));
+    }
+
+    #[test]
+    fn test_parse_vm_list_command() {
+        let args = Args::parse_from(["luminaguard", "vm", "list"]);
+        match args.command {
+            Some(Commands::Vm { command }) => {
+                assert!(matches!(command, VmCommands::List));
+            }
+            _ => panic!("Expected Vm List command"),
+        }
+    }
+
+    #[test]
+    fn test_parse_vm_status_command() {
+        let args = Args::parse_from(["luminaguard", "vm", "status", "vm-123"]);
+        match args.command {
+            Some(Commands::Vm { command }) => {
+                match command {
+                    VmCommands::Status { vm_id } => {
+                        assert_eq!(vm_id, "vm-123");
+                    }
+                    _ => panic!("Expected Vm Status command"),
+                }
+            }
+            _ => panic!("Expected Vm command"),
+        }
+    }
+
+    #[test]
+    fn test_parse_vm_kill_command() {
+        let args = Args::parse_from(["luminaguard", "vm", "kill", "vm-456"]);
+        match args.command {
+            Some(Commands::Vm { command }) => {
+                match command {
+                    VmCommands::Kill { vm_id } => {
+                        assert_eq!(vm_id, "vm-456");
+                    }
+                    _ => panic!("Expected Vm Kill command"),
+                }
+            }
+            _ => panic!("Expected Vm command"),
+        }
+    }
+
+    #[test]
+    fn test_parse_vm_pool_command() {
+        let args = Args::parse_from(["luminaguard", "vm", "pool"]);
+        match args.command {
+            Some(Commands::Vm { command }) => {
+                assert!(matches!(command, VmCommands::Pool));
+            }
+            _ => panic!("Expected Vm Pool command"),
+        }
+    }
+
+    #[test]
+    fn test_parse_daemon_command_default_port() {
+        let args = Args::parse_from(["luminaguard", "daemon"]);
+        match args.command {
+            Some(Commands::Daemon { metrics_port }) => {
+                assert_eq!(metrics_port, 9090);
+            }
+            _ => panic!("Expected Daemon command"),
+        }
+    }
+
+    #[test]
+    fn test_parse_daemon_command_custom_port() {
+        let args = Args::parse_from(["luminaguard", "daemon", "--metrics-port", "8080"]);
+        match args.command {
+            Some(Commands::Daemon { metrics_port }) => {
+                assert_eq!(metrics_port, 8080);
+            }
+            _ => panic!("Expected Daemon command"),
+        }
+    }
+
+    #[test]
+    fn test_parse_test_mcp_command_defaults() {
+        let args = Args::parse_from(["luminaguard", "test-mcp"]);
+        match args.command {
+            Some(Commands::TestMcp {
+                command,
+                args,
+                list_tools,
+            }) => {
+                assert!(command.is_none());
+                assert!(args.is_empty());
+                assert!(!list_tools);
+            }
+            _ => panic!("Expected TestMcp command"),
+        }
+    }
+
+    #[test]
+    fn test_parse_test_mcp_command_with_list_tools() {
+        let args = Args::parse_from(["luminaguard", "test-mcp", "--list-tools"]);
+        match args.command {
+            Some(Commands::TestMcp { list_tools, .. }) => {
+                assert!(list_tools);
+            }
+            _ => panic!("Expected TestMcp command"),
+        }
+    }
+
+    #[test]
+    fn test_parse_test_mcp_command_with_args() {
+        let args = Args::parse_from([
+            "luminaguard",
+            "test-mcp",
+            "--args",
+            "npx @modelcontextprotocol/server-filesystem /tmp",
+        ]);
+        match args.command {
+            Some(Commands::TestMcp { args, .. }) => {
+                assert_eq!(args.len(), 3);
+                assert_eq!(args[0], "npx");
+            }
+            _ => panic!("Expected TestMcp command"),
+        }
+    }
+
+    #[test]
+    fn test_parse_approve_command() {
+        let args = Args::parse_from(["luminaguard", "approve", "--diff-card", "/tmp/diff.json"]);
+        match args.command {
+            Some(Commands::Approve { diff_card }) => {
+                assert_eq!(diff_card, "/tmp/diff.json");
+            }
+            _ => panic!("Expected Approve command"),
+        }
+    }
+
+    #[test]
+    fn test_no_command_provided() {
+        let args = Args::parse_from(["luminaguard"]);
+        assert!(args.command.is_none());
+    }
+
+    // Property-based tests
+
+    proptest! {
+        #[test]
+        fn prop_verbose_flag_is_boolean(verbose in any::<bool>()) {
+            let cli_args = if verbose {
+                vec!["luminaguard", "--verbose", "run", "test"]
+            } else {
+                vec!["luminaguard", "run", "test"]
+            };
+            let args = Args::parse_from(cli_args);
+            prop_assert_eq!(args.verbose, verbose);
+        }
+
+        #[test]
+        fn prop_daemon_port_is_valid(port in 1u16..=65535u16) {
+            let port_str = port.to_string();
+            let cli_args: Vec<&str> = vec![
+                "luminaguard",
+                "daemon",
+                "--metrics-port",
+                &port_str
+            ];
+            let args = Args::parse_from(cli_args);
+            match args.command {
+                Some(Commands::Daemon { metrics_port }) => {
+                    prop_assert_eq!(metrics_port, port);
+                }
+                _ => panic!("Expected Daemon command"),
+            }
+        }
+
+        #[test]
+        fn prop_task_string_preserved(task in "[a-zA-Z0-9 ]{1,100}") {
+            let cli_args: Vec<&str> = vec!["luminaguard", "run", &task];
+            let args = Args::parse_from(cli_args);
+            match args.command {
+                Some(Commands::Run { task: parsed_task }) => {
+                    prop_assert_eq!(parsed_task, task);
+                }
+                _ => panic!("Expected Run command"),
+            }
+        }
+
+        #[test]
+        fn prop_vm_id_preserved(vm_id in "[a-zA-Z0-9_]{1,50}") {
+            let cli_args: Vec<&str> = vec!["luminaguard", "vm", "status", &vm_id];
+            let args = Args::parse_from(cli_args);
+            match args.command {
+                Some(Commands::Vm { command }) => {
+                    match command {
+                        VmCommands::Status { vm_id: parsed_id } => {
+                            prop_assert_eq!(parsed_id, vm_id);
+                        }
+                        _ => panic!("Expected Status command"),
+                    }
+                }
+                _ => panic!("Expected Vm command"),
+            }
+        }
+
+        #[test]
+        fn prop_diff_card_path_preserved(path in "[a-zA-Z0-9_/]{1,200}") {
+            let cli_args: Vec<&str> = vec!["luminaguard", "approve", "--diff-card", &path];
+            let args = Args::parse_from(cli_args);
+            match args.command {
+                Some(Commands::Approve { diff_card }) => {
+                    prop_assert_eq!(diff_card, path);
+                }
+                _ => panic!("Expected Approve command"),
+            }
+        }
     }
 
     #[tokio::test]

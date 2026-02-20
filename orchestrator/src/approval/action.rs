@@ -292,6 +292,8 @@ impl fmt::Display for RiskLevel {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use proptest::prelude::*;
+    use proptest::proptest;
 
     #[test]
     fn test_green_actions_no_approval() {
@@ -413,5 +415,19 @@ mod tests {
         assert!(RiskLevel::Low < RiskLevel::Medium);
         assert!(RiskLevel::Medium < RiskLevel::High);
         assert!(RiskLevel::High < RiskLevel::Critical);
+    }
+
+    // Property-based tests
+    proptest! {
+        #[test]
+        fn prop_case_insensitive_keyword_matching(desc in "[a-zA-Z ]{1,50}") {
+            let original = ActionType::from_description(&desc);
+            let lowercase = ActionType::from_description(&desc.to_lowercase());
+            let uppercase = ActionType::from_description(&desc.to_uppercase());
+
+            // All three should produce the same action type (case-insensitive)
+            prop_assert_eq!(original, lowercase);
+            prop_assert_eq!(original, uppercase);
+        }
     }
 }
