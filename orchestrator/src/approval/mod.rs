@@ -5,6 +5,7 @@
 //!
 //! Architecture:
 //! - `action.rs`: Classify actions as Green (safe) or Red (requires approval)
+//! - `classifier.rs`: Classify MCP tool calls based on tool name and parameters
 //! - `diff.rs`: Generate human-readable Diff Cards showing exact changes
 //! - `history.rs`: Record all approval decisions for audit trails
 //! - `ui.rs`: CLI/interactive prompts for user approval
@@ -24,12 +25,14 @@
 //! - Any destructive or external communication
 
 pub mod action;
+pub mod classifier;
 pub mod diff;
 pub mod history;
 pub mod tui;
 pub mod ui;
 
 pub use action::{ActionType, RiskLevel};
+pub use classifier::{ClassificationResult, ToolClassifier};
 pub use diff::{Change, DiffCard};
 pub use history::{ApprovalDecision, ApprovalHistory, ApprovalRecord};
 pub use tui::{present_tui_approval, TuiResult};
