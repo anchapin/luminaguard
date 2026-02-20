@@ -53,6 +53,12 @@ pub use client::{ClientState, McpClient};
 #[cfg(test)]
 mod integration;
 
+// Property-based tests module
+#[cfg(test)]
+mod proptests;
+
+#[cfg(test)]
+
 #[cfg(test)]
 mod tests {
     use crate::mcp::{McpError, McpRequest};
