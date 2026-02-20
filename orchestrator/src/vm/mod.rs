@@ -161,7 +161,8 @@ pub async fn spawn_vm(task_id: &str) -> Result<VmHandle> {
                 // or use the vm_id directly if it's a snapshot ID
                 let snapshot_id = if vm_id.starts_with("vm-") {
                     // Extract the snapshot ID portion
-                    vm_id.strip_prefix("vm-")
+                    vm_id
+                        .strip_prefix("vm-")
                         .and_then(|s| s.split('-').next())
                         .unwrap_or(&vm_id)
                         .to_string()
@@ -176,14 +177,14 @@ pub async fn spawn_vm(task_id: &str) -> Result<VmHandle> {
                 #[cfg(unix)]
                 {
                     use crate::vm::firecracker::start_firecracker_from_snapshot;
-                    
+
                     match start_firecracker_from_snapshot(&config, &snapshot_id).await {
                         Ok(process) => {
                             let spawn_time = process.spawn_time_ms;
-                            
+
                             // Register VM with pool for tracking
                             pool.register_vm(process.id.clone()).await;
-                            
+
                             return Ok(VmHandle {
                                 id: task_id.to_string(),
                                 process: Arc::new(Mutex::new(Some(Box::new(process)))),
@@ -195,13 +196,14 @@ pub async fn spawn_vm(task_id: &str) -> Result<VmHandle> {
                         Err(e) => {
                             tracing::warn!(
                                 "Failed to spawn from snapshot {}: {}, falling back to cold boot",
-                                snapshot_id, e
+                                snapshot_id,
+                                e
                             );
                             // Fall through to cold boot
                         }
                     }
                 }
-                
+
                 #[cfg(not(unix))]
                 {
                     // On non-Unix platforms, fall through to cold boot
