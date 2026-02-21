@@ -1,0 +1,179 @@
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│ Settings                                                               │
+├─────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  [General]  [Security]  [Network]  [About]                       │
+│                                                                     │
+│  ┌────────────────────────────────────────────────────────────┐         │
+│  │                                                      │         │
+│  │  GENERAL SETTINGS                                    │         │
+│  │                                                      │         │
+│  │  Theme:                                            │         │
+│  │   ◉ Dark  ○ Light  ○ System                     │         │
+│  │                                                      │         │
+│  │  Auto-start orchestrator:  [✓]                              │         │
+│  │  (Start GUI when orchestrator starts)                      │         │
+│  │                                                      │         │
+│  │  Log retention:                                     │         │
+│  │   [7 days ▼]                                       │         │
+│  │                                                      │         │
+│  │  Auto-scroll logs:  [✓]                                 │         │
+│  │  (Scroll to newest log entry automatically)                    │         │
+│  │                                                      │         │
+│  │  Refresh rate:                                        │         │
+│  │   [1 second ▼]                                     │         │
+│  │                                                      │         │
+│  │  Notification sounds:  [✓]                                 │         │
+│  │  (Play sound on pending approval)                         │         │
+│  │                                                      │         │
+│  │  Language:                                           │         │
+│  │   [English ▼]                                       │         │
+│  │                                                      │         │
+│  │                                    [Apply]  [Reset to Defaults] │         │
+│  │                                                      │         │
+│  └────────────────────────────────────────────────────────────┘         │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│                                                                     │
+│                                                         [Back] │
+│                                                                     │
+│  ┌────────────────────────────────────────────────────────────┐         │
+│  │                                                      │         │
+│  │  SECURITY SETTINGS                                   │         │
+│  │                                                      │         │
+│  │  Approval required for:                              │         │
+│  │   ☑ File edits                                      │         │
+│  │   ☑ Network requests                                │         │
+│  │   ☑ System commands                                 │         │
+│  │   ☐ AI tool use                                    │         │
+│  │                                                      │         │
+│  │  Require password for approvals:  [ ]                          │         │
+│  │  (Additional authentication for sensitive actions)               │         │
+│  │                                                      │         │
+│  │  Mesh encryption:                                      │         │
+│  │   ☑ Enable                                       │         │
+│  │   ☑ Require message signatures                      │         │
+│  │   ☑ Forward secrecy (ephemeral keys)              │         │
+│  │                                                      │         │
+│  │  Certificate management:                                │         │
+│  │   [View Certificates]  [Generate New Pair]              │         │
+│  │                                                      │         │
+│  │  Trusted peers:                                       │         │
+│  │   ┌────────────────────────────────────────────┐     │         │
+│  │   │ ● researcher-1 (verified)        │     │         │
+│  │   │ ● coder-2 (verified)              │     │         │
+│  │   │ ○ tester-3 (pending)             │     │         │
+│  │   │ [Add Trusted Peer]               │     │         │
+│  │   └────────────────────────────────────────────┘     │         │
+│  │                                                      │         │
+│  │  Session timeout:                                     │         │
+│  │   [30 minutes ▼]                                   │         │
+│  │  (Auto-approve after timeout if configured)             │         │
+│  │                                                      │         │
+│  │                                    [Apply]  [Reset to Defaults] │         │
+│  │                                                      │         │
+│  └────────────────────────────────────────────────────────────┘         │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│                                                                     │
+│                                                         [Back] │
+│                                                                     │
+│  ┌────────────────────────────────────────────────────────────┐         │
+│  │                                                      │         │
+│  │  NETWORK SETTINGS                                   │         │
+│  │                                                      │         │
+│  │  Listen address:                                     │         │
+│  │   [0.0.0.0  : 45721]                              │         │
+│  │                                                      │         │
+│  │  Mesh discovery:                                     │         │
+│  │   ☑ Enable mDNS/Bonjour discovery                   │         │
+│  │   Service type: [_luminaguard._tcp]                   │         │
+│  │                                                      │         │
+│  │  Port configuration:                                  │         │
+│  │   Discovery port: [45678]                            │         │
+│  │   Data port:      [45679]                            │         │
+│  │                                                      │         │
+│  │  Connection limits:                                   │         │
+│  │   Max peers:     [10]                                │         │
+│  │   Max message size: [16 MB]                           │         │
+│  │                                                      │         │
+│  │  Bandwidth throttling:                                │         │
+│  │   Max upload:   [10 MB/s ▼]                       │         │
+│  │   Max download: [10 MB/s ▼]                           │         │
+│  │                                                      │         │
+│  │  Proxy settings:                                     │         │
+│  │   [Configure Proxy...]                                  │         │
+│  │                                                      │         │
+│  │                                    [Apply]  [Reset to Defaults] │         │
+│  │                                                      │         │
+│  └────────────────────────────────────────────────────────────┘         │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│                                                                     │
+│                                                         [Back] │
+│                                                                     │
+│  ┌────────────────────────────────────────────────────────────┐         │
+│  │                                                      │         │
+│  │  ABOUT LUMINAGUARD                                │         │
+│  │                                                      │         │
+│  │  LuminaGuard v0.1.0                                 │         │
+│  │  Local-first Agentic AI Runtime                        │         │
+│  │                                                      │         │
+│  │  Build: 2024-02-21-0820                               │         │
+│  │  Git commit: 954f016                                    │         │
+│  │                                                      │         │
+│  │  Components:                                          │         │
+│  │   • Orchestrator (Rust 1.82)                         │         │
+│  │   • Agent Loop (Python 3.12)                          │         │
+│  │   • Micro-VMs (Firecracker)                           │         │
+│  │   • Approval Cliff (TUI/GUI)                         │         │
+│  │   • Mesh Networking (Noise Protocol)                    │         │
+│  │   • MCP Client (stdlib + stdio)                        │         │
+│  │                                                      │         │
+│  │  Licenses:                                            │         │
+│  │   • MIT (Core)                                       │         │
+│  │   • Apache 2.0 (Slint UI framework)               │         │
+│  │                                                      │         │
+│  │  [View License]  [Report Issue]  [Check for Updates]   │         │
+│  │                                                      │         │
+│  │  ┌────────────────────────────────────────────┐     │         │
+│  │   │                                              │     │         │
+│  │   │      Local-first Agentic AI Runtime   │     │         │
+│  │   │      Secure. Fast. Audit-ready.     │     │         │
+│  │   │                                      │     │         │
+│  │   │          © 2024 LuminaGuard          │     │         │
+│  │   │          https://luminaguard.dev  │     │         │
+│  │   │                                      │     │         │
+│  │   └────────────────────────────────────────────┘     │         │
+│  │                                                      │         │
+│  │                                    [OK]                       │         │
+│  │                                                      │         │
+│  └────────────────────────────────────────────────────────────┘         │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+
+Settings Icons:
+  ☑ = Checkbox, checked
+  ☐ = Checkbox, unchecked
+  ◉ = Radio button, selected
+  ○ = Radio button, unselected
+  ▼ = Dropdown selector
+  [ ] = Text input field
+  ✓ = Boolean toggle, on
+
+Color Coding:
+  Green = Safe/Enabled
+  Red = Danger/Disabled
+  Gray = Optional setting
+  Blue = Link or action
+
+Trusted Peer Status:
+  ● Green dot = Verified and trusted
+  ○ Yellow dot = Pending verification
+  ✗ Red dot = Revoked trust

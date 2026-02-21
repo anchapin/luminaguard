@@ -254,7 +254,7 @@ class McpClient:
 
         # Parse JSON-RPC 2.0 response
         try:
-            response = json.loads(response_line)
+            response: Dict[str, Any] = json.loads(response_line)
         except json.JSONDecodeError as e:
             raise McpError(f"Invalid JSON response: {e}") from e
 
@@ -409,7 +409,10 @@ class McpClient:
         if "result" not in response:
             raise McpError(f"tools/call failed: {response}")
 
-        return response["result"]
+        result = response["result"]
+        if not isinstance(result, dict):
+            raise McpError(f"tools/call returned non-dict result: {type(result)}")
+        return result
 
     def shutdown(self) -> None:
         """
@@ -451,7 +454,6 @@ class McpClient:
         exc_type: Optional[type],
         exc_val: Optional[BaseException],
         exc_tb: Optional[Any],
-    ) -> bool:
+    ) -> None:
         """Context manager exit"""
         self.shutdown()
-        return False

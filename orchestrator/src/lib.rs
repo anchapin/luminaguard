@@ -7,6 +7,7 @@ pub mod agent_rpc;
 pub mod approval;
 pub mod mcp;
 pub mod mcp_command;
+pub mod mesh;
 pub mod metrics;
 pub mod metrics_server;
 pub mod rate_limit;
