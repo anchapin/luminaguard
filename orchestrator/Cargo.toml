@@ -43,7 +43,7 @@ tower = "0.5"
 tower-http = { version = "0.6", features = ["trace"] }
 
 # Random number generation (for retry jitter)
-rand = "0.9.2"
+rand = "0.10.0"
 fastrand = "2.0"
 
 # Firecracker HTTP client
