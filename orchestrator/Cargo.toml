@@ -13,7 +13,7 @@ readme = "../README.md"
 tokio = { version = "1.40", features = ["full"] }
 
 # CLI argument parsing
-clap = { version = "4.4", features = ["derive"] }
+clap = { version = "4.5", features = ["derive"] }
 
 # Logging
 tracing = "0.1"
