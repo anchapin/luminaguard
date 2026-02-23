@@ -34,7 +34,7 @@ async-trait = "0.1"
 reqwest = { version = "0.13", features = ["json"] }
 
 # Prometheus metrics
-prometheus = "0.13"
+prometheus = "0.14"
 lazy_static = "1.4"
 
 # HTTP server for metrics endpoint
