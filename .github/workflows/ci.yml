@@ -118,7 +118,7 @@ jobs:
           .venv/bin/pip install -e ".[dev]"
 
       - name: Download orchestrator binary
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: orchestrator-bin
           path: orchestrator/target/release/
