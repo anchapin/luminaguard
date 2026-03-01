@@ -290,7 +290,7 @@ jobs:
       - name: Run TruffleHog
         id: trufflehog
         if: steps.check-diff.outputs.same == 'false'
-        uses: trufflesecurity/trufflehog@4158734f234bd8770128deae2e2975cfab4b66a6
+        uses: trufflesecurity/trufflehog@041f07e9df901a1038a528e5525b0226d04dd5ea
         with:
           path: ./
           base: ${{ steps.get-base.outputs.base }}
