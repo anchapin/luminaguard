@@ -10,7 +10,7 @@ readme = "../README.md"
 
 [dependencies]
 # Async runtime
-tokio = { version = "1.40", features = ["full"] }
+tokio = { version = "1.50", features = ["full"] }
 
 # CLI argument parsing
 clap = { version = "4.4", features = ["derive"] }
