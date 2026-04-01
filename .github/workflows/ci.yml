@@ -52,7 +52,7 @@ jobs:
 
       - name: Check for secrets
         if: steps.check-diff.outputs.same == 'false'
-        uses: trufflesecurity/trufflehog@4158734f234bd8770128deae2e2975cfab4b66a6
+        uses: trufflesecurity/trufflehog@586f66d7886cd0b037c7c245d4a6e34ef357ab10
         with:
           path: ./
           base: ${{ steps.get-base.outputs.base }}
