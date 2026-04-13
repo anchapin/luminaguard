@@ -18,7 +18,7 @@ classifiers = [
 
 dependencies = [
     "aiohttp>=3.9",
-    "cryptography>=42.0",
+    "cryptography>=46.0.7",
     "croniter>=2.0",
     "python-dotenv>=1.0",
 ]
